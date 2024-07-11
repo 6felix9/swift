@@ -7,9 +7,9 @@ import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
-	title: "Swift",
+	title: "KeyReply Voice AI Demo",
 	description:
-		"A fast voice assistant powered by KeyReply",
+		"Next Generation Voice AI prototype powered by KeyReply",
 };
 
 export default function RootLayout({
