@@ -3,7 +3,7 @@ import { z } from "zod";
 import { zfd } from "zod-form-data";
 import { unstable_after as after } from "next/server";
 import voices from "@/lib/embedding";
-import { prompt } from "@/lib/prompt";
+import { prompt, RAG } from "@/lib/prompt";
 
 const groq = new Groq();
 
@@ -20,20 +20,21 @@ const schema = zfd.formData({
 });
 
 export async function POST(request: Request) {
-	console.time("transcribe " + request.headers.get("x-vercel-id") || "local");
+	console.time("transcribe " + (request.headers.get("x-vercel-id") || "local"));
 
 	const { data, success } = schema.safeParse(await request.formData());
 	if (!success) return new Response("Invalid request", { status: 400 });
 
 	const transcript = await getTranscript(data.input);
 	if (!transcript) return new Response("Invalid audio", { status: 400 });
-	console.log(transcript);
+	console.log('\x1b[32m%s\x1b[0m', transcript); // Sets the color to green
+
 
 	console.timeEnd(
-		"transcribe " + request.headers.get("x-vercel-id") || "local"
+		"transcribe " + (request.headers.get("x-vercel-id") || "local")
 	);
 	console.time(
-		"text completion " + request.headers.get("x-vercel-id") || "local"
+		"text completion " + (request.headers.get("x-vercel-id") || "local")
 	);
 
 	const completion = await groq.chat.completions.create({
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
 		messages: [
 			{
 				role: "system",
-				content: prompt,
+				content: RAG(transcript),
 			},
 			...data.message,
 			{
@@ -51,7 +52,14 @@ export async function POST(request: Request) {
 		],
 	});
 
-	const response = completion.choices[0].message.content;
+	let response = (transcript == "START" ? 'Thank you for calling NHG Cares. My name is Lisa, How may I help you today?' : completion.choices[0].message.content)!;
+
+	console.log('\x1b[32m%s\x1b[0m', response);
+	// "send you a link"
+	if (response?.match(/send.+link/)) {
+		fetch("https://omni.keyreply.com/api/v1/whatsapp/sendLink");
+	}
+
 	console.timeEnd(
 		"text completion " + (request.headers.get("x-vercel-id") || "local")
 	);
@@ -59,6 +67,11 @@ export async function POST(request: Request) {
 	console.time(
 		"cartesia request " + (request.headers.get("x-vercel-id") || "local")
 	);
+
+	const useMultilingual = response?.match(/[\u3400-\u9FBF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]/);
+
+	// remove * from response
+	response = response.replace(/\*/g, '');
 
 	const voice = await fetch("https://api.cartesia.ai/tts/bytes", {
 		method: "POST",
@@ -68,11 +81,11 @@ export async function POST(request: Request) {
 			"X-API-Key": process.env.CARTESIA_API_KEY!,
 		},
 		body: JSON.stringify({
-			model_id: "sonic-english", //"sonic-multilingual"
+			model_id: useMultilingual ? "sonic-multilingual" : "sonic-english",
 			transcript: response,
 			voice: {
 				mode: "embedding",
-				embedding: voices.lisa,
+				embedding: voices.singapore,
 			},
 			output_format: {
 				container: "raw",
