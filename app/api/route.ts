@@ -3,7 +3,7 @@ import { z } from "zod";
 import { zfd } from "zod-form-data";
 import { unstable_after as after } from "next/server";
 import voices from "@/lib/embedding";
-import { prompt, RAG } from "@/lib/prompt";
+import { RAG } from "@/lib/prompt";
 
 const groq = new Groq();
 
