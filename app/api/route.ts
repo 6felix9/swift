@@ -52,11 +52,11 @@ export async function POST(request: Request) {
 		],
 	});
 
-	let response = (transcript == "START" ? 'Thank you for calling NHG Cares. My name is Lisa, How may I help you today?' : completion.choices[0].message.content)!;
+	let response = (transcript == "Hello" ? 'Hi, my name is Lisa, I can answer your questions regarding Healthier SG. What would you like to know about the program?' : completion.choices[0].message.content)!;
 
 	console.log('\x1b[32m%s\x1b[0m', response);
 	// "send you a link"
-	if (response?.match(/send.+link/)) {
+	if (response?.match(/WhatsApp/)) {
 		fetch("https://omni.keyreply.com/api/v1/whatsapp/sendLink");
 	}
 
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 	const voice = await fetch("https://api.cartesia.ai/tts/bytes", {
 		method: "POST",
 		headers: {
-			"Cartesia-Version": "2024-06-30",
+			"Cartesia-Version": "2024-06-10",
 			"Content-Type": "application/json",
 			"X-API-Key": process.env.CARTESIA_API_KEY!,
 		},
@@ -86,6 +86,12 @@ export async function POST(request: Request) {
 			voice: {
 				mode: "embedding",
 				embedding: voices.singapore,
+				"__experimental_controls": {
+					"speed": "normal",
+					"emotion": [
+						"positivity"
+					]
+				}
 			},
 			output_format: {
 				container: "raw",
