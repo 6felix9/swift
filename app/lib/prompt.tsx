@@ -75,9 +75,7 @@ export const RAG = (query: string) => {
 return `${instructions}
 
 ## Relevant FAQs
-${knowledge}
-
 ${searchResults}
 
-${example}`
+${knowledge}`
 }
