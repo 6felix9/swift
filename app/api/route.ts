@@ -131,7 +131,7 @@ async function getTranscript(input: string | File) {
 	try {
 		const { text } = await groq.audio.transcriptions.create({
 			file: input,
-			prompt: "Singapore Healthcare question and answers, use British spelling"
+			prompt: "Singapore Healthcare question and answers, use British spelling",
 			model: "distil-whisper-large-v3-en",
 			language: "en",
 		});
