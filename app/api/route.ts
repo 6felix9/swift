@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 	);
 
 	const completion = await groq.chat.completions.create({
-		model: "gemma2-9b-it",
+		model: "llama-3.1-70b-versatile",
 		messages: [
 			{
 				role: "system",
@@ -131,7 +131,8 @@ async function getTranscript(input: string | File) {
 	try {
 		const { text } = await groq.audio.transcriptions.create({
 			file: input,
-			model: "whisper-large-v3",
+			prompt: "Singapore Healthcare question and answers, use British spelling"
+			model: "distil-whisper-large-v3-en",
 			language: "en",
 		});
 
