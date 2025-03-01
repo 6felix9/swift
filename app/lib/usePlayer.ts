@@ -4,9 +4,44 @@ export function usePlayer() {
 	const [isPlaying, setIsPlaying] = useState(false);
 	const audioContext = useRef<AudioContext | null>(null);
 	const source = useRef<AudioBufferSourceNode | null>(null);
+	const audioElement = useRef<HTMLAudioElement | null>(null);
 
-	async function play(stream: ReadableStream, callback: () => void) {
+	async function play(stream: ReadableStream, callback: () => void, contentType?: string) {
 		stop();
+		
+		// If the content type is MP3 (from ElevenLabs), use the Audio element
+		if (contentType === 'audio/mpeg') {
+			try {
+				// Create a MediaSource from the stream
+				const response = new Response(stream);
+				const blob = await response.blob();
+				const url = URL.createObjectURL(blob);
+				
+				// Create an audio element
+				audioElement.current = new Audio(url);
+				audioElement.current.onended = () => {
+					stop();
+					callback();
+				};
+				
+				audioElement.current.onerror = (error) => {
+					console.error('Audio playback error:', error);
+					stop();
+					callback();
+				};
+				
+				// Play the audio
+				setIsPlaying(true);
+				audioElement.current.play();
+				
+				return;
+			} catch (error) {
+				console.error('Error playing MP3 stream:', error);
+				// Fall back to PCM processing if MP3 fails
+			}
+		}
+		
+		// Default PCM processing for Cartesia
 		audioContext.current = new AudioContext({ sampleRate: 24000 });
 
 		let nextStartTime = audioContext.current.currentTime;
@@ -51,8 +86,17 @@ export function usePlayer() {
 	}
 
 	function stop() {
-		audioContext.current?.close();
-		audioContext.current = null;
+		if (audioContext.current) {
+			audioContext.current.close();
+			audioContext.current = null;
+		}
+		
+		if (audioElement.current) {
+			audioElement.current.pause();
+			audioElement.current.src = '';
+			audioElement.current = null;
+		}
+		
 		setIsPlaying(false);
 	}
 

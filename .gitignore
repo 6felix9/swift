@@ -36,6 +36,8 @@ yarn-error.log*
 next-env.d.ts
 
 # files copied from npm modules
-public/
+public/*
+!public/manifest.json
+!public/favicon.ico
 
 .env
