@@ -13,13 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // import { AIVoiceInput } from "@/components/ui/ai-voice-input";
 
 const brandColors = {
-  primary: '#002B49',
-  secondary: '#FFB800',
+  primary: '#1D3B86',
+  secondary: '#00A9E7',
   white: '#FFFFFF',
   gray: '#F5F5F5',
   text: '#333333',
   lightBlue: '#E5F0FF',
-  lightYellow: '#FFF3D6'
+  lightYellow: '#E6F7FF'
 };
 
 type Message = {
@@ -211,11 +211,11 @@ export default function Home() {
 				className="mb-8 text-center"
 			>
 				<div className="flex flex-col items-center gap-2">
-					<h1 className="text-4xl font-semibold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#FFB800] via-[#FFC933] to-[#FFB800]">
-						CelcomDigi <span className="font-light">Assistant</span>
+					<h1 className="text-4xl font-semibold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D3B86] via-[#00A9E7] to-[#1D3B86]">
+						XL Axiata <span className="font-light">Assistant</span>
 					</h1>
 					<p className="text-sm font-medium tracking-wider uppercase text-white letter-spacing-2">
-						Innovation · Intelligence · Integration
+						Pioneer in Digital Telecommunications
 					</p>
 				</div>
 			</motion.div>
@@ -233,8 +233,8 @@ export default function Home() {
 							className={clsx(
 								"backdrop-blur-md shadow-lg transition-all duration-300 hover:shadow-xl",
 								message.role === "assistant" 
-									? "bg-[#002B49]/60 border border-[#002B49]/60 hover:bg-[#002B49]/70" 
-									: "bg-[#FFB800]/40 border border-[#FFB800]/40 hover:bg-[#FFB800]/50"
+									? "bg-[#1D3B86]/60 border border-[#1D3B86]/60 hover:bg-[#1D3B86]/70" 
+									: "bg-[#00A9E7]/40 border border-[#00A9E7]/40 hover:bg-[#00A9E7]/50"
 							)}>
 								<CardHeader className="pb-2">
 									<CardTitle className="text-sm font-medium">
@@ -271,7 +271,7 @@ export default function Home() {
 				>
 					<Input
 						type="text"
-						placeholder="Ask me about CelcomDigi services..."
+						placeholder="Ask me about XL Axiata services..."
 						value={input}
 						onChange={(e) => setInput(e.target.value)}
 						ref={inputRef}
@@ -281,7 +281,7 @@ export default function Home() {
 					<Button
 						type="submit"
 						disabled={isPending || !input.trim()}
-						className="bg-[#FFB800] hover:bg-[#FFA200] text-[#002B49] transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:hover:bg-[#FFB800]"
+						className="bg-[#00A9E7] hover:bg-[#0098D1] text-white transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:hover:bg-[#FFB800]"
 					>
 						{isPending ? (
 							<LoadingIcon/>
@@ -329,7 +329,7 @@ export default function Home() {
 			</div>
 
 			<motion.div
-				className="fixed w-48 h-48 blur-3xl rounded-full bg-gradient-to-b from-[#002B49] to-[#FFB800] opacity-20 -z-10"
+				className="fixed w-48 h-48 blur-3xl rounded-full bg-gradient-to-b from-[#1D3B86] to-[#00A9E7] opacity-20 -z-10"
 				initial={{ opacity: 0 }}
 				animate={{ 
 					opacity: vad.loading || vad.errored ? 0 : vad.userSpeaking ? 0.4 : 0.2,

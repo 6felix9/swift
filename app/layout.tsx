@@ -7,8 +7,8 @@ import { AuroraBackground } from "@/components/ui/aurora-background";
 
 
 export const metadata: Metadata = {
-  title: "CelcomDigi Virtual Assistant",
-  description: "Your trusted partner in innovation and digitalisation",
+  title: "XL Axiata Virtual Assistant",
+  description: "Pioneer in Digital Telecommunications Services in Indonesia",
   icons: {
     icon: "/favicon.ico"
   },
@@ -40,7 +40,7 @@ export default function RootLayout({
         className={clsx(
           GeistSans.variable,
           "min-h-screen font-sans antialiased",
-          "selection:bg-[#FFB800] selection:text-[#002B49]"
+          "selection:bg-[#00A9E7] selection:text-white"
         )}
       >
         
