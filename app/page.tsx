@@ -45,6 +45,55 @@ export default function Home() {
 	const [messages, setMessages] = useState<Message[]>([]);
 	const [isPending, setIsPending] = useState(false);
 
+
+	// Define vad first before using it in submit
+	const vad = useMicVAD({
+		model:"v5",
+		startOnLoad: true,
+		onSpeechStart: () => {
+			if (!manualListening) {
+				setIsListening(true);
+			}
+		},
+		onSpeechEnd: async (audio) => {
+			player.stop();
+			const wav = utils.encodeWAV(audio);
+			// Create a File object instead of Blob to ensure proper handling
+			const audioFile = new File([wav], 'voice-message.wav', { type: 'audio/wav' });
+			console.log('Sending audio file:', {
+				type: audioFile.type,
+				size: audioFile.size,
+				name: audioFile.name
+			});
+			handleSubmit(audioFile);
+			if (!manualListening) {
+				setIsListening(false);
+			}
+			const isFirefox = navigator.userAgent.includes("Firefox");
+			if (isFirefox) vad.pause();
+		},
+		workletURL: "/vad.worklet.bundle.min.js",
+		modelURL: "/silero_vad_v5.onnx",
+		positiveSpeechThreshold: 0.6,
+		minSpeechFrames: 4,
+		ortConfig(ort) {
+			const isSafari = /^((?!chrome|android).)*safari/i.test(
+				navigator.userAgent
+			);
+
+			ort.env.wasm = {
+				wasmPaths: {
+					"ort-wasm-simd-threaded.wasm":
+						"/ort-wasm-simd-threaded.wasm",
+					"ort-wasm-simd.wasm": "/ort-wasm-simd.wasm",
+					"ort-wasm.wasm": "/ort-wasm.wasm",
+					"ort-wasm-threaded.wasm": "/ort-wasm-threaded.wasm",
+				},
+				numThreads: isSafari ? 1 : 4,
+			};
+		},
+	});
+
 	const handleSubmit = useCallback(async (data: string | Blob) => {
 		if (isPending) return; // Prevent multiple submissions
 
@@ -143,54 +192,6 @@ export default function Home() {
 			setIsPending(false);
 		}
 	}, [isPending, messages, player]);
-
-	// Define vad first before using it in submit
-	const vad = useMicVAD({
-		model:"v5",
-		startOnLoad: true,
-		onSpeechStart: () => {
-			if (!manualListening) {
-				setIsListening(true);
-			}
-		},
-		onSpeechEnd: async (audio) => {
-			player.stop();
-			const wav = utils.encodeWAV(audio);
-			// Create a File object instead of Blob to ensure proper handling
-			const audioFile = new File([wav], 'voice-message.wav', { type: 'audio/wav' });
-			console.log('Sending audio file:', {
-				type: audioFile.type,
-				size: audioFile.size,
-				name: audioFile.name
-			});
-			handleSubmit(audioFile);
-			if (!manualListening) {
-				setIsListening(false);
-			}
-			const isFirefox = navigator.userAgent.includes("Firefox");
-			if (isFirefox) vad.pause();
-		},
-		workletURL: "/vad.worklet.bundle.min.js",
-		modelURL: "/silero_vad_v5.onnx",
-		positiveSpeechThreshold: 0.6,
-		minSpeechFrames: 4,
-		ortConfig(ort) {
-			const isSafari = /^((?!chrome|android).)*safari/i.test(
-				navigator.userAgent
-			);
-
-			ort.env.wasm = {
-				wasmPaths: {
-					"ort-wasm-simd-threaded.wasm":
-						"/ort-wasm-simd-threaded.wasm",
-					"ort-wasm-simd.wasm": "/ort-wasm-simd.wasm",
-					"ort-wasm.wasm": "/ort-wasm.wasm",
-					"ort-wasm-threaded.wasm": "/ort-wasm-threaded.wasm",
-				},
-				numThreads: isSafari ? 1 : 4,
-			};
-		},
-	});
 
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

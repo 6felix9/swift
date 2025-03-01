@@ -1,7 +1,7 @@
 import Groq from "groq-sdk";
 import { z } from "zod";
 import { zfd } from "zod-form-data";
-import { unstable_after as after } from "next/server";
+import { after } from "next/server";
 import voices from "@/lib/embedding";
 import { PROMPTS } from "@/lib/prompt";
 import { generateSpeech } from "@/lib/elevenlabs";
