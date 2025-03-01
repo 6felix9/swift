@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
 	let response =
 		(transcript == "Hello"
-			? "Hello, this is CelcomDigi's Customer Service. I'm Christine, How may I assist you today?"
+			? "Hello, this is XL Axiata's Customer Service. I'm Kira, How may I assist you today?"
 			: null)!;
 
 	if (!response) {
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 			messages: [
 				{
 					role: "system",
-					content: PROMPTS.CELCOMDIGI,
+					content: PROMPTS.XL,
 				},
 				...JSON.parse(data.message),
 				{
@@ -74,11 +74,6 @@ export async function POST(request: Request) {
 		const elevenLabsLabel = `elevenlabs-${requestId}`;
 		console.log(
 			`[${requestId}] Calling ElevenLabs with text length: ${response.length}`,
-		);
-		console.log(
-			`[${requestId}] Using default voice: ${
-				process.env.ELEVENLABS_DEFAULT_VOICE || "Adam"
-			}`,
 		);
 		console.log(
 			`[${requestId}] API Key present: ${!!process.env

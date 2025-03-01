@@ -7,13 +7,14 @@ export const elevenlabs = new ElevenLabsClient({
 });
 
 // Default voice to use if not specified
-const DEFAULT_VOICE = 'Afifah';
+const DEFAULT_VOICE = 'Indonesian'; //'Afifah';
 // Default model to use
 const DEFAULT_MODEL = 'eleven_flash_v2_5';
 
 // Voice ID mapping - Add more as needed
 const VOICE_IDS: Record<string, string> = {
-  'Afifah': 'UcqZLa941Kkt8ZhEEybf',
+  'Malaysia': 'UcqZLa941Kkt8ZhEEybf',
+  'Indonesian': 'iWydkXKoiVtvdn4vLKp9'
 };
 
 /**
