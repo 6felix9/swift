@@ -72,8 +72,8 @@ export default function Home() {
 			const isFirefox = navigator.userAgent.includes("Firefox");
 			if (isFirefox) vad.pause();
 		},
-		workletURL: "/vad.worklet.bundle.min.js",
-		modelURL: "/silero_vad_v5.onnx",
+		// workletURL: "/vad.worklet.bundle.min.js",
+		// modelURL: "/silero_vad_v5.onnx",
 		positiveSpeechThreshold: 0.6,
 		minSpeechFrames: 4,
 		ortConfig(ort) {
@@ -96,17 +96,6 @@ export default function Home() {
 
 	const handleSubmit = useCallback(async (data: string | Blob) => {
 		if (isPending) return; // Prevent multiple submissions
-
-		// Validate input type
-		if (!(typeof data === 'string' || data instanceof Blob)) {
-			console.error('Invalid input type:', {
-				type: typeof data,
-				constructorName: data?.constructor?.name,
-				isBlob: data instanceof Blob
-			});
-			toast.error('We couldn\'t process this type of input. Please try text or voice.');
-			return;
-		}
 
 		// For Blob inputs, ensure it's an audio file
 		if (data instanceof Blob && !data.type.startsWith('audio/')) {
@@ -163,7 +152,7 @@ export default function Home() {
 
 				// Play audio and handle browser-specific behavior
 				try {
-					player.play(audioBlob, () => {
+					player.play(audioBlob as any, () => {
 						const isFirefox = navigator.userAgent.includes("Firefox");
 						if (isFirefox && vad) vad.start();
 					}, contentType || undefined);
@@ -295,9 +284,9 @@ export default function Home() {
 						className="bg-[#FFB800] hover:bg-[#FFA200] text-[#002B49] transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:hover:bg-[#FFB800]"
 					>
 						{isPending ? (
-							<LoadingIcon className="w-6 h-6 animate-spin" />
+							<LoadingIcon/>
 						) : (
-							<EnterIcon className="w-6 h-6" />
+							<EnterIcon/>
 						)}
 					</Button>
 				</form>
@@ -313,7 +302,7 @@ export default function Home() {
 									exit={{ opacity: 0 }}
 									className="flex items-center justify-center gap-2"
 								>
-									<LoadingIcon className="w-4 h-4" />
+									<LoadingIcon/>
 									Loading speech detection...
 								</motion.p>
 							) : vad.errored ? (

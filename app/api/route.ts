@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 			],
 		});
 
-		response = completion.choices[0].message.content;
+		response = completion.choices[0].message.content ?? "";
 	}
 
 	console.log("\x1b[32m%s\x1b[0m", response);
@@ -172,7 +172,7 @@ export async function POST(request: Request) {
 	}
 }
 
-async function getTranscript(input: string | Groq.Uploadable) {
+async function getTranscript(input: string | File) {
 	console.log("Received input:", input);
 
 	// Validate input type
@@ -180,20 +180,6 @@ async function getTranscript(input: string | Groq.Uploadable) {
 		console.log("Processing string input");
 		return input;
 	}
-
-	// Log input details for debugging
-	console.log("Input type", {
-		type: typeof input,
-		constructorName: input?.constructor?.name,
-		isFile: input instanceof File,
-		isBlob: input instanceof Blob,
-		properties: Object.keys(input || {}),
-		fileType: input instanceof File
-			? input.type
-			: input instanceof Blob
-			? input.type
-			: "unknown",
-	});
 
 	try {
 		// Check if input is File or Blob and has a valid audio type
@@ -209,9 +195,7 @@ async function getTranscript(input: string | Groq.Uploadable) {
 			"audio/wav",
 			"audio/webm",
 		];
-		const fileType = input instanceof File || input instanceof Blob
-			? input.type
-			: "";
+		const fileType = input.type;
 
 		if (!validAudioTypes.includes(fileType)) {
 			console.error(
@@ -224,10 +208,6 @@ async function getTranscript(input: string | Groq.Uploadable) {
 
 		// Create a new File with proper MIME type if needed
 		let file = input;
-		if (input instanceof Blob && !(input instanceof File)) {
-			file = new File([input], "audio.wav", { type: input.type });
-		}
-
 		const { text } = await groq.audio.transcriptions.create({
 			file,
 			prompt: "Can be in either English, Chinese, or Malay",
