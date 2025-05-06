@@ -16,7 +16,7 @@ const VOICE_IDS: Record<string, string> = {
   'English': '7QwDAfHpHjPD14XYTSiq', //'Auntie';
   'Malay': 'UcqZLa941Kkt8ZhEEybf',
   'Chinese': 'FjfxJryh105iTLL4ktHB', // Liang
-  'Tamil': 'gCr8TeSJgJaeaIoV4RWH', //Meera
+  'Tamil': 'EaBs7G1VibMrNAuz2Na7', // Temporary 'gCr8TeSJgJaeaIoV4RWH', //Meera
   'Indonesian': 'iWydkXKoiVtvdn4vLKp9', //'Afifah';
   'Unknown': 'iWydkXKoiVtvdn4vLKp9', 
   'Multiple': 'iWydkXKoiVtvdn4vLKp9',
@@ -89,63 +89,6 @@ function detectLanguage(text: string): DetectedLanguage {
   return DetectedLanguage.Unknown; // If none of the specific scripts are found
 }
 
-// --- Example Usage ---
-
-// Helper function to print results
-function testDetection(sampleText: string): void {
-  const language = detectLanguage(sampleText);
-  console.log(`Text: "${sampleText}" \nDetected Language: ${language}\n`);
-}
-
-console.log("--- Language Detection Examples ---");
-
-// English examples
-testDetection("Hello, world!");
-testDetection("This is an English sentence.");
-testDetection("12345"); // Contains no specific script characters (might be English context)
-
-// Chinese examples
-testDetection("你好，世界！"); // Hello, world! in Chinese
-testDetection("这是一个中文句子。"); // This is a Chinese sentence.
-testDetection("你好吗John?"); // Mixed Chinese and English
-
-// Tamil examples
-testDetection("வணக்கம், உலகம்!"); // Hello, world! in Tamil
-testDetection("இது ஒரு தமிழ் வாக்கியம்."); // This is a Tamil sentence.
-testDetection("நன்றி David!"); // Mixed Tamil and English
-
-// Mixed examples
-testDetection("Hello, 你好, வணக்கம்!"); // English, Chinese, Tamil
-testDetection("你好 David, how are you?"); // Chinese and English
-testDetection("தமிழ் text with some English words."); // Tamil and English
-
-// Edge cases
-testDetection(""); // Empty string
-testDetection("     "); // Whitespace only
-testDetection("日本語"); // Japanese (will be detected as Chinese due to shared Han characters)
-testDetection("한국어"); // Korean (Hangul, will be Unknown or English if Latin chars are present)
-testDetection("αβγ"); // Greek (will be Unknown)
-
-// --- How to use in your project ---
-// 1. Save this code as `languageDetector.ts`
-// 2. Compile it to JavaScript: `tsc languageDetector.ts`
-// 3. Run the JavaScript file: `node languageDetector.js`
-//    (or import the `detectLanguage` function into your TypeScript project)
-
-/*
-Further considerations for more robust detection:
-1.  Character Frequency: Instead of just checking for presence, count the occurrences of characters from each script.
-    The language with the highest character count (above a certain threshold) could be considered the primary language.
-2.  N-grams: Analyze sequences of characters (n-grams) which are common in specific languages.
-3.  Libraries: For more advanced and accurate language detection, consider using dedicated libraries
-    like `franc` (JavaScript) or other NLP (Natural Language Processing) tools.
-4.  Context: Sometimes, the surrounding context or metadata (e.g., user's locale) can provide hints.
-5.  Expanded Unicode Blocks: Chinese, for example, has multiple Unicode blocks for rare characters, symbols, etc.
-    The current `\u4E00-\u9FFF` range covers common CJK Unified Ideographs but isn't exhaustive for all Chinese text.
-    Similarly for other languages if they use extended character sets.
-*/
-
-
 /**
  * Generate speech from text using ElevenLabs
  * @param text The text to convert to speech
@@ -196,7 +139,6 @@ export async function generateSpeech(
     return readableStream;
   } catch (error) {
     console.error('ElevenLabs TTS error:', error);
-    console.error('Error message:', error.message);
     console.error('Error details:', JSON.stringify(error, null, 2));
     throw error;
   }

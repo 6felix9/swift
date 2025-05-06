@@ -214,9 +214,6 @@ export default function Home() {
 					<h1 className="text-4xl font-semibold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D3B86] via-[#00A9E7] to-[#1D3B86]">
 						NHG HealthLine <span className="font-light">Assistant</span>
 					</h1>
-					<p className="text-sm font-medium tracking-wider uppercase text-white letter-spacing-2">
-						Your trusted partner in Singapore's healthcare system
-					</p>
 				</div>
 			</motion.div>
 
