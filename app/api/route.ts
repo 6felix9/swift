@@ -36,16 +36,17 @@ export async function POST(request: Request) {
 
 	let response =
 		(transcript == "Hello"
-			? "Hello, this is XL Axiata's Customer Service. I'm Kira, How may I assist you today?"
+			? "Hi there! Thank you for calling the NHG HealthLine. How can I assist you today?"
 			: null)!;
 
 	if (!response) {
-		const completion = await groq.chat.completions.create({
-			model: "llama-3.3-70b-versatile", // "mistral-saba-24b",
+		// Classify
+		const classification = await groq.chat.completions.create({
+			model: "meta-llama/llama-4-scout-17b-16e-instruct", // "mistral-saba-24b",
 			messages: [
 				{
 					role: "system",
-					content: PROMPTS.XL,
+					content: PROMPTS.Classify,
 				},
 				...JSON.parse(data.message),
 				{
@@ -55,7 +56,44 @@ export async function POST(request: Request) {
 			],
 		});
 
-		response = completion.choices[0].message.content ?? "";
+		const type = classification.choices[0].message.content;
+
+		console.log("Type: ", type);
+		if (type == "FAQ") {
+			const completion = await groq.chat.completions.create({
+				model: "meta-llama/llama-4-maverick-17b-128e-instruct", // "mistral-saba-24b",
+				messages: [
+					{
+						role: "system",
+						content: await PROMPTS.DynamicRAG(transcript),
+					},
+					...JSON.parse(data.message),
+					{
+						role: "user",
+						content: transcript,
+					},
+				],
+			});
+
+			response = completion.choices[0].message.content ?? "";
+		} else {
+			const completion = await groq.chat.completions.create({
+				model: "meta-llama/llama-4-maverick-17b-128e-instruct", // "mistral-saba-24b",
+				messages: [
+					{
+						role: "system",
+						content: PROMPTS.Appointment,
+					},
+					...JSON.parse(data.message),
+					{
+						role: "user",
+						content: transcript,
+					},
+				],
+			});
+
+			response = completion.choices[0].message.content ?? "";
+		}
 	}
 
 	console.log("\x1b[32m%s\x1b[0m", response);
@@ -205,7 +243,7 @@ async function getTranscript(input: string | File) {
 		let file = input;
 		const { text } = await groq.audio.transcriptions.create({
 			file,
-			prompt: "Can be in either English, Chinese, or Malay",
+			prompt: "Support English, Chinese, Malay or Tamil. When transcribing, focus on the words used and not the accent.",
 			model: "whisper-large-v3",
 		});
 

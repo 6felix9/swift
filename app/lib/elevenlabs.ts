@@ -7,15 +7,144 @@ export const elevenlabs = new ElevenLabsClient({
 });
 
 // Default voice to use if not specified
-const DEFAULT_VOICE = 'Indonesian'; //'Afifah';
+const DEFAULT_VOICE = 'English'; 
 // Default model to use
 const DEFAULT_MODEL = 'eleven_flash_v2_5';
 
 // Voice ID mapping - Add more as needed
 const VOICE_IDS: Record<string, string> = {
-  'Malaysia': 'UcqZLa941Kkt8ZhEEybf',
-  'Indonesian': 'iWydkXKoiVtvdn4vLKp9'
+  'English': '7QwDAfHpHjPD14XYTSiq', //'Auntie';
+  'Malay': 'UcqZLa941Kkt8ZhEEybf',
+  'Chinese': 'FjfxJryh105iTLL4ktHB', // Liang
+  'Tamil': 'gCr8TeSJgJaeaIoV4RWH', //Meera
+  'Indonesian': 'iWydkXKoiVtvdn4vLKp9', //'Afifah';
+  'Unknown': 'iWydkXKoiVtvdn4vLKp9', 
+  'Multiple': 'iWydkXKoiVtvdn4vLKp9',
 };
+
+// Define an enum for the languages we want to detect
+enum DetectedLanguage {
+  English = "English",
+  Chinese = "Chinese",
+  Tamil = "Tamil",
+  Unknown = "Unknown",
+  Multiple = "Multiple" // Added for cases where multiple scripts are detected
+}
+
+/**
+ * Detects the primary language of a given text string.
+ * It checks for English, Chinese, and Tamil characters.
+ *
+ * @param text The text string to analyze.
+ * @returns DetectedLanguage enum value.
+ */
+function detectLanguage(text: string): DetectedLanguage {
+  if (!text || text.trim() === "") {
+    return DetectedLanguage.Unknown; // Handle empty or whitespace-only strings
+  }
+
+  // Regular expressions for character ranges
+  // English: Basic Latin alphabet (A-Z, a-z)
+  const englishRegex = /[a-zA-Z]/;
+  // Chinese: Common CJK Unified Ideographs. This range covers most common Chinese characters.
+  // For a more comprehensive check, you might need to include other CJK ranges.
+  const chineseRegex = /[\u4E00-\u9FFF]/;
+  // Tamil: Tamil script characters
+  const tamilRegex = /[\u0B80-\u0BFF]/;
+
+  // Test for the presence of characters from each language
+  const hasEnglish = englishRegex.test(text);
+  const hasChinese = chineseRegex.test(text);
+  const hasTamil = tamilRegex.test(text);
+
+  let detectedCount = 0;
+  if (hasEnglish) detectedCount++;
+  if (hasChinese) detectedCount++;
+  if (hasTamil) detectedCount++;
+
+  // If multiple scripts are present, classify as 'Multiple'
+  // You might want to refine this logic based on character counts or percentages
+  // for more nuanced mixed-language detection.
+  if (detectedCount > 1) {
+    // Simple heuristic: if Chinese or Tamil is present, prioritize them over English in mixed contexts
+    // This is a common scenario (e.g., English words in Chinese/Tamil text).
+    // You can adjust this prioritization as needed.
+    if (hasTamil && hasChinese) return DetectedLanguage.Multiple; // Or a specific "Chinese+Tamil"
+    if (hasTamil) return DetectedLanguage.Tamil; // Prioritize if mixed with English
+    if (hasChinese) return DetectedLanguage.Chinese; // Prioritize if mixed with English
+    return DetectedLanguage.Multiple;
+  }
+
+  // Prioritize Tamil and Chinese detection due to their distinct scripts
+  if (hasTamil) {
+    return DetectedLanguage.Tamil;
+  }
+  if (hasChinese) {
+    return DetectedLanguage.Chinese;
+  }
+  if (hasEnglish) {
+    return DetectedLanguage.English;
+  }
+
+  return DetectedLanguage.Unknown; // If none of the specific scripts are found
+}
+
+// --- Example Usage ---
+
+// Helper function to print results
+function testDetection(sampleText: string): void {
+  const language = detectLanguage(sampleText);
+  console.log(`Text: "${sampleText}" \nDetected Language: ${language}\n`);
+}
+
+console.log("--- Language Detection Examples ---");
+
+// English examples
+testDetection("Hello, world!");
+testDetection("This is an English sentence.");
+testDetection("12345"); // Contains no specific script characters (might be English context)
+
+// Chinese examples
+testDetection("你好，世界！"); // Hello, world! in Chinese
+testDetection("这是一个中文句子。"); // This is a Chinese sentence.
+testDetection("你好吗John?"); // Mixed Chinese and English
+
+// Tamil examples
+testDetection("வணக்கம், உலகம்!"); // Hello, world! in Tamil
+testDetection("இது ஒரு தமிழ் வாக்கியம்."); // This is a Tamil sentence.
+testDetection("நன்றி David!"); // Mixed Tamil and English
+
+// Mixed examples
+testDetection("Hello, 你好, வணக்கம்!"); // English, Chinese, Tamil
+testDetection("你好 David, how are you?"); // Chinese and English
+testDetection("தமிழ் text with some English words."); // Tamil and English
+
+// Edge cases
+testDetection(""); // Empty string
+testDetection("     "); // Whitespace only
+testDetection("日本語"); // Japanese (will be detected as Chinese due to shared Han characters)
+testDetection("한국어"); // Korean (Hangul, will be Unknown or English if Latin chars are present)
+testDetection("αβγ"); // Greek (will be Unknown)
+
+// --- How to use in your project ---
+// 1. Save this code as `languageDetector.ts`
+// 2. Compile it to JavaScript: `tsc languageDetector.ts`
+// 3. Run the JavaScript file: `node languageDetector.js`
+//    (or import the `detectLanguage` function into your TypeScript project)
+
+/*
+Further considerations for more robust detection:
+1.  Character Frequency: Instead of just checking for presence, count the occurrences of characters from each script.
+    The language with the highest character count (above a certain threshold) could be considered the primary language.
+2.  N-grams: Analyze sequences of characters (n-grams) which are common in specific languages.
+3.  Libraries: For more advanced and accurate language detection, consider using dedicated libraries
+    like `franc` (JavaScript) or other NLP (Natural Language Processing) tools.
+4.  Context: Sometimes, the surrounding context or metadata (e.g., user's locale) can provide hints.
+5.  Expanded Unicode Blocks: Chinese, for example, has multiple Unicode blocks for rare characters, symbols, etc.
+    The current `\u4E00-\u9FFF` range covers common CJK Unified Ideographs but isn't exhaustive for all Chinese text.
+    Similarly for other languages if they use extended character sets.
+*/
+
 
 /**
  * Generate speech from text using ElevenLabs
@@ -26,9 +155,14 @@ const VOICE_IDS: Record<string, string> = {
  */
 export async function generateSpeech(
   text: string, 
-  voice: string = DEFAULT_VOICE, 
+  voice: string = DEFAULT_VOICE,
   streamOutput: boolean = true
 ): Promise<ReadableStream<Uint8Array>> {
+
+  const language = detectLanguage(text);
+
+  voice = VOICE_IDS[language];
+
   try {
     console.log(`Generating speech with ElevenLabs - Voice: ${voice}, Model: ${DEFAULT_MODEL}, Text length: ${text.length}`);
     console.log(`API Key present: ${!!process.env.ELEVENLABS_API_KEY}`);
@@ -62,10 +196,7 @@ export async function generateSpeech(
     return readableStream;
   } catch (error) {
     console.error('ElevenLabs TTS error:', error);
-    if (error instanceof Error) {
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
+    console.error('Error message:', error.message);
     console.error('Error details:', JSON.stringify(error, null, 2));
     throw error;
   }

@@ -212,10 +212,10 @@ export default function Home() {
 			>
 				<div className="flex flex-col items-center gap-2">
 					<h1 className="text-4xl font-semibold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D3B86] via-[#00A9E7] to-[#1D3B86]">
-						XL Axiata <span className="font-light">Assistant</span>
+						NHG HealthLine <span className="font-light">Assistant</span>
 					</h1>
 					<p className="text-sm font-medium tracking-wider uppercase text-white letter-spacing-2">
-						Pioneer in Digital Telecommunications
+						Your trusted partner in Singapore's healthcare system
 					</p>
 				</div>
 			</motion.div>
@@ -271,7 +271,7 @@ export default function Home() {
 				>
 					<Input
 						type="text"
-						placeholder="Ask me about XL Axiata services..."
+						placeholder="Ask me about NHG HealthLine services..."
 						value={input}
 						onChange={(e) => setInput(e.target.value)}
 						ref={inputRef}

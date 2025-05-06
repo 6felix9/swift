@@ -7,17 +7,17 @@ import { AuroraBackground } from "@/components/ui/aurora-background";
 
 
 export const metadata: Metadata = {
-  title: "XL Axiata Virtual Assistant",
-  description: "Pioneer in Digital Telecommunications Services in Indonesia",
+  title: "NHG HealthLine Virtual Assistant",
+  description: "Your trusted partner in Singapore's healthcare system",
   icons: {
     icon: "/favicon.ico"
   },
   manifest: "/manifest.json",
   openGraph: {
-    title: "CelcomDigi Virtual Assistant",
-    description: "Your trusted partner in innovation and digitalisation",
-    siteName: "CelcomDigi",
-    locale: "en_MY",
+    title: "NHG HealthLine Virtual Assistant",
+    description: "Your trusted partner in Singapore's healthcare system",
+    siteName: "NHG HealthLine",
+    locale: "en_SG",
     type: "website"
   }
 };
