@@ -3,20 +3,19 @@ import { GeistSans } from "geist/font/sans";
 import clsx from "clsx";
 import "./globals.css";
 import { Toaster } from "sonner";
-import { AuroraBackground } from "@/components/ui/aurora-background";
 
 
 export const metadata: Metadata = {
-  title: "NHG HealthLine Virtual Assistant",
+  title: "Healthier SG Voice Assistant",
   description: "Your trusted partner in Singapore's healthcare system",
   icons: {
     icon: "/favicon.ico"
   },
   manifest: "/manifest.json",
   openGraph: {
-    title: "NHG HealthLine Virtual Assistant",
+    title: "Healthier SG Voice Assistant",
     description: "Your trusted partner in Singapore's healthcare system",
-    siteName: "NHG HealthLine",
+    siteName: "Healthier SG",
     locale: "en_SG",
     type: "website"
   }
@@ -44,17 +43,15 @@ export default function RootLayout({
         )}
       >
         
-          <AuroraBackground>
             <div className="relative flex min-h-screen flex-col">
               <div className="flex-1">
-                <main className="flex flex-col items-center justify-center grow py-12 px-6">
+                <main className="flex flex-col items-center justify-center grow py-6 px-6">
                   <div className="w-full backdrop-blur-sm bg-[#002B49]/40 rounded-2xl border border-white/10 shadow-2xl p-8">
                     {children}
                   </div>
                 </main>
               </div>
             </div>
-          </AuroraBackground>
         <Toaster 
           richColors 
           theme="system" 

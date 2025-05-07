@@ -1,0 +1,52 @@
+import Groq from "groq-sdk";
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+export async function getTranscript(input: string | File) {
+	console.log("Received input:", input);
+
+	// Validate input type
+	if (typeof input === "string") {
+		console.log("Processing string input");
+		return input;
+	}
+
+	try {
+		// Check if input is File or Blob and has a valid audio type
+		const validAudioTypes = [
+			"audio/flac",
+			"audio/mp3",
+			"audio/mp4",
+			"audio/mpeg",
+			"audio/mpga",
+			"audio/m4a",
+			"audio/ogg",
+			"audio/opus",
+			"audio/wav",
+			"audio/webm",
+		];
+		const fileType = input.type;
+
+		if (!validAudioTypes.includes(fileType)) {
+			console.error(
+				`Invalid audio type: ${fileType}. Must be one of: ${
+					validAudioTypes.join(", ")
+				}`,
+			);
+			return null;
+		}
+
+		// Create a new File with proper MIME type if needed
+		let file = input;
+		const { text } = await groq.audio.transcriptions.create({
+			file,
+			prompt: "Support English, Chinese, Malay or Tamil. When transcribing, focus on the words used and not the accent.",
+			model: "whisper-large-v3",
+		});
+
+		return text.trim() || null;
+	} catch (e) {
+		console.error("Transcription error:", e);
+		return null; // Empty audio file
+    }
+}
