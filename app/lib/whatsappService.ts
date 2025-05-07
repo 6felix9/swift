@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import Groq from 'groq-sdk';
 
 // Define Zod schema for WhatsApp confirmation parameters
 const WhatsAppAppointmentDetailsSchema = z.object({

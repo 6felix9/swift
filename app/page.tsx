@@ -30,8 +30,7 @@ export default function Home() {
   const mainContainerStyle = {
     background: 'transparent',
     minHeight: '100vh',
-    color: brandColors.white,
-    position: 'relative', // Added for stacking context
+    color: brandColors.white
   };
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -282,7 +281,6 @@ export default function Home() {
   if (!listeningInitiated) {
     return (
       <div style={mainContainerStyle} className="flex flex-col items-center justify-center">
-        <FlickeringGrid color="#6B7280" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }} />
         {/* Content for !listeningInitiated, wrapped to ensure it's on top */}
         <div style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <motion.div
@@ -318,10 +316,10 @@ export default function Home() {
               handleSubmit('hi');
               toast.success("Voice input activated for " + (patients.find(p => p.id === selectedPatientId)?.name || 'selected patient') + "!");
             }}
-            disabled={vad.loading || vad.errored || !selectedPatientId}
+            disabled={vad.loading || !selectedPatientId}
             className="px-8 py-4 bg-gradient-to-r from-[#00A9E7] to-[#1D3B86] hover:from-[#1D3B86] hover:to-[#00A9E7] text-white text-xl font-semibold rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {vad.loading ? <><LoadingIcon className="mr-2"/> Initializing...</> : vad.errored ? "Voice Error" : "Start Session"}
+            {vad.loading ? <><LoadingIcon/> Initializing...</> : vad.errored ? "Voice Error" : "Start Session"}
           </Button>
           {!selectedPatientId && !vad.loading && !vad.errored && (
             <p className="mt-3 text-sm text-yellow-400">Please select a patient profile to start.</p>
@@ -346,7 +344,6 @@ export default function Home() {
 
   return (
     <div style={mainContainerStyle} className="flex flex-col items-center">
-      <FlickeringGrid color="#6B7280" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }} />
       {/* Content for listeningInitiated, wrapped to ensure it's on top */}
       <div style={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1 }}>
         <motion.div
@@ -478,7 +475,7 @@ export default function Home() {
               >
                 {isSummarizing ? (
                   <>
-                    <LoadingIcon className="mr-2 h-5 w-5 animate-spin" /> Summarizing...
+                    <LoadingIcon/> Summarizing...
                   </>
                 ) : (
                   "Generate Call Summary"

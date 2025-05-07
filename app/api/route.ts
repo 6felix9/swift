@@ -18,13 +18,14 @@ interface ParsedRequestData {
   input: string;
   history: Message[];
   patientProfile: PatientProfile | null;
+  transcript: string;
   allMessages: Message[];
 }
 
 async function parseIncomingRequest(req: Request, requestId: string): Promise<ParsedRequestData> {
   console.log(`[${requestId}] Parsing incoming request...`);
   const formData = await req.formData();
-  let input = formData.get("input") as string | null;
+  let input: any = formData.get("input");
   const historyString = formData.get("message") as string | null;
   const patientProfileString = formData.get("patientProfile") as string | null;
 
@@ -42,7 +43,7 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
     }
   }
 
-  let transcript: string | null = input;
+  let transcript: any = input;
   if (input instanceof File) {
     transcript = await getTranscript(input);
     input = transcript;
