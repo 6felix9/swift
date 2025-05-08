@@ -20,6 +20,7 @@ import { PatientProfileCard } from "@/components/ui/patient-profile-card";
 export interface PatientProfile {
   id: string;
   name: string;
+  gender: string;
   nric: string; // Masked NRIC
   phone: string; // Masked phone number
   dob: string;   // Date of Birth

@@ -14,7 +14,7 @@ interface Message {
   content: string;
 }
 
-export async function generateCallSummary(conversationHistory: Message[], patientProfile: PatientProfile | null): Promise<string> {
+export async function generateCallSummary(conversationHistory: Message[], patientProfile?: any): Promise<string> {
   if (!conversationHistory || conversationHistory.length === 0) {
     console.log("summarizationService: Conversation history is empty. Returning empty summary.");
     return "";
