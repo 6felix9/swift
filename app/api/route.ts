@@ -184,8 +184,10 @@ export async function POST(req: Request) {
 
     // Step 4: Handle Appointment Workflow (Asynchronously - Fire and Forget)
     if (intent === "APPOINTMENT") {
-      const fullTranscriptForAppointment = allMessages.map(m => `${m.role}: ${m.content}`).join('\n');
-      handleAppointmentWorkflowInBackground(fullTranscriptForAppointment, patientProfile, requestId);
+      if (aiTextResponse.includes('receive') || aiTextResponse.includes('confirmation') || aiTextResponse.includes('whatsapp')) {
+        const fullTranscriptForAppointment = allMessages.map(m => `${m.role}: ${m.content}`).join('\n');
+        handleAppointmentWorkflowInBackground(fullTranscriptForAppointment, patientProfile, requestId);   
+      }
     }
 
     // Step 5: Convert AI Text to Speech
