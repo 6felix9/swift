@@ -30,7 +30,8 @@ export default function Home() {
   const mainContainerStyle = {
     background: 'transparent',
     minHeight: '100vh',
-    color: brandColors.white
+    color: brandColors.white,
+    textShadow: '0 1px 2px rgba(0,0,0,0.1)'
   };
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -219,13 +220,27 @@ export default function Home() {
     try {
       // Prepare only the role and content for the API
       const conversationHistory = messages.map(({ role, content }) => ({ role, content }));
-
+      let patientProfile = null;
+      if (selectedPatientId) {
+        const patient = patients.find(p => p.id === selectedPatientId);
+        if (patient) {
+          patientProfile = {
+            id: patient.id,
+            name: patient.name,
+            nric: patient.nric,
+            phone: patient.phone,
+            dob: patient.dob,
+            outstandingBalance: patient.outstandingBalance,
+          };
+        }
+      } 
+      
       const response = await fetch("/api/summarize", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ messages: conversationHistory }),
+        body: JSON.stringify({ messages: conversationHistory, patientProfile }),
       });
 
       if (!response.ok) {
@@ -376,8 +391,8 @@ export default function Home() {
                     : "bg-[#00A9E7]/40 border border-[#00A9E7]/40 hover:bg-[#00A9E7]/50"
                 )}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      {message.role === "assistant" ? "Assistant" : "You"}
+                    <CardTitle className="text-sm font-medium text-white">
+                      {message.role === "assistant" ? "Assistant" : "Patient"}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -410,7 +425,7 @@ export default function Home() {
           >
             <Input
               type="text"
-              placeholder="Ask me about Healthier SG services..."
+              placeholder="Ask me anything about Healthier SG services..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               ref={inputRef}
@@ -465,63 +480,11 @@ export default function Home() {
             )}
           </div>
 
-          {/* Summarization Section - only show if listening initiated */}
-          {listeningInitiated && (
-            <div className="w-full max-w-3xl mx-auto mt-6 mb-6">
-              <Button
-                onClick={handleGenerateSummary}
-                disabled={isSummarizing || messages.length === 0}
-                className="w-full bg-[#FFB800] hover:bg-[#EAA900] text-[#001F35] font-semibold transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:hover:bg-[#FFB800] py-3 text-base"
-              >
-                {isSummarizing ? (
-                  <>
-                    <LoadingIcon/> Summarizing...
-                  </>
-                ) : (
-                  "Generate Call Summary"
-                )}
-              </Button>
-              {summaryError && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 p-3 bg-red-900/30 border border-red-700/50 text-red-300 rounded-md backdrop-blur-sm"
-                >
-                  <p className="text-sm font-medium">Error generating summary:</p>
-                  <p className="text-xs">{summaryError}</p>
-                </motion.div>
-              )}
-              {summaryText && !summaryError && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 p-4 bg-[#001F35]/80 border border-white/20 rounded-xl shadow-lg backdrop-blur-sm"
-                >
-                  <h3 className="text-lg font-semibold mb-3 text-[#FFB800]">Call Summary:</h3>
-                  <pre className="whitespace-pre-wrap text-sm text-gray-200 leading-relaxed">
-                    {summaryText}
-                  </pre>
-                </motion.div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Patient Profile Display */}
         {listeningInitiated ? (
-          !isListening ? (
-            // Show selection grid if not listening
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 w-full max-w-4xl px-4">
-              {patients.map((patient) => (
-                <PatientProfileCard
-                  key={patient.id}
-                  patient={patient}
-                  isSelected={selectedPatientId === patient.id}
-                  onSelect={setSelectedPatientId}
-                />
-              ))}
-            </div>
-          ) : selectedPatient ? (
+          selectedPatient ? (
             // Show only the selected patient card if listening and a patient is selected
             <div className="mb-6 flex flex-col items-center">
               <h2 className="text-2xl font-semibold text-center mb-4 text-white">Selected Patient</h2>
@@ -535,6 +498,48 @@ export default function Home() {
             </div>
           ) : null /* Optional: Handle case where isListening is true but no selectedPatient (should not happen with current logic) */
         ) : null}
+
+
+          {/* Summarization Section - only show if listening initiated */}
+          {listeningInitiated && (
+            <div className="w-full max-w-3xl mx-auto mt-6 mb-6">
+              <Button
+                onClick={handleGenerateSummary}
+                disabled={isSummarizing || messages.length === 0}
+                className="w-full bg-gradient-to-r from-[#FFB800] to-[#FFCC40] hover:from-[#EAA900] hover:to-[#FFB800] text-[#001425] font-semibold transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-[#FFB800] disabled:hover:to-[#FFCC40] py-3 text-base rounded-xl"
+              >
+                {isSummarizing ? (
+                  <>
+                    <LoadingIcon/> Summarizing...
+                  </>
+                ) : (
+                  "Generate Call Summary"
+                )}
+              </Button>
+              {summaryError && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 p-3 bg-gradient-to-br from-red-900/40 to-red-950/30 border border-red-700/50 text-red-200 rounded-md backdrop-blur-md shadow-inner"
+                >
+                  <p className="text-sm font-medium">Error generating summary:</p>
+                  <p className="text-xs">{summaryError}</p>
+                </motion.div>
+              )}
+              {summaryText && !summaryError && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 p-4 bg-gradient-to-br from-[#002B49]/80 to-[#001425]/90 border border-white/20 rounded-xl shadow-[0_4px_20px_rgba(0,15,30,0.4)] backdrop-blur-md"
+                >
+                  <h3 className="text-lg font-semibold mb-3 text-transparent bg-clip-text bg-gradient-to-r from-[#FFB800] to-[#FFCC40]">Call Summary:</h3>
+                  <pre className="whitespace-pre-wrap text-sm text-gray-100 leading-relaxed tracking-wide">
+                    {summaryText}
+                  </pre>
+                </motion.div>
+              )}
+            </div>
+          )}
       </div>
     </div>
   );

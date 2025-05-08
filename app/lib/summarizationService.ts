@@ -7,25 +7,22 @@ if (!groqApiKey) {
 }
 const groq = new Groq({ apiKey: groqApiKey });
 
-const summarizationSystemPrompt = `You are an expert summarizer. Based on the following conversation history, please provide a concise summary in bullet points.
-Focus on key decisions, questions, and outcomes.
-Format each bullet point starting with '- '.
-Ensure the entire response is only the bulleted list.`;
+const summarizationSystemPrompt = `You are an expert call script summarizer. Based on the following phone call transcript, write a summary in bullet points. Focus on key decisions, questions, and outcomes.`;
 
 interface Message {
   role: "user" | "assistant" | "system";
   content: string;
 }
 
-export async function generateCallSummary(conversationHistory: Message[]): Promise<string> {
+export async function generateCallSummary(conversationHistory: Message[], patientProfile: PatientProfile | null): Promise<string> {
   if (!conversationHistory || conversationHistory.length === 0) {
     console.log("summarizationService: Conversation history is empty. Returning empty summary.");
     return "";
   }
 
   const groqMessages = [
-    { role: "system" as const, content: summarizationSystemPrompt },
     ...conversationHistory,
+    { role: "system" as const, content: summarizationSystemPrompt + (patientProfile ? `\nPatient Profile: ${JSON.stringify(patientProfile)}` : "") },
   ];
 
   console.log("summarizationService: Calling Groq AI for summarization with history length:", conversationHistory.length);

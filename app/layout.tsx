@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#002B49",
+  themeColor: "#001F35", // Darker shade for better contrast
   width: "device-width",
   initialScale: 1,
   maximumScale: 1
@@ -39,14 +39,23 @@ export default function RootLayout({
         className={clsx(
           GeistSans.variable,
           "min-h-screen font-sans antialiased",
-          "selection:bg-[#00A9E7] selection:text-white"
+          "selection:bg-[#00A9E7]/90 selection:text-white/95"
         )}
+
+        style={{
+          background: "linear-gradient(135deg, #001425 0%, #002B49 100%), url(https://files.keyreply.com/files/images/background.svg)",
+          backgroundBlendMode: "multiply",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          backgroundAttachment: "fixed"
+        }}
       >
         
             <div className="relative flex min-h-screen flex-col">
               <div className="flex-1">
                 <main className="flex flex-col items-center justify-center grow py-6 px-6">
-                  <div className="w-full backdrop-blur-sm bg-[#002B49]/40 rounded-2xl border border-white/10 shadow-2xl p-8">
+                  <div className="w-full backdrop-blur-md bg-gradient-to-br from-[#002B49]/60 to-[#001425]/70 rounded-2xl border border-white/15 shadow-[0_8px_32px_rgba(0,30,60,0.37)] p-8">
                     {children}
                   </div>
                 </main>
@@ -54,12 +63,14 @@ export default function RootLayout({
             </div>
         <Toaster 
           richColors 
-          theme="system" 
+          theme="dark" 
           toastOptions={{
             style: {
-              background: '#002B49',
+              background: 'linear-gradient(to right, #001F35, #002B49)',
               color: '#FFFFFF',
-              border: '1px solid #FFB800'
+              border: '1px solid #FFB800',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              fontSize: '0.95rem'
             }
           }}
         />
