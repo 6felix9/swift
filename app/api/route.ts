@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
-import { PROMPTS, DynamicRAG } from "@/lib/prompt";
+import { PROMPTS } from "@/lib/prompt";
 import { extractAppointmentDetails, sendWhatsAppConfirmation, PatientProfile } from '@/lib/whatsappService';
 import { generateSpeech } from '@/lib/elevenlabs';
 import { Readable } from "stream";
@@ -102,8 +102,7 @@ async function generateMainAiTextResponse(messages: Message[], intent: string, p
 
   if (intent === "FAQ") {
     console.log(`[${requestId}] Building RAG prompt for FAQ query: "${originalQuery}"`);
-    systemPromptContent = await DynamicRAG(originalQuery); // DynamicRAG will include its own base prompt and context
-    // If DynamicRAG should also know about the caller, it needs to be modified or callerInfo appended here.
+    systemPromptContent = await PROMPTS.RAG(originalQuery); // RAG will include its own base prompt and context
   } else {
     // For 'APPOINTMENT' or other direct conversation intents
     systemPromptContent = `${PROMPTS.Appointment}${callerInfo}`;
@@ -184,7 +183,7 @@ export async function POST(req: Request) {
 
     // Step 4: Handle Appointment Workflow (Asynchronously - Fire and Forget)
     if (intent === "APPOINTMENT") {
-      if (aiTextResponse.includes('receive') || aiTextResponse.includes('confirmation') || aiTextResponse.includes('whatsapp')) {
+      if (aiTextResponse.includes('receive') || aiTextResponse.includes('confirm') || aiTextResponse.includes('whatsapp')) {
         const fullTranscriptForAppointment = allMessages.map(m => `${m.role}: ${m.content}`).join('\n');
         handleAppointmentWorkflowInBackground(fullTranscriptForAppointment, patientProfile, requestId);   
       }

@@ -57,9 +57,9 @@ export default function Home() {
   // Simulate fetching patient data (could be an API call in a real app)
   useEffect(() => {
     const mockPatients: PatientProfile[] = [
-      { id: '1', name: 'Kevin Yeap', nric: 'S****123A', phone: '+65 9093 3395', dob: '01 Jan 1980', outstandingBalance: 'SGD 175.50' },
-      { id: '2', name: 'Peiru Teo', nric: 'S****567B', phone: '+65 9199 3563', dob: '15 May 1992', outstandingBalance: 'None' },
-      { id: '3', name: 'Max Xu', nric: 'S****890C', phone: '+65 8288 8399', dob: '22 Nov 1975', outstandingBalance: 'SGD 230.00' },
+      { id: '1', name: 'Kevin Yeap', gender: 'Male', nric: 'S****123A', phone: '+65 9093 3395', dob: '01 Jan 1980', outstandingBalance: 'SGD 175.50' },
+      { id: '2', name: 'Peiru Teo', gender: 'Female', nric: 'S****567B', phone: '+65 9199 3563', dob: '15 May 1992', outstandingBalance: 'None' },
+      { id: '3', name: 'Max Xu', gender: 'Male', nric: 'S****890C', phone: '+65 8288 8399', dob: '22 Nov 1975', outstandingBalance: 'SGD 230.00' },
     ];
     setPatients(mockPatients);
   }, []);
