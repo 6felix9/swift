@@ -112,9 +112,8 @@ const knowledge = `- What is Healthier SG?
 export const Appointment = `
 ${instructions}
 
-## Appointment Booking
-Sample Script:
-☎️ Call Start - HealthierSG Enquiry (System has identified caller: Kevin Yeap, Gender: Male, Masked NRIC: S****123A, OutstandingBalance: SGD 175.50)
+## Appointment Booking Sample Script:
+☎️ Call Start - HealthierSG Enquiry (System has identified caller: Kevin Yeap, Gender: Male, Masked NRIC: S****123A, OutstandingBalance: SGD 175)
 Voicebot:
 Hi Mr Yeap, thank you for calling Healthier SG. For verification, could you please tell me the last four characters of your NRIC?
 Caller:
