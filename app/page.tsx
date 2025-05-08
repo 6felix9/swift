@@ -234,7 +234,7 @@ export default function Home() {
           };
         }
       } 
-      
+
       const response = await fetch("/api/summarize", {
         method: "POST",
         headers: {
@@ -306,7 +306,7 @@ export default function Home() {
           >
             <div className="flex flex-col items-center gap-2">
               <h1 className="text-4xl font-semibold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D3B86] via-[#00A9E7] to-[#1D3B86]">
-                Healthier SG <span className="font-light">Assistant</span>
+                HealthLine <span className="font-light">Voice Assistant</span>
               </h1>
               <p className="text-lg text-white/80 mt-1">Please select a patient profile to continue.</p>
             </div>
@@ -326,10 +326,10 @@ export default function Home() {
 
           <Button
             onClick={() => {
+              handleSubmit('hi');
               vad.start();
               setListeningInitiated(true);
-              handleSubmit('hi');
-              toast.success("Voice input activated for " + (patients.find(p => p.id === selectedPatientId)?.name || 'selected patient') + "!");
+              toast.success("Call started, you can now ask questions!");
             }}
             disabled={vad.loading || !selectedPatientId}
             className="px-8 py-4 bg-gradient-to-r from-[#00A9E7] to-[#1D3B86] hover:from-[#1D3B86] hover:to-[#00A9E7] text-white text-xl font-semibold rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -369,7 +369,7 @@ export default function Home() {
         >
           <div className="flex flex-col items-center gap-2">
             <h1 className="text-4xl font-semibold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D3B86] via-[#00A9E7] to-[#1D3B86]">
-              Healthier SG <span className="font-light">Assistant</span>
+              HealthLine <span className="font-light">Voice Assistant</span>
             </h1>
           </div>
         </motion.div>

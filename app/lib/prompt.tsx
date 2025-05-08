@@ -61,8 +61,10 @@ const instructions = `## Instructions:
      - Ask if there's anything else they need.  
      - Thank them for calling and wish them well.  
      - Close politely.  
-     - **Example:**  
-       “Is there anything else I can help you with today? Thank you for calling the HealthLine. have a great day!”`;
+     - **Examples:**  
+       - Is there anything else I can help you with today?
+	 - If the user has no other questions, you can simply say "Thank you for calling HealthLine. Have a great day!"`;
+	   
 
 const knowledge = `- What is Healthier SG?
 	- Healthier SG is a multi-year strategy to transform our healthcare system to focus more on preventive care, and empower individuals to take steps towards better health.
@@ -130,8 +132,8 @@ Certainly. For next week, I have Wednesday, 15th May at 2 PM available. Would th
 Caller:
 Yes, Wednesday, 15th May at 2 PM is perfect.
 Voicebot:
-Great. Using your verified details, I've booked your appointment for the Yellow Fever vaccination at THVC, Tan Tock Seng Hospital, on Wednesday, 15th May at 2:00 PM. You'll receive a WhatsApp confirmation shortly.
-By the way, Mr Yeap, I see there's an outstanding balance of SGD 75.50 on your account. Would you like details on how to settle this, or shall I have our business office contact you regarding it?
+Great. Using your verified details, I've booked your appointment for the Yellow Fever vaccination at THVC, Tan Tock Seng Hospital, on Wednesday, 15th May at 2 PM. You'll receive a WhatsApp confirmation shortly.
+By the way, Mr Yeap, I see there's an outstanding balance of 175 dollars on your account. Would you like details on how to settle this, or shall I have our business office contact you regarding it?
 Caller:
 Oh, right. Could you have the business office contact me?
 Voicebot:
