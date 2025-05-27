@@ -102,10 +102,6 @@ export default function Home() {
       console.log("[VAD] Misfire - no speech detected within timeout");
       if (listeningInitiated && !manualListening) setIsListening(false);
     },
-    onLoadError: (e) => {
-      console.error("[VAD] Load Error:", e);
-      toast.error("Speech detection model failed to load. Please refresh.");
-    },
     model:"v5",
     startOnLoad: false, // Explicitly call vad.load()
     onSpeechStart: () => {
@@ -130,8 +126,8 @@ export default function Home() {
       const isFirefox = navigator.userAgent.includes("Firefox");
       if (isFirefox && listeningInitiated) vad.pause(); // Pause only if initiated
     },
-    workletURL: "/vad.worklet.bundle.min.js", // Ensure this file is in /public
-    modelURL: "/silero_vad_v5.onnx",     // Ensure this file is in /public
+    // workletURL: "/vad.worklet.bundle.min.js", // Ensure this file is in /public
+    // modelURL: "/silero_vad_v5.onnx",     // Ensure this file is in /public
     positiveSpeechThreshold: 0.6,
     minSpeechFrames: 4,
     ortConfig(ort) {
@@ -155,22 +151,22 @@ export default function Home() {
   // Effect to monitor VAD status changes - Defined AFTER vad initialization
   useEffect(() => {
     if (vad) { // Ensure vad is initialized
-      console.log("[VAD Status Monitor] Status:", vad.status, "Loading:", vad.loading, "Errored:", vad.errored, "Listening:", vad.listening);
+      console.log("[VAD Status Monitor] Status:", vad, "Loading:", vad.loading, "Errored:", vad.errored, "Listening:", vad.listening);
       if (vad.errored) {
         console.error("[VAD Status Monitor] VAD Errored:", vad.errored);
       }
-      if (vad.status === "loaded" && !vad.loading) {
+      if (vad.listening) {
           console.log("[VAD Status Monitor] VAD model loaded successfully.");
       }
     }
-  }, [vad, vad?.status, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
+  }, [vad, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
 
 
 
   const handleEndCall = () => {
-    if (vad && typeof vad.stop === 'function') {
+    if (vad && typeof vad.pause === 'function') {
       console.log("[Debug] Ending call. Stopping VAD.");
-      vad.stop();
+      vad.pause();
     }
     setMessages([]);
     setInput("");
@@ -281,7 +277,7 @@ export default function Home() {
     } finally {
       setIsPending(false);
     }
-  }, [isPending, messages, player, selectedPatientId, patients, selectedScenarioId]);
+  }, [isPending, messages, player, selectedPatientId, patients, selectedScenarioId, scenarios, vad]);
 
   const handleGenerateSummary = async () => {
     if (isSummarizing || messages.length === 0) {
@@ -516,7 +512,6 @@ export default function Home() {
                                 console.error("[Debug] VAD is in an errored state:", vad.errored);
                                 toast.error("Speech detection model has an error. Please refresh.");
                             } else {
-                                console.log("[Debug] VAD status:", vad.status, ". Calling vad.start().");
                                 try {
                                     vad.start();
                                 } catch (e) {
@@ -525,7 +520,6 @@ export default function Home() {
                                 }
                             }
                         } else {
-                            console.warn("[Debug] vad.start is not a function or vad object is not fully initialized. VAD status:", vad?.status);
                             toast.error("Speech detection is not ready. Please refresh or try again.");
                         }
                       }}
@@ -561,7 +555,7 @@ export default function Home() {
               )}
 
               {/* Display loader during model loading (common for both steps if needed) */}
-              {vad.status === "loading" && (
+              {vad.loading && (
                 <div className="text-center mt-4 text-gray-400">
                   <LoadingIcon />
                   <p>Loading speech detection...</p>
@@ -661,9 +655,9 @@ export default function Home() {
               className="bg-[#00A9E7] hover:bg-[#0098D1] text-white transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:hover:bg-[#FFB800] p-2 rounded-xl aspect-square flex items-center justify-center"
             >
               {isPending ? (
-                <LoadingIcon size={20}/>
+                <LoadingIcon/>
               ) : (
-                <EnterIcon size={20}/>
+                <EnterIcon/>
               )}
             </Button>
           </form>
@@ -745,7 +739,7 @@ export default function Home() {
               <div className="w-full max-w-sm">
                 <h2 className="text-2xl font-semibold text-center mb-4 text-white">Selected Patient</h2>
                 <PatientProfileCard
-                  patient={patients.find(p => p.id === selectedPatientId)}
+                  patient={patients.find(p => p.id === selectedPatientId)!}
                   isSelected={true} // Visual cue that this is the active context
                   onSelect={() => {}} // No selection change during an active call
                 />
