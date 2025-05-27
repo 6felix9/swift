@@ -15,18 +15,8 @@ import { brandColors } from "@/lib/constants";
 import { Message } from "@/lib/types";
 import { FlickeringGrid } from "@/components/ui/flickering-grid"; // Assuming named export
 import { CheckCircle2, PhoneOff } from 'lucide-react'; // Added PhoneOff
-import { PatientProfileCard } from "@/components/ui/patient-profile-card";
+import { PatientProfileCard, PatientProfile } from "@/components/ui/patient-profile-card";
 
-// Define PatientProfile interface
-export interface PatientProfile {
-  id: string;
-  name: string;
-  gender: string;
-  nric: string; // Masked NRIC
-  phone: string; // Masked phone number
-  dob: string;   // Date of Birth
-  outstandingBalance?: string; // e.g., "SGD 50.00" or "None"
-}
 
 // Define Scenario interface
 export interface Scenario {

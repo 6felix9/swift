@@ -20,7 +20,7 @@ interface ParsedRequestData {
   patientProfile: PatientProfile | null;
   transcript: string;
   allMessages: Message[];
-  scenario?: string;
+  scenarioId?: string;
 }
 
 async function parseIncomingRequest(req: Request, requestId: string): Promise<ParsedRequestData> {
@@ -29,11 +29,11 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   let input: any = formData.get("input");
   const historyString = formData.get("message") as string | null;
   const patientProfileString = formData.get("patientProfile") as string | null;
-  const scenario = formData.get("scenario") as string | null;
+  const scenario = formData.get("scenario") as string | null || "";
 
   let scenarioId = "";
   try {
-    scenarioId = JSON.parse(scenario).id;
+    scenarioId = JSON.parse(scenario)?.id || "";
     console.log(`[${requestId}] Scenario ID: ${scenarioId}`);
   } catch (error) {
     console.error(`[${requestId}] Error parsing scenario ID:`, error);
@@ -196,7 +196,7 @@ export async function POST(req: Request) {
     if (scenarioId === "APPOINTMENT") {
       intent = await getIntentClassification(allMessages, patientProfile, requestId);
     } else {
-      intent = scenarioId;
+      intent = scenarioId!;
     }
     
     let aiTextResponse = await generateMainAiTextResponse(allMessages, intent, patientProfile, input, requestId, scenarioId);
