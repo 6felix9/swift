@@ -31,6 +31,14 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   const patientProfileString = formData.get("patientProfile") as string | null;
   const scenario = formData.get("scenario") as string | null;
 
+  let scenarioId = "";
+  try {
+    scenarioId = JSON.parse(scenario).id;
+    console.log(`[${requestId}] Scenario ID: ${scenarioId}`);
+  } catch (error) {
+    console.error(`[${requestId}] Error parsing scenario ID:`, error);
+  }
+
   if (!input) {
     console.error(`[${requestId}] No input found in formData.`);
     throw new Error("Input is required");
@@ -65,7 +73,7 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   }
 
   console.log(`[${requestId}] Request parsed successfully.`);
-  return { input, history, patientProfile, transcript, allMessages, scenarioId: scenario.id };
+  return { input, history, patientProfile, transcript, allMessages, scenarioId };
 }
 
 function buildCallerInfoString(patientProfile: PatientProfile | null): string {
@@ -181,15 +189,18 @@ export async function POST(req: Request) {
 
     // Step 2: Get Intent Classification
     // Send allMessages for richer context for classification, but the helper might slice it.
-    const intent = await getIntentClassification(allMessages, patientProfile, requestId);
-    
-    let aiTextResponse = "";
-    if (input === "hi") {
-      aiTextResponse = "Hi thank you for calling HealthLine, my name is Mei Ling, how can I help you today?";
-    } else {
-      aiTextResponse = await generateMainAiTextResponse(allMessages, intent, patientProfile, input, requestId, scenarioId);
-    }
 
+    console.log(`[${requestId}] Scenario ID: ${scenarioId}`);
+
+    let intent = "";
+    if (scenarioId === "APPOINTMENT") {
+      intent = await getIntentClassification(allMessages, patientProfile, requestId);
+    } else {
+      intent = scenarioId;
+    }
+    
+    let aiTextResponse = await generateMainAiTextResponse(allMessages, intent, patientProfile, input, requestId, scenarioId);
+    
     // Step 4: Handle Appointment Workflow (Asynchronously - Fire and Forget)
     if (intent === "APPOINTMENT") {
       if (aiTextResponse.includes('receive') || aiTextResponse.includes('confirm') || aiTextResponse.includes('whatsapp')) {

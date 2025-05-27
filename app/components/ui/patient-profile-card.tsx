@@ -13,6 +13,8 @@ import clsx from 'clsx';
 export interface PatientProfile {
   id: string;
   name: string;
+  gender: string; // Added gender
+  age: number;    // Added age
   nric: string; // Masked NRIC
   phone: string; // Masked phone number
   dob: string;   // Date of Birth
@@ -35,38 +37,54 @@ const PatientProfileCard: React.FC<PatientProfileCardProps> = ({ patient, isSele
     <Card 
       onClick={() => onSelect(patient.id)}
       className={clsx(
-        "cursor-pointer transition-all duration-200 ease-in-out shadow-md hover:shadow-lg", // Reduced shadow
-        "border", // Thinner border
-        isSelected ? "border-[#FFB800] bg-gradient-to-br from-[#FFB800]/15 to-transparent scale-102" : "border-gray-700 hover:border-gray-600 bg-gradient-to-br from-gray-800/60 to-gray-900/60",
-        "text-white"
+        "cursor-pointer rounded-xl shadow-lg transition-all duration-200 ease-in-out",
+        isSelected
+          ? "border-2 border-[#FFB800] bg-[#1D3B86]/10 scale-102"
+          : "border border-slate-700 bg-slate-800/70 hover:border-slate-600",
+        "text-slate-100"
       )}
     >
-      <CardHeader className="p-2 pb-1"> {/* Reduced padding */}
+      <CardHeader className="p-4 pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">{patient.name}</CardTitle> {/* Slightly smaller title */}
-          {isSelected && <CheckCircle2 className="w-5 h-5 text-[#FFB800]" />} {/* Smaller check icon */}
+          <div className="flex items-center gap-3">
+            <UserCircle className={`w-9 h-9 ${isSelected ? 'text-[#FFB800]' : 'text-slate-500'}`} />
+            <div>
+              <CardTitle className="text-md font-semibold text-slate-50">{patient.name}</CardTitle>
+              <CardDescription className="text-xs text-slate-400">{patient.age} years old, {patient.gender}</CardDescription>
+            </div>
+          </div>
+          {isSelected && <CheckCircle2 className="w-6 h-6 text-[#FFB800]" />}
         </div>
-        <CardDescription className="text-xs text-gray-400 pt-0.5">{patient.age} years old, {patient.gender}</CardDescription> {/* Smaller description text */}
       </CardHeader>
-      <CardContent className="p-2 pt-1 space-y-1.5"> {/* Reduced padding and space */}
-        <div>
-          <h4 className="text-xs font-medium text-gray-300 mb-0.5">NRIC:</h4>
-          <p className="text-xs text-gray-400">{patient.nric}</p>
+      <CardContent className="p-4 pt-2 space-y-3">
+        <div className="flex items-center gap-3">
+          <ShieldCheck className="h-5 w-5 text-slate-500 flex-shrink-0" />
+          <div>
+            <h4 className="text-xs font-medium text-slate-400">NRIC</h4>
+            <p className="text-sm text-slate-200">{patient.nric}</p>
+          </div>
         </div>
-        <div>
-          <h4 className="text-xs font-medium text-gray-300 mb-0.5">Phone:</h4>
-          <p className="text-xs text-gray-400">{mask(patient.phone)}</p>
+        <div className="flex items-center gap-3">
+          <Phone className="h-5 w-5 text-slate-500 flex-shrink-0" />
+          <div>
+            <h4 className="text-xs font-medium text-slate-400">Phone</h4>
+            <p className="text-sm text-slate-200">{mask(patient.phone)}</p>
+          </div>
         </div>
-        <div>
-          <h4 className="text-xs font-medium text-gray-300 mb-0.5">DOB:</h4>
-          <p className="text-xs text-gray-400">{patient.dob}</p>
+        <div className="flex items-center gap-3">
+          <CalendarDays className="h-5 w-5 text-slate-500 flex-shrink-0" />
+          <div>
+            <h4 className="text-xs font-medium text-slate-400">Date of Birth</h4>
+            <p className="text-sm text-slate-200">{patient.dob}</p>
+          </div>
         </div>
         {patient.outstandingBalance && patient.outstandingBalance !== "None" && (
-          <div className="flex items-center mt-1.5">
-            <CreditCard className={`h-4 w-4 mr-2.5 ${isSelected ? 'text-red-400' : 'text-red-500'}`} />
-            <span className={`${isSelected ? 'text-red-200' : 'text-red-400'} font-semibold`}>
-              Outstanding: {patient.outstandingBalance}
-            </span>
+          <div className="flex items-center gap-3 pt-3 mt-3 border-t border-slate-700">
+            <CreditCard className="h-5 w-5 text-red-500 flex-shrink-0" />
+            <div>
+              <h4 className="text-xs font-medium text-red-400">Outstanding Balance</h4>
+              <p className="text-sm font-semibold text-red-300">{patient.outstandingBalance}</p>
+            </div>
           </div>
         )}
       </CardContent>

@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { brandColors } from "@/lib/constants";
 import { Message } from "@/lib/types";
 import { FlickeringGrid } from "@/components/ui/flickering-grid"; // Assuming named export
-import { CheckCircle2 } from 'lucide-react'; // Correct import for CheckCircle2
+import { CheckCircle2, PhoneOff } from 'lucide-react'; // Added PhoneOff
 import { PatientProfileCard } from "@/components/ui/patient-profile-card";
 
 // Define PatientProfile interface
@@ -33,7 +33,7 @@ export interface Scenario {
   id: string;
   name: string;
   description: string;
-  promptKey?: string; // References the prompt to use from prompt.tsx
+
 }
 
 export default function Home() {
@@ -75,30 +75,30 @@ export default function Home() {
   // Simulate fetching patient data (could be an API call in a real app)
   useEffect(() => {
     const mockPatients: PatientProfile[] = [
-      { id: '1', name: 'Kevin Yeap', gender: 'Male', nric: 'S****123A', phone: '+65 9093 3395', dob: '01 Jan 1980', outstandingBalance: 'SGD 175' },
-      { id: '2', name: 'Peiru Teo', gender: 'Female', nric: 'S****567B', phone: '+65 9199 3563', dob: '15 May 1992', outstandingBalance: 'None' },
-      { id: '3', name: 'Max Xu', gender: 'Male', nric: 'S****890C', phone: '+65 8288 8399', dob: '22 Nov 1975', outstandingBalance: 'SGD 230' },
+      { id: '1', name: 'Kevin Yeap', gender: 'Male', nric: 'S****123A', phone: '+65 9093 3395', dob: '01 Jan 1980', age: 45, outstandingBalance: 'SGD 175' },
+      { id: '2', name: 'Peiru Teo', gender: 'Female', nric: 'S****567B', phone: '+65 9199 3563', dob: '15 May 1992', age: 33, outstandingBalance: 'None' },
+      { id: '3', name: 'Max Xu', gender: 'Male', nric: 'S****890C', phone: '+65 8288 8399', dob: '22 Nov 1975', age: 50, outstandingBalance: 'SGD 230' },
     ];
     setPatients(mockPatients);
 
     const mockScenarios: Scenario[] = [
       { 
         id: 'APPOINTMENT', 
-        name: 'Healthier SG Query & Appointment Booking', 
-        description: 'Default scenario for handling Healthier SG queries and booking appointments.',
-        promptKey: 'Appointment'
+        name: 'Healthier SG FAQ & Appointment Booking', 
+        description: 'Healthier SG general queries and appointment booking.',
+        
       },
       { 
         id: 'PREPARATION', 
         name: 'Pre-Procedure Preparation & Medication Counselling', 
         description: 'Guidance on preparation for medical procedures and medication counselling.',
-        promptKey: 'Preparation' // Using the default prompt as placeholder
+        
       },
       { 
         id: 'FOLLOW_UP', 
         name: 'Post-Endoscopy Follow-up & Community Outreach', 
         description: 'Outbound follow-up after endoscopy, medication counseling, and community program information.',
-        promptKey: 'Follow-up' // Using the default prompt as placeholder
+        
       },
     ];
     setScenarios(mockScenarios);
@@ -176,6 +176,23 @@ export default function Home() {
   }, [vad, vad?.status, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
 
 
+
+  const handleEndCall = () => {
+    if (vad && typeof vad.stop === 'function') {
+      console.log("[Debug] Ending call. Stopping VAD.");
+      vad.stop();
+    }
+    setMessages([]);
+    setInput("");
+    setSummaryText("");
+    setSummaryError("");
+    setIsListening(false);
+    setListeningInitiated(false);
+    setSelectionStep('scenario');
+    setSelectedPatientId(null); // Optional: Clear selections for a fresh start
+    setSelectedScenarioId(null); // Optional: Clear selections for a fresh start
+    toast.info("Call ended. Session cleared.");
+  };
 
   const handleSubmit = useCallback(async (data: string | Blob) => {
     if (isPending) return; // Prevent multiple submissions
@@ -297,6 +314,7 @@ export default function Home() {
             nric: patient.nric,
             phone: patient.phone,
             dob: patient.dob,
+            age: patient.age,
             outstandingBalance: patient.outstandingBalance,
           };
         }
@@ -367,9 +385,9 @@ export default function Home() {
   if (!listeningInitiated) {
     return (
       <div style={mainContainerStyle} className="flex flex-col items-center justify-center">
-        <div className="mx-auto w-full max-w-7xl h-screen flex flex-col px-4 sm:px-6 lg:px-8 relative py-6">
+        <div className="mx-auto w-full max-w-7xl flex flex-col px-4 sm:px-6 lg:px-8 relative py-6">
           <div className="flex-1 flex flex-col justify-center items-center mb-20">
-            <div className="w-full max-w-md mb-10">
+            <div className="w-full mb-10">
               {/* 
               <h1 className="text-4xl font-bold text-center mb-2 text-white">Health Line</h1>
               <p className="text-center mb-8 text-gray-300">Powered by AI assistant</p> */}
@@ -442,7 +460,7 @@ export default function Home() {
                   <div className="mb-6">
                     <h2 className="text-2xl font-semibold text-center mb-1 text-white">Step 2: Select a Patient Profile</h2>
                     <p className="text-sm text-center mb-4 text-gray-400">Choose the patient for this session.</p>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
                       {patients.map(patient => (
                         <PatientProfileCard
                           key={patient.id}
@@ -462,12 +480,7 @@ export default function Home() {
               {selectionStep === 'summary' && selectedScenario && selectedPatient && (
                 <>
                   {/* Step 3: Summary and Confirmation */}
-                  <div className="mb-6 space-y-4">
-                    <div>
-                      <h2 className="text-2xl font-semibold text-center mb-1 text-white">Confirm Selections</h2>
-                      <p className="text-sm text-center mb-4 text-gray-400">Review details and start the session.</p>
-                    </div>
-
+                  <div className="mb-2 space-y-2">
                     {/* Selected Scenario Display */}
                     <Card className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
                       <CardHeader className="p-4 pb-2">
@@ -483,7 +496,6 @@ export default function Home() {
 
                     {/* Selected Patient Display */}
                     <div>
-                       <p className="text-xs uppercase tracking-wider text-gray-400 mb-1 ml-1">Patient</p>
                       <PatientProfileCard
                         patient={selectedPatient}
                         isSelected={true} // Always visually selected in summary
@@ -501,6 +513,10 @@ export default function Home() {
                         }
                         console.log("[Debug] Attempting to start session. Current VAD object:", vad);
                         setListeningInitiated(true);
+
+                        // Send initial "hi" message to make the agent speak first
+                        console.log("[Debug] Sending initial 'hi' to server.");
+                        handleSubmit("hi"); // This will add 'hi' to messages and send to backend
 
                         if (vad && typeof vad.start === 'function') {
                             if (vad.loading) { // vad.loading is a boolean
@@ -652,15 +668,28 @@ export default function Home() {
             <Button
               type="submit"
               disabled={isPending || !input.trim()}
-              className="bg-[#00A9E7] hover:bg-[#0098D1] text-white transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:hover:bg-[#FFB800]"
+              className="bg-[#00A9E7] hover:bg-[#0098D1] text-white transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:hover:bg-[#FFB800] p-2 rounded-xl aspect-square flex items-center justify-center"
             >
               {isPending ? (
-                <LoadingIcon/>
+                <LoadingIcon size={20}/>
               ) : (
-                <EnterIcon/>
+                <EnterIcon size={20}/>
               )}
             </Button>
           </form>
+
+          {/* End Call Button - Moved below the form */}
+          <div className="w-full max-w-3xl mx-4 mt-4">
+            <Button
+              type="button"
+              onClick={handleEndCall}
+              className="w-full bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-semibold transition-all duration-300 shadow-lg hover:shadow-xl py-3 text-lg rounded-xl flex items-center justify-center gap-2"
+              aria-label="End call"
+            >
+              <PhoneOff size={20} />
+              <span>End Call</span>
+            </Button>
+          </div>
 
           <div className="pt-6 text-center max-w-xl text-balance min-h-16 mx-4" style={{ color: '#FFFFFF', fontSize: '0.95rem' }}>
             {messages.length === 0 && listeningInitiated && (
@@ -704,7 +733,7 @@ export default function Home() {
           <div className="mb-6 flex flex-col items-center">
             {/* Selected Scenario Display */}
             {selectedScenarioId && (
-              <div className="w-full max-w-sm mb-4">
+              <div className="w-full mb-4">
                 <h2 className="text-2xl font-semibold text-center mb-4 text-white">Active Scenario</h2>
                 <Card 
                   className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border-2 border-[#FFB800]/70 shadow-[0_0_15px_rgba(255,184,0,0.3)] mb-4"
