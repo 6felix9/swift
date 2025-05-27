@@ -1,6 +1,12 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserCircle, ShieldCheck, Phone, CalendarDays, CreditCard } from 'lucide-react'; // Assuming lucide-react for icons
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { UserCircle, ShieldCheck, Phone, CalendarDays, CreditCard, CheckCircle2 } from 'lucide-react'; // Assuming lucide-react for icons
 import clsx from 'clsx';
 
 // Define PatientProfile interface (can be imported from a shared types file)
@@ -26,36 +32,34 @@ const mask = (phone: string) => {
 
 const PatientProfileCard: React.FC<PatientProfileCardProps> = ({ patient, isSelected, onSelect }) => {
   return (
-    <Card
-      className={clsx(
-        "cursor-pointer transition-all duration-200 ease-in-out w-full max-w-sm shadow-md hover:shadow-lg",
-        {
-          'border-2 border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/50': isSelected,
-          'border border-gray-700 hover:border-gray-500 bg-gray-800/50 hover:bg-gray-700/50': !isSelected,
-        }
-      )}
+    <Card 
       onClick={() => onSelect(patient.id)}
+      className={clsx(
+        "cursor-pointer transition-all duration-200 ease-in-out shadow-md hover:shadow-lg", // Reduced shadow
+        "border", // Thinner border
+        isSelected ? "border-[#FFB800] bg-gradient-to-br from-[#FFB800]/15 to-transparent scale-102" : "border-gray-700 hover:border-gray-600 bg-gradient-to-br from-gray-800/60 to-gray-900/60",
+        "text-white"
+      )}
     >
-      <CardHeader className="pb-3 pt-4">
-        <div className="flex items-center space-x-3">
-          <UserCircle className={`h-8 w-8 ${isSelected ? 'text-blue-400' : 'text-gray-400'}`} />
-          <CardTitle className={`text-xl font-semibold ${isSelected ? 'text-white' : 'text-gray-200'}`}>
-            {patient.name}
-          </CardTitle>
+      <CardHeader className="p-2 pb-1"> {/* Reduced padding */}
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold">{patient.name}</CardTitle> {/* Slightly smaller title */}
+          {isSelected && <CheckCircle2 className="w-5 h-5 text-[#FFB800]" />} {/* Smaller check icon */}
         </div>
+        <CardDescription className="text-xs text-gray-400 pt-0.5">{patient.age} years old, {patient.gender}</CardDescription> {/* Smaller description text */}
       </CardHeader>
-      <CardContent className="space-y-2.5 text-sm pb-4 pt-0">
-        <div className="flex items-center">
-          <ShieldCheck className={`h-4 w-4 mr-2.5 ${isSelected ? 'text-blue-400' : 'text-gray-500'}`} />
-          <span className={`${isSelected ? 'text-gray-100' : 'text-gray-300'}`}>NRIC: {patient.nric}</span>
+      <CardContent className="p-2 pt-1 space-y-1.5"> {/* Reduced padding and space */}
+        <div>
+          <h4 className="text-xs font-medium text-gray-300 mb-0.5">NRIC:</h4>
+          <p className="text-xs text-gray-400">{patient.nric}</p>
         </div>
-        <div className="flex items-center">
-          <Phone className={`h-4 w-4 mr-2.5 ${isSelected ? 'text-blue-400' : 'text-gray-500'}`} />
-          <span className={`${isSelected ? 'text-gray-100' : 'text-gray-300'}`}>Phone: {mask(patient.phone)}</span>
+        <div>
+          <h4 className="text-xs font-medium text-gray-300 mb-0.5">Phone:</h4>
+          <p className="text-xs text-gray-400">{mask(patient.phone)}</p>
         </div>
-        <div className="flex items-center">
-          <CalendarDays className={`h-4 w-4 mr-2.5 ${isSelected ? 'text-blue-400' : 'text-gray-500'}`} />
-          <span className={`${isSelected ? 'text-gray-100' : 'text-gray-300'}`}>DOB: {patient.dob}</span>
+        <div>
+          <h4 className="text-xs font-medium text-gray-300 mb-0.5">DOB:</h4>
+          <p className="text-xs text-gray-400">{patient.dob}</p>
         </div>
         {patient.outstandingBalance && patient.outstandingBalance !== "None" && (
           <div className="flex items-center mt-1.5">

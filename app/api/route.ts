@@ -20,6 +20,7 @@ interface ParsedRequestData {
   patientProfile: PatientProfile | null;
   transcript: string;
   allMessages: Message[];
+  scenario?: string;
 }
 
 async function parseIncomingRequest(req: Request, requestId: string): Promise<ParsedRequestData> {
@@ -28,6 +29,7 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   let input: any = formData.get("input");
   const historyString = formData.get("message") as string | null;
   const patientProfileString = formData.get("patientProfile") as string | null;
+  const scenario = formData.get("scenario") as string | null;
 
   if (!input) {
     console.error(`[${requestId}] No input found in formData.`);
@@ -63,7 +65,7 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   }
 
   console.log(`[${requestId}] Request parsed successfully.`);
-  return { input, history, patientProfile, transcript, allMessages };
+  return { input, history, patientProfile, transcript, allMessages, scenarioId: scenario.id };
 }
 
 function buildCallerInfoString(patientProfile: PatientProfile | null): string {
@@ -95,7 +97,7 @@ async function getIntentClassification(messages: Message[], patientProfile: Pati
   }
 }
 
-async function generateMainAiTextResponse(messages: Message[], intent: string, patientProfile: PatientProfile | null, originalQuery: string, requestId: string): Promise<string> {
+async function generateMainAiTextResponse(messages: Message[], intent: string, patientProfile: PatientProfile | null, originalQuery: string, requestId: string, scenarioId?: string): Promise<string> {
   console.log(`[${requestId}] Generating main AI text response for intent: ${intent}`);
   let systemPromptContent = "";
   const callerInfo = buildCallerInfoString(patientProfile);
@@ -103,9 +105,16 @@ async function generateMainAiTextResponse(messages: Message[], intent: string, p
   if (intent === "FAQ") {
     console.log(`[${requestId}] Building RAG prompt for FAQ query: "${originalQuery}"`);
     systemPromptContent = await PROMPTS.RAG(originalQuery); // RAG will include its own base prompt and context
+  } else if (scenarioId === 'PREPARATION') {
+    console.log(`[${requestId}] Using PREPARATION for scenario: ${scenarioId}`);
+    systemPromptContent = `${PROMPTS.PREPARATION}${callerInfo}`;
+  } else if (scenarioId === 'FOLLOW_UP') {
+    console.log(`[${requestId}] Using FOLLOW_UP for scenario: ${scenarioId}`);
+    systemPromptContent = `${PROMPTS.FOLLOW_UP}${callerInfo}`;
   } else {
-    // For 'APPOINTMENT' or other direct conversation intents
-    systemPromptContent = `${PROMPTS.Appointment}${callerInfo}`;
+    // Default to APPOINTMENT or other general intents if no specific scenario matches
+    console.log(`[${requestId}] Using APPOINTMENT for intent: ${intent} (no specific scenario or scenario not matched: ${scenarioId})`);
+    systemPromptContent = `${PROMPTS.APPOINTMENT}${callerInfo}`;
   }
 
   try {
@@ -168,7 +177,7 @@ export async function POST(req: Request) {
 
   try {
     // Step 1: Parse and Validate Incoming Request
-    const { input, patientProfile, transcript, allMessages } = await parseIncomingRequest(req, requestId);
+    const { input, patientProfile, transcript, allMessages, scenarioId } = await parseIncomingRequest(req, requestId);
 
     // Step 2: Get Intent Classification
     // Send allMessages for richer context for classification, but the helper might slice it.
@@ -178,7 +187,7 @@ export async function POST(req: Request) {
     if (input === "hi") {
       aiTextResponse = "Hi thank you for calling HealthLine, my name is Mei Ling, how can I help you today?";
     } else {
-      aiTextResponse = await generateMainAiTextResponse(allMessages, intent, patientProfile, input, requestId);
+      aiTextResponse = await generateMainAiTextResponse(allMessages, intent, patientProfile, input, requestId, scenarioId);
     }
 
     // Step 4: Handle Appointment Workflow (Asynchronously - Fire and Forget)

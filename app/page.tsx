@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { brandColors } from "@/lib/constants";
 import { Message } from "@/lib/types";
 import { FlickeringGrid } from "@/components/ui/flickering-grid"; // Assuming named export
+import { CheckCircle2 } from 'lucide-react'; // Correct import for CheckCircle2
 import { PatientProfileCard } from "@/components/ui/patient-profile-card";
 
 // Define PatientProfile interface
@@ -25,6 +26,14 @@ export interface PatientProfile {
   phone: string; // Masked phone number
   dob: string;   // Date of Birth
   outstandingBalance?: string; // e.g., "SGD 50.00" or "None"
+}
+
+// Define Scenario interface
+export interface Scenario {
+  id: string;
+  name: string;
+  description: string;
+  promptKey?: string; // References the prompt to use from prompt.tsx
 }
 
 export default function Home() {
@@ -56,6 +65,13 @@ export default function Home() {
   const [patients, setPatients] = useState<PatientProfile[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 
+  // Scenario State
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+
+  // Wizard Step State
+  const [selectionStep, setSelectionStep] = useState<'scenario' | 'patient' | 'summary'>('scenario');
+
   // Simulate fetching patient data (could be an API call in a real app)
   useEffect(() => {
     const mockPatients: PatientProfile[] = [
@@ -64,12 +80,44 @@ export default function Home() {
       { id: '3', name: 'Max Xu', gender: 'Male', nric: 'S****890C', phone: '+65 8288 8399', dob: '22 Nov 1975', outstandingBalance: 'SGD 230' },
     ];
     setPatients(mockPatients);
-  }, []);
+
+    const mockScenarios: Scenario[] = [
+      { 
+        id: 'APPOINTMENT', 
+        name: 'Healthier SG Query & Appointment Booking', 
+        description: 'Default scenario for handling Healthier SG queries and booking appointments.',
+        promptKey: 'Appointment'
+      },
+      { 
+        id: 'PREPARATION', 
+        name: 'Pre-Procedure Preparation & Medication Counselling', 
+        description: 'Guidance on preparation for medical procedures and medication counselling.',
+        promptKey: 'Preparation' // Using the default prompt as placeholder
+      },
+      { 
+        id: 'FOLLOW_UP', 
+        name: 'Post-Endoscopy Follow-up & Community Outreach', 
+        description: 'Outbound follow-up after endoscopy, medication counseling, and community program information.',
+        promptKey: 'Follow-up' // Using the default prompt as placeholder
+      },
+    ];
+    setScenarios(mockScenarios);
+  }, []); // Removed vad from dependency array here, it was causing the initialization error.
 
   // Define vad first before using it in submit
   const vad = useMicVAD({
+    // IMPORTANT: vad object must be stable for useEffect dependency arrays.
+    // If useMicVAD doesn't guarantee a stable object, consider wrapping its direct usages in useCallback or using refs.
+    onVADMisfire: () => {
+      console.log("[VAD] Misfire - no speech detected within timeout");
+      if (listeningInitiated && !manualListening) setIsListening(false);
+    },
+    onLoadError: (e) => {
+      console.error("[VAD] Load Error:", e);
+      toast.error("Speech detection model failed to load. Please refresh.");
+    },
     model:"v5",
-    startOnLoad: false, // Changed from true
+    startOnLoad: false, // Explicitly call vad.load()
     onSpeechStart: () => {
       if (!manualListening && listeningInitiated) { // Ensure listening was initiated
         setIsListening(true);
@@ -92,8 +140,8 @@ export default function Home() {
       const isFirefox = navigator.userAgent.includes("Firefox");
       if (isFirefox && listeningInitiated) vad.pause(); // Pause only if initiated
     },
-    // workletURL: "/vad.worklet.bundle.min.js",
-    // modelURL: "/silero_vad_v5.onnx",
+    workletURL: "/vad.worklet.bundle.min.js", // Ensure this file is in /public
+    modelURL: "/silero_vad_v5.onnx",     // Ensure this file is in /public
     positiveSpeechThreshold: 0.6,
     minSpeechFrames: 4,
     ortConfig(ort) {
@@ -114,6 +162,21 @@ export default function Home() {
     },
   });
 
+  // Effect to monitor VAD status changes - Defined AFTER vad initialization
+  useEffect(() => {
+    if (vad) { // Ensure vad is initialized
+      console.log("[VAD Status Monitor] Status:", vad.status, "Loading:", vad.loading, "Errored:", vad.errored, "Listening:", vad.listening);
+      if (vad.errored) {
+        console.error("[VAD Status Monitor] VAD Errored:", vad.errored);
+      }
+      if (vad.status === "loaded" && !vad.loading) {
+          console.log("[VAD Status Monitor] VAD model loaded successfully.");
+      }
+    }
+  }, [vad, vad?.status, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
+
+
+
   const handleSubmit = useCallback(async (data: string | Blob) => {
     if (isPending) return; // Prevent multiple submissions
 
@@ -130,12 +193,15 @@ export default function Home() {
       const formData = new FormData();
       formData.append("input", data);
 
-      // Add selected patient profile to formData if available
-      if (selectedPatientId) {
-        const patient = patients.find(p => p.id === selectedPatientId);
-        if (patient) {
-          formData.append("patientProfile", JSON.stringify(patient));
-        }
+      // Get selected patient and scenario
+      const selectedPatient = patients.find(p => p.id === selectedPatientId) || null;
+      const selectedScenario = scenarios.find(s => s.id === selectedScenarioId) || null;
+
+      if (selectedPatient) {
+        formData.append("patientProfile", JSON.stringify(selectedPatient));
+      }
+      if (selectedScenario) {
+        formData.append("scenario", JSON.stringify(selectedScenario));
       }
 
       // Only send the last 10 messages to keep the payload size reasonable
@@ -208,7 +274,7 @@ export default function Home() {
     } finally {
       setIsPending(false);
     }
-  }, [isPending, messages, player, selectedPatientId, patients]);
+  }, [isPending, messages, player, selectedPatientId, patients, selectedScenarioId]);
 
   const handleGenerateSummary = async () => {
     if (isSummarizing || messages.length === 0) {
@@ -294,69 +360,219 @@ export default function Home() {
     return () => window.removeEventListener("keydown", keyDown);
   }, []);
 
+  // Derive selected objects from IDs
+  const selectedScenario = scenarios.find(s => s.id === selectedScenarioId);
+  const selectedPatient = patients.find(p => p.id === selectedPatientId);
+
   if (!listeningInitiated) {
     return (
       <div style={mainContainerStyle} className="flex flex-col items-center justify-center">
-        {/* Content for !listeningInitiated, wrapped to ensure it's on top */}
-        <div style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-4 text-center"
-          >
-            <div className="flex flex-col items-center gap-2">
-              <h1 className="text-4xl font-semibold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D3B86] via-[#00A9E7] to-[#1D3B86]">
-                HealthLine <span className="font-light">Voice Assistant</span>
-              </h1>
-              <p className="text-lg text-white/80 mt-1">Please select a patient profile to continue.</p>
+        <div className="mx-auto w-full max-w-7xl h-screen flex flex-col px-4 sm:px-6 lg:px-8 relative py-6">
+          <div className="flex-1 flex flex-col justify-center items-center mb-20">
+            <div className="w-full max-w-md mb-10">
+              {/* 
+              <h1 className="text-4xl font-bold text-center mb-2 text-white">Health Line</h1>
+              <p className="text-center mb-8 text-gray-300">Powered by AI assistant</p> */}
+
+              {selectionStep === 'scenario' && (
+                <>
+                  {/* Step 1: Scenario Selection */}
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-semibold text-center mb-1 text-white">Step 1: Select a Scenario</h2>
+                    <p className="text-sm text-center mb-4 text-gray-400">Choose the purpose of this session.</p>
+                    <div className="space-y-3">
+                      {scenarios.map(scenario => (
+                        <Card 
+                          key={scenario.id}
+                          className={clsx(
+                            "transition-all duration-300 cursor-pointer hover:shadow-lg",
+                            selectedScenarioId === scenario.id
+                              ? "bg-gradient-to-r from-[#002B49]/90 to-[#001425]/95 border-2 border-[#FFB800]/80 shadow-[0_0_20px_rgba(255,184,0,0.4)] scale-105"
+                              : "bg-gradient-to-r from-[#002B49]/60 to-[#001425]/70 border border-white/10 hover:border-white/30 hover:scale-[1.02]"
+                          )}
+                          onClick={() => {
+                            setSelectedScenarioId(scenario.id);
+                            setSelectionStep('patient');
+                          }}
+                        >
+                          <CardHeader className="p-4 pb-2">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className={clsx(
+                                "text-lg font-medium transition-colors",
+                                selectedScenarioId === scenario.id
+                                  ? "text-[#FFB800]"
+                                  : "text-white"
+                              )}>
+                                {scenario.name}
+                              </CardTitle>
+                              {selectedScenarioId === scenario.id && (
+                                <CheckCircle2 className="w-5 h-5 text-[#FFB800]" />
+                              )}
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-4 pt-0">
+                            <p className="text-sm text-gray-300">{scenario.description}</p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {selectionStep === 'patient' && selectedScenario && (
+                <>
+                  {/* Step 2: Patient Profile Selection */}
+                  <div className="mb-4 p-3 border border-white/20 rounded-lg bg-white/5 shadow-sm">
+                    <p className="text-xs text-gray-400 mb-0.5">Selected Scenario:</p>
+                    <h3 className="text-base font-semibold text-[#FFD700]">{selectedScenario.name}</h3>
+                  </div>
+                  <div className="mb-1">
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        setSelectionStep('scenario');
+                        // setSelectedPatientId(null); // Optionally clear patient if going back to scenario
+                      }}
+                      className="mb-3 text-sm text-gray-300 hover:text-white border-gray-600 hover:border-gray-400 bg-transparent hover:bg-white/5"
+                    >
+                      &larr; Change Scenario
+                    </Button>
+                  </div>
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-semibold text-center mb-1 text-white">Step 2: Select a Patient Profile</h2>
+                    <p className="text-sm text-center mb-4 text-gray-400">Choose the patient for this session.</p>
+                    <div className="space-y-3">
+                      {patients.map(patient => (
+                        <PatientProfileCard
+                          key={patient.id}
+                          patient={patient}
+                          isSelected={selectedPatientId === patient.id}
+                          onSelect={() => {
+                            setSelectedPatientId(patient.id);
+                            setSelectionStep('summary');
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {selectionStep === 'summary' && selectedScenario && selectedPatient && (
+                <>
+                  {/* Step 3: Summary and Confirmation */}
+                  <div className="mb-6 space-y-4">
+                    <div>
+                      <h2 className="text-2xl font-semibold text-center mb-1 text-white">Confirm Selections</h2>
+                      <p className="text-sm text-center mb-4 text-gray-400">Review details and start the session.</p>
+                    </div>
+
+                    {/* Selected Scenario Display */}
+                    <Card className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
+                      <CardHeader className="p-4 pb-2">
+                        <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Scenario</p>
+                        <CardTitle className="text-lg font-medium text-[#FFD700]">
+                          {selectedScenario.name}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <p className="text-sm text-gray-300">{selectedScenario.description}</p>
+                      </CardContent>
+                    </Card>
+
+                    {/* Selected Patient Display */}
+                    <div>
+                       <p className="text-xs uppercase tracking-wider text-gray-400 mb-1 ml-1">Patient</p>
+                      <PatientProfileCard
+                        patient={selectedPatient}
+                        isSelected={true} // Always visually selected in summary
+                        onSelect={() => {}} // Non-interactive in summary
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 mt-8">
+                    <Button
+                      onClick={() => {
+                        if (!selectedScenarioId || !selectedPatientId) {
+                          toast.error("Error: Scenario or Patient not selected. Please review selections.");
+                          return;
+                        }
+                        console.log("[Debug] Attempting to start session. Current VAD object:", vad);
+                        setListeningInitiated(true);
+
+                        if (vad && typeof vad.start === 'function') {
+                            if (vad.loading) { // vad.loading is a boolean
+                                console.warn("[Debug] VAD is currently loading. Please wait a moment.");
+                                toast.info("Speech model is loading. Please wait...");
+                            } else if (vad.errored) {
+                                console.error("[Debug] VAD is in an errored state:", vad.errored);
+                                toast.error("Speech detection model has an error. Please refresh.");
+                            } else {
+                                console.log("[Debug] VAD status:", vad.status, ". Calling vad.start().");
+                                try {
+                                    vad.start();
+                                } catch (e) {
+                                    console.error("[Debug] Error calling vad.start():", e);
+                                    toast.error("Failed to start voice detection.");
+                                }
+                            }
+                        } else {
+                            console.warn("[Debug] vad.start is not a function or vad object is not fully initialized. VAD status:", vad?.status);
+                            toast.error("Speech detection is not ready. Please refresh or try again.");
+                        }
+                      }}
+                      className="w-full bg-gradient-to-r from-[#FFB800] to-[#FFCC40] hover:from-[#EAA900] hover:to-[#FFB800] text-[#001425] font-semibold transition-all duration-300 shadow-lg hover:shadow-xl py-3 text-lg rounded-xl"
+                    >
+                      Start Session
+                    </Button>
+                    <div className="flex gap-3">
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectionStep('patient');
+                          setSelectedPatientId(null); // Clear patient to allow re-selection
+                        }}
+                        className="w-full text-sm text-gray-300 hover:text-white border-gray-600 hover:border-gray-400 bg-transparent hover:bg-white/10 py-2.5 rounded-lg"
+                      >
+                        &larr; Change Patient
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectionStep('scenario');
+                          setSelectedPatientId(null);
+                          // setSelectedScenarioId(null); // Optionally clear scenario too
+                        }}
+                        className="w-full text-sm text-gray-300 hover:text-white border-gray-600 hover:border-gray-400 bg-transparent hover:bg-white/10 py-2.5 rounded-lg"
+                      >
+                        &larr; Change Scenario
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Display loader during model loading (common for both steps if needed) */}
+              {vad.status === "loading" && (
+                <div className="text-center mt-4 text-gray-400">
+                  <LoadingIcon />
+                  <p>Loading speech detection...</p>
+                </div>
+              )}
+
+              {vad.errored && (
+                <div className="text-center mt-4 text-red-400">
+                  <p>Error loading speech detection model.</p>
+                </div>
+              )}
             </div>
-          </motion.div>
-
-          {/* Patient Profile Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 w-full max-w-4xl px-4">
-            {patients.map((patient) => (
-              <PatientProfileCard
-                key={patient.id}
-                patient={patient}
-                isSelected={selectedPatientId === patient.id}
-                onSelect={setSelectedPatientId}
-              />
-            ))}
           </div>
-
-          <Button
-            onClick={() => {
-              handleSubmit('hi');
-              vad.start();
-              setListeningInitiated(true);
-              toast.success("Call started, you can now ask questions!");
-            }}
-            disabled={vad.loading || !selectedPatientId}
-            className="px-8 py-4 bg-gradient-to-r from-[#00A9E7] to-[#1D3B86] hover:from-[#1D3B86] hover:to-[#00A9E7] text-white text-xl font-semibold rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {vad.loading ? <><LoadingIcon/> Initializing...</> : vad.errored ? "Voice Error" : "Start Session"}
-          </Button>
-          {!selectedPatientId && !vad.loading && !vad.errored && (
-            <p className="mt-3 text-sm text-yellow-400">Please select a patient profile to start.</p>
-          )}
-          {vad.errored && (
-            <p className="mt-4 text-red-400 text-sm">
-              Failed to initialize microphone. Please check permissions and try again.
-            </p>
-          )}
-          <motion.div
-            className="fixed w-48 h-48 blur-3xl rounded-full bg-gradient-to-b from-[#1D3B86] to-[#00A9E7] opacity-10 -z-10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.1 }}
-            transition={{ duration: 0.3 }}
-          />
         </div>
       </div>
     );
   }
-
-  const selectedPatient = patients.find(p => p.id === selectedPatientId);
 
   return (
     <div style={mainContainerStyle} className="flex flex-col items-center">
@@ -483,21 +699,40 @@ export default function Home() {
 
         </div>
 
-        {/* Patient Profile Display */}
+        {/* Active Session Display (Scenario and Patient) */}
         {listeningInitiated ? (
-          selectedPatient ? (
-            // Show only the selected patient card if listening and a patient is selected
-            <div className="mb-6 flex flex-col items-center">
-              <h2 className="text-2xl font-semibold text-center mb-4 text-white">Selected Patient</h2>
-              <div className="w-full max-w-sm">
-                 <PatientProfileCard
-                    patient={selectedPatient}
-                    isSelected={true} // Visual cue that this is the active context
-                    onSelect={() => {}} // No selection change during an active call
-                  />
+          <div className="mb-6 flex flex-col items-center">
+            {/* Selected Scenario Display */}
+            {selectedScenarioId && (
+              <div className="w-full max-w-sm mb-4">
+                <h2 className="text-2xl font-semibold text-center mb-4 text-white">Active Scenario</h2>
+                <Card 
+                  className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border-2 border-[#FFB800]/70 shadow-[0_0_15px_rgba(255,184,0,0.3)] mb-4"
+                >
+                  <CardHeader className="p-4 pb-2">
+                    <CardTitle className="text-lg font-medium text-[#FFB800]">
+                      {scenarios.find(s => s.id === selectedScenarioId)?.name}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0">
+                    <p className="text-sm text-gray-300">{scenarios.find(s => s.id === selectedScenarioId)?.description}</p>
+                  </CardContent>
+                </Card>
               </div>
-            </div>
-          ) : null /* Optional: Handle case where isListening is true but no selectedPatient (should not happen with current logic) */
+            )}
+
+            {/* Selected Patient Display */}
+            {selectedPatientId && (
+              <div className="w-full max-w-sm">
+                <h2 className="text-2xl font-semibold text-center mb-4 text-white">Selected Patient</h2>
+                <PatientProfileCard
+                  patient={patients.find(p => p.id === selectedPatientId)}
+                  isSelected={true} // Visual cue that this is the active context
+                  onSelect={() => {}} // No selection change during an active call
+                />
+              </div>
+            )}
+          </div>
         ) : null}
 
 
