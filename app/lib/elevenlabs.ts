@@ -110,6 +110,9 @@ export async function generateSpeech(
 
   voice = VOICE_IDS[language];
 
+  // remove text within brackets
+  text = text.replace(/\(.*?\)/g, '');
+
   try {
     console.log(`Generating speech with ElevenLabs - Voice: ${voice}, Model: ${DEFAULT_MODEL}, Text length: ${text.length}`);
     console.log(`API Key present: ${!!process.env.ELEVENLABS_API_KEY}`);

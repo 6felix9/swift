@@ -569,7 +569,7 @@ export default function Home() {
           >
             <Input
               type="text"
-              placeholder="Ask me anything about Healthier SG services..."
+              
               value={input}
               onChange={(e) => setInput(e.target.value)}
               ref={inputRef}
