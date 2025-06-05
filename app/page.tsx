@@ -169,7 +169,7 @@ export default function Home() {
         messages: conversationHistory,
         roleplayProfile: profileData,
         evaluationPrompt: evaluationPromptContent,
-        scenarioContext: selectedScenario?.context || "",
+        scenarioContext: selectedScenario?.scenarioContext || "",
       };
       console.log('[handleEndCall] Fetching /api/evaluate with body:', JSON.stringify(requestBody, null, 2));
 
