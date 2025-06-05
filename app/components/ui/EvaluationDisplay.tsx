@@ -2,16 +2,18 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import { EvaluationResponse, DetailedEvaluationCategory, CriterionEvaluation } from '@/lib/evaluationTypes';
 
 interface EvaluationDisplayProps {
-  evaluationText: string;
+  evaluationData: EvaluationResponse | null;
   isLoading: boolean;
   error: string | null;
   onRestartSession: () => void;
 }
 
 export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
-  evaluationText,
+  evaluationData,
   isLoading,
   error,
   onRestartSession,
@@ -57,13 +59,48 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
             Evaluation Results
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6 pt-2">
-          {evaluationText ? (
-            <pre className="whitespace-pre-wrap text-sm text-gray-200 leading-relaxed bg-black/30 p-4 rounded-lg shadow-inner max-h-[60vh] overflow-y-auto">
-              {evaluationText}
-            </pre>
+        <CardContent className="p-6 pt-2 text-gray-200 max-h-[70vh] overflow-y-auto">
+          {evaluationData ? (
+            <div className="space-y-6">
+              {/* Evaluation Summary Section */}
+              <div className="bg-black/30 p-4 rounded-lg shadow-inner">
+                <h3 className="text-xl font-semibold text-sky-300 mb-3">Evaluation Summary</h3>
+                <div className="space-y-2 text-sm">
+                  <p><strong>Overall Score:</strong> {evaluationData?.evaluationSummary?.totalScore} / {evaluationData?.evaluationSummary?.maxPossibleScore}</p>
+                  <div><strong>Key Strengths:</strong> <div className="prose prose-sm prose-invert max-w-none inline"><ReactMarkdown>{evaluationData?.evaluationSummary?.keyStrengths}</ReactMarkdown></div></div>
+                  <div><strong>Key Areas for Improvement:</strong> <div className="prose prose-sm prose-invert max-w-none inline"><ReactMarkdown>{evaluationData?.evaluationSummary?.keyAreasForImprovement}</ReactMarkdown></div></div>
+                  <div>
+                    <strong>Referral Context Successfully Created:</strong> {evaluationData?.evaluationSummary?.referralContextSuccessfullyCreated?.answer}
+                    <div className="prose prose-sm prose-invert max-w-none text-xs text-gray-400 ml-1"><ReactMarkdown>{evaluationData?.evaluationSummary?.referralContextSuccessfullyCreated?.justification}</ReactMarkdown></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detailed Evaluation Section */}
+              <div>
+                <h3 className="text-xl font-semibold text-sky-300 mb-3 mt-6">Detailed Evaluation</h3>
+                {evaluationData?.detailedEvaluation?.map((category: DetailedEvaluationCategory, catIndex: number) => (
+                  <div key={catIndex} className="mb-6 bg-black/40 p-4 rounded-lg shadow-md">
+                    <h4 className="text-lg font-medium text-blue-300 mb-1">{category?.categoryName} (Subtotal: {category?.subtotal})</h4>
+                    {category?.redFlagCheck?.raised && (
+                      <p className="text-xs text-red-400 mb-2"><strong>Red Flag:</strong> {category?.redFlagCheck?.comment}</p>
+                    )}
+                    <ul className="space-y-3 list-inside pl-2">
+                      {category?.criteria?.map((criterion: CriterionEvaluation, critIndex: number) => (
+                        <li key={critIndex} className="text-sm border-l-2 border-sky-700 pl-3 py-1">
+                          <p className="font-semibold">{criterion.criterionId}. {criterion.criterionText} <span className="text-blue-400">(Score: {criterion.score}/5)</span></p>
+                          <div className="text-xs text-gray-300 mt-1 prose prose-xs prose-invert max-w-none">
+                            <ReactMarkdown>{criterion?.commentsAndExamples}</ReactMarkdown>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
-            <p className="text-center text-gray-400">No evaluation results to display.</p>
+            <p className="text-center text-gray-400 py-8">No evaluation results to display.</p>
           )}
           <Button 
             onClick={onRestartSession} 

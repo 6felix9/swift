@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import { PROMPTS } from '@/lib/prompt';
-import { extractAppointmentDetails, sendWhatsAppConfirmation } from '@/lib/whatsappService';
+import { extractAppointmentDetails, sendWhatsAppConfirmation, roleplayProfile as WhatsAppProfile } from '@/lib/whatsappService';
 import { generateSpeech } from '@/lib/elevenlabs';
 import { Readable } from "stream";
 import { getTranscript } from '@/lib/whisper';
@@ -65,10 +65,10 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   let allMessages: Message[] = [...history];
   allMessages.push({ role: "user", content: input });
 
-  let roleplayProfile: roleplayProfile | null = null;
+  let roleplayProfile: Persona | null = null;
   if (roleplayProfileString) {
     try {
-      roleplayProfile = JSON.parse(roleplayProfileString) as roleplayProfile;
+      roleplayProfile = JSON.parse(roleplayProfileString) as Persona;
       console.log(`[${requestId}] Parsed persona profile for: ${roleplayProfile.name}`);
     } catch (e) {
       console.warn(`[${requestId}] Error parsing persona profile JSON, proceeding without profile:`, e);
@@ -78,9 +78,9 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   return { input, history, roleplayProfile, transcript, allMessages, scenarioId }; // Added action
 }
 
-function buildCallerInfoString(roleplayProfile: roleplayProfile | null): string {
+function buildCallerInfoString(roleplayProfile: Persona | null): string {
     if (!roleplayProfile) return "";
-    return `\n\nCaller Information:\nName: ${roleplayProfile.name}\nMasked NRIC: ${roleplayProfile.nric}\nDOB: ${roleplayProfile.dob}\nOutstandingBalance: ${roleplayProfile.outstandingBalance || 'N/A'}`;
+    return `\n\nCaller Information:\nName: ${roleplayProfile.name}`;
 }
 
 // async function getIntentClassification(messages: Message[], roleplayProfile: roleplayProfile | null, requestId: string): Promise<string> {
@@ -168,7 +168,7 @@ Provide two distinct suggestions for the Financial Advisor's next response in JS
   }
 }
 
-async function generateMainAiTextResponse(messages: Message[], intent: string, roleplayProfile: roleplayProfile | null, originalQuery: string, requestId: string, scenarioId?: string): Promise<string> {
+async function generateMainAiTextResponse(messages: Message[], intent: string, roleplayProfile: Persona | null, originalQuery: string, requestId: string, scenarioId?: string): Promise<string> {
   console.log(`[${requestId}] Generating main AI text response for scenario: ${scenarioId}. Messages count: ${messages.length}`);
   let systemPromptContent = "";
   const callerInfo = buildCallerInfoString(roleplayProfile);
@@ -231,7 +231,7 @@ async function convertTextToSpeech(text: string, requestId: string, voice: strin
   }
 }
 
-async function handleAppointmentWorkflowInBackground(fullTranscript: string, roleplayProfile: roleplayProfile | null, requestId: string): Promise<void> {
+async function handleAppointmentWorkflowInBackground(fullTranscript: string, roleplayProfile: Persona | null, requestId: string): Promise<void> {
   if (!roleplayProfile) {
     console.log(`[${requestId}] No persona profile, skipping appointment workflow.`);
     return;
@@ -241,7 +241,7 @@ async function handleAppointmentWorkflowInBackground(fullTranscript: string, rol
     const appointmentDetails = await extractAppointmentDetails(groq, fullTranscript, requestId);
     if (appointmentDetails && (appointmentDetails.appointment_date || appointmentDetails.appointment_time)) {
       console.log(`[${requestId}] Appointment details extracted for WhatsApp:`, appointmentDetails);
-      await sendWhatsAppConfirmation(appointmentDetails, roleplayProfile);
+      await sendWhatsAppConfirmation(appointmentDetails, roleplayProfile as WhatsAppProfile);
     } else {
       console.log(`[${requestId}] No specific appointment details for WhatsApp.`);
     }

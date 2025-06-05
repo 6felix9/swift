@@ -1,5 +1,5 @@
 import { trainingReferralPrompt, trainingReferralEvaluationInstructions } from "./prompt/training-referral";
-import { trainingInsuranceRejectionPrompt } from "./prompt/training-insurance-rejection";
+import { trainingInsuranceRejectionPrompt, trainingInsuranceRejectionEvaluationInstructions } from "./prompt/training-insurance-rejection";
 
 const instructions = `## Instructions:
 - You are Mei Ling, a friendly and helpful voice assistant of Health Line Hotline. You are based in Singapore.
@@ -90,5 +90,6 @@ export const PROMPTS = {
 	RAG,
 	trainingReferralPrompt,
 	trainingInsuranceRejectionPrompt,
-	trainingReferralEvaluationInstructions
+	trainingReferralEvaluationInstructions,
+  trainingInsuranceRejectionEvaluationInstructions
 }

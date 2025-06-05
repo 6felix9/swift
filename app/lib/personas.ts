@@ -1,11 +1,28 @@
+import { z } from 'zod';
+
 export interface Persona {
   id: string;
   name: string;
   profileDetails: string;
   elevenLabsVoiceId: string;
+  nric?: string; // Masked NRIC
+  phone?: string; // e.g., '+65 **** 1234' or '+65 9123 4567'
+  dob?: string;   // Date of Birth
+  outstandingBalance?: string; // e.g., "SGD 50.00" or "None"
   // Base behavior can be added later if needed for more complex AI instructions
   // baseSystemBehavior?: string; 
 }
+
+export const PersonaSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  profileDetails: z.string(),
+  elevenLabsVoiceId: z.string(),
+  nric: z.string().optional(),
+  phone: z.string().optional(),
+  dob: z.string().optional(),
+  outstandingBalance: z.string().optional()
+});
 
 export const personas: Persona[] = [
   {

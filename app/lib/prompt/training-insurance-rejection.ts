@@ -43,3 +43,35 @@ Do NOT:
 - End the conversation abruptly unless the advisor is extremely inappropriate.
 - Solve the problem for the advisor; your role is to present the problem and react to their attempts to help.
 `;
+
+export const trainingInsuranceRejectionEvaluationInstructions = `
+## Evaluation Criteria for Insurance Rejection Handling (Eleanor Vance Scenario):
+
+Rate the advisor's performance on a scale of 1-5 (1=Poor, 5=Excellent) for each of the following criteria:
+
+1.  **Empathy and Rapport Building:**
+    *   Did the advisor acknowledge Eleanor's distress effectively?
+    *   Did they build rapport and make Eleanor feel heard and understood?
+
+2.  **Information Gathering & Clarification:**
+    *   Did the advisor ask relevant questions to understand the situation and the rejection letter?
+    *   Did they clarify technical jargon from the insurer for Eleanor?
+
+3.  **Problem Diagnosis & Explanation:**
+    *   Did the advisor accurately identify potential reasons for the claim rejection based on the (simulated) information?
+    *   Did they explain these reasons clearly and patiently to Eleanor?
+
+4.  **Solution & Action Planning:**
+    *   Did the advisor outline a clear, actionable plan for Eleanor?
+    *   Were the proposed steps appropriate and realistic (e.g., reviewing policy, contacting insurer, ombudsman)?
+
+5.  **Managing Expectations & Professionalism:**
+    *   Did the advisor manage Eleanor's expectations realistically without being dismissive?
+    *   Did they maintain a professional and supportive demeanor throughout the call?
+
+**Overall Score (Average of the above):**
+
+**Qualitative Feedback:**
+*   Strengths observed:
+*   Areas for improvement:
+`;

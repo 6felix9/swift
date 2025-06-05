@@ -13,17 +13,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // import { AIVoiceInput } from "@/components/ui/ai-voice-input";
 import { Message } from "@/lib/types";
 import { brandColors } from "@/lib/constants";
+import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
 import { FlickeringGrid } from "@/components/ui/flickering-grid"; // Assuming named export
 import { PhoneOff } from 'lucide-react'; // CheckCircle2 moved to ScenarioSelection
 import { ScenarioSelection } from '@/components/ui/ScenarioSelection';
 import { PersonaSelection } from '@/components/ui/PersonaSelection';
-import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
 import { EvaluationDisplay } from '@/components/ui/EvaluationDisplay'; // Added
 import { roleplayProfileCard as RoleplayProfileCard, roleplayProfile } from "@/components/ui/patient-profile-card";
 
 import { Persona, personas, getPersonaById } from '@/lib/personas';
 import { ScenarioDefinition, scenarioDefinitions, getScenarioDefinitionById } from '@/lib/scenarios';
-import { trainingReferralEvaluationInstructions } from '@/lib/prompt/training-referral'; // Added
+import { PROMPTS } from '@/lib/prompt';
+import { EvaluationResponse } from "./lib/evaluationTypes";
 
 export default function Home() {
   const mainContainerStyle = {
@@ -42,13 +43,9 @@ export default function Home() {
 
   const [isPending, setIsPending] = useState(false);
 
-  // State for summarization
-  const [summaryText, setSummaryText] = useState<string>("");
-  const [isSummarizing, setIsSummarizing] = useState<boolean>(false);
-  const [summaryError, setSummaryError] = useState<string>("");
 
   // State for evaluation
-  const [evaluationText, setEvaluationText] = useState<string>("");
+  const [evaluationData, setEvaluationData] = useState<EvaluationResponse | null>(null);
   const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
   const [evaluationError, setEvaluationError] = useState<string | null>(null);
 
@@ -146,12 +143,14 @@ export default function Home() {
       vad.pause();
     }
     setIsListening(false); // Stop active listening UI
+    setListeningInitiated(false); // Crucial: Return to the wizard/results view
     // Don't clear messages yet, needed for evaluation
 
     setSelectionStep('evaluationResults');
+    console.log('[handleEndCall] selectionStep set to evaluationResults');
     setIsEvaluating(true);
     setEvaluationError(null);
-    setEvaluationText("");
+    setEvaluationData(null);
     toast.info("Call ended. Generating evaluation...");
 
     try {
@@ -164,39 +163,49 @@ export default function Home() {
         }
       }
 
-      const response = await fetch("/api/summarize", {
+      const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
+      const evaluationPromptContent = selectedScenario ? PROMPTS[selectedScenario.evaluationPromptKey as keyof typeof PROMPTS] : '';
+      const requestBody = {
+        messages: conversationHistory,
+        roleplayProfile: profileData,
+        evaluationPrompt: evaluationPromptContent,
+        scenarioContext: selectedScenario?.context || "",
+      };
+      console.log('[handleEndCall] Fetching /api/evaluate with body:', JSON.stringify(requestBody, null, 2));
+
+      const response = await fetch("/api/evaluate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          messages: conversationHistory,
-          roleplayProfile: profileData, 
-          evaluationPrompt: trainingReferralEvaluationInstructions,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData.details || errorData.error || "Failed to generate evaluation.";
-        console.error("Error generating evaluation:", errorMessage);
+        const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response from API.' })); // Gracefully handle if error response isn't JSON
+        console.error('[handleEndCall] API response not OK. Status:', response.status, 'Response body:', JSON.stringify(errorData, null, 2));
+        const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
         toast.error(`Evaluation failed: ${errorMessage}`);
         setEvaluationError(errorMessage);
-        setIsEvaluating(false);
-        return;
+        // No need to throw here, error is handled, and finally block will run
+        return; // Exit the try block
       }
 
-      const data = await response.json();
-      if (data.result) {
-        setEvaluationText(data.result);
+      const result = await response.json();
+      console.log('[handleEndCall] API response JSON:', JSON.stringify(result, null, 2));
+
+      if (result.evaluation) {
+        setEvaluationData(result.evaluation as EvaluationResponse);
+        console.log('[handleEndCall] Evaluation data set successfully.');
         toast.success("Evaluation generated!");
       } else {
-        console.error("No evaluation content received");
-        toast.error("Received empty evaluation from server.");
-        setEvaluationError("Received empty evaluation.");
+        console.error('[handleEndCall] `result.evaluation` is missing. Full result:', JSON.stringify(result, null, 2));
+        const errorMessage = "Evaluation response did not contain 'evaluation' data or it was empty.";
+        setEvaluationError(errorMessage);
+        toast.error(`Evaluation failed: ${errorMessage}`);
       }
     } catch (error: any) {
-      console.error("Exception during evaluation generation:", error);
+      console.error("[handleEndCall] Exception in try block:", error);
       const message = error.message || "An unexpected error occurred.";
       toast.error(`Evaluation error: ${message}`);
       setEvaluationError(message);
@@ -208,10 +217,7 @@ export default function Home() {
   const handleRestartSession = () => {
     setMessages([]);
     setInput("");
-    setSummaryText("");
-    setSummaryError("");
-    setIsSummarizing(false);
-    setEvaluationText("");
+    setEvaluationData(null);
     setEvaluationError(null);
     setIsEvaluating(false);
     setListeningInitiated(false);
@@ -341,58 +347,6 @@ export default function Home() {
     }
   }, [isPending, messages, player, selectedScenarioId, selectedPersonaId, scenarioDefinitionsData, vad]);
 
-  const handleGenerateSummary = async () => {
-    if (isSummarizing || messages.length === 0) {
-      return;
-    }
-    setIsSummarizing(true);
-    setSummaryError("");
-    setSummaryText(""); // Clear previous summary
-
-    try {
-      // Prepare only the role and content for the API
-      const conversationHistory = messages.map(({ role, content }) => ({ role, content }));
-      let roleplayProfile = null;
-      if (selectedPersonaId) {
-        roleplayProfile = personas.find(p => p.id === selectedPersonaId);
-      } 
-
-      const response = await fetch("/api/summarize", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ messages: conversationHistory, roleplayProfile }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData.details || errorData.error || "Failed to generate summary.";
-        console.error("Error generating summary:", errorMessage);
-        toast.error(`Summarization failed: ${errorMessage}`);
-        setSummaryError(errorMessage);
-        setIsSummarizing(false);
-        return;
-      }
-
-      const data = await response.json();
-      if (data.summary) {
-        setSummaryText(data.summary);
-        toast.success("Summary generated!");
-      } else {
-        console.error("No summary content received");
-        toast.error("Received empty summary from server.");
-        setSummaryError("Received empty summary.");
-      }
-    } catch (error: any) {
-      console.error("Exception during summary generation:", error);
-      const message = error.message || "An unexpected error occurred.";
-      toast.error(`Summarization error: ${message}`);
-      setSummaryError(message);
-    } finally {
-      setIsSummarizing(false);
-    }
-  };
 
   const vadRef = useRef(vad); // Create a ref for VAD
   useEffect(() => {
@@ -417,6 +371,8 @@ export default function Home() {
 
   // Derive selected objects from IDs
   const selectedScenarioDefinition = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
+  console.log('[Home Component Render] Current selectionStep:', selectionStep);
+  console.log('[Home Component Render] Current listeningInitiated:', listeningInitiated);
 
   if (!listeningInitiated) {
     return (
@@ -494,7 +450,7 @@ export default function Home() {
               {/* New Evaluation Display Step */}
               {selectionStep === 'evaluationResults' && (
                 <EvaluationDisplay 
-                  evaluationText={evaluationText}
+                  evaluationData={evaluationData}
                   isLoading={isEvaluating}
                   error={evaluationError}
                   onRestartSession={handleRestartSession}
@@ -726,47 +682,6 @@ export default function Home() {
           </div>
         ) : null}
 
-
-          {/* Summarization Section - only show if listening initiated */}
-          {listeningInitiated && (
-            <div className="w-full max-w-3xl mx-auto mt-6 mb-6">
-              <Button
-                onClick={handleGenerateSummary}
-                disabled={isSummarizing || messages.length === 0}
-                className="w-full bg-gradient-to-r from-[#FFB800] to-[#FFCC40] hover:from-[#EAA900] hover:to-[#FFB800] text-[#001425] font-semibold transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-[#FFB800] disabled:hover:to-[#FFCC40] py-3 text-base rounded-xl"
-              >
-                {isSummarizing ? (
-                  <>
-                    <LoadingIcon/> Summarizing...
-                  </>
-                ) : (
-                  "Generate Call Summary"
-                )}
-              </Button>
-              {summaryError && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 p-3 bg-gradient-to-br from-red-900/40 to-red-950/30 border border-red-700/50 text-red-200 rounded-md backdrop-blur-md shadow-inner"
-                >
-                  <p className="text-sm font-medium">Error generating summary:</p>
-                  <p className="text-xs">{summaryError}</p>
-                </motion.div>
-              )}
-              {summaryText && !summaryError && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 p-4 bg-gradient-to-br from-[#002B49]/80 to-[#001425]/90 border border-white/20 rounded-xl shadow-[0_4px_20px_rgba(0,15,30,0.4)] backdrop-blur-md"
-                >
-                  <h3 className="text-lg font-semibold mb-3 text-transparent bg-clip-text bg-gradient-to-r from-[#FFB800] to-[#FFCC40]">Call Summary:</h3>
-                  <pre className="whitespace-pre-wrap text-sm text-gray-100 leading-relaxed tracking-wide">
-                    {summaryText}
-                  </pre>
-                </motion.div>
-              )}
-            </div>
-          )}
       </div>
     </div>
   );
