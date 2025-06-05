@@ -18,10 +18,10 @@ import { PhoneOff } from 'lucide-react'; // CheckCircle2 moved to ScenarioSelect
 import { ScenarioSelection } from '@/components/ui/ScenarioSelection';
 import { PersonaSelection } from '@/components/ui/PersonaSelection';
 import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
-import { roleplayProfileCard as RoleplayProfileCard, roleplayProfile } from "@/components/ui/patient-profile-card";
+import { roleplayProfileCard as RoleplayProfileCard, roleplayProfile } from "@/components/ui/persona-profile-card";
 
-import { Persona, personas as allPersonas, getPersonaById } from '@/lib/personas';
-import { ScenarioDefinition, scenarioDefinitions as allScenarioDefinitions, getScenarioDefinitionById } from '@/lib/scenarios';
+import { Persona, personas, getPersonaById } from '@/lib/personas';
+import { ScenarioDefinition, scenarioDefinitions, getScenarioDefinitionById } from '@/lib/scenarios';
 
 export default function Home() {
   const mainContainerStyle = {
@@ -59,8 +59,8 @@ export default function Home() {
 
   useEffect(() => {
     // Load scenario definitions and personas from the imported data
-    setScenarioDefinitionsData(allScenarioDefinitions);
-    setPersonasData(allPersonas);
+    setScenarioDefinitionsData(scenarioDefinitions);
+    setPersonasData(personas);
   }, []);
 
   // Define vad first before using it in submit
@@ -144,7 +144,7 @@ export default function Home() {
     setIsListening(false);
     setListeningInitiated(false);
     setSelectionStep('scenario');
-    setSelectedPatientId(null); // Optional: Clear selections for a fresh start
+    setSelectedPersonaId(null); // Optional: Clear selections for a fresh start
     setSelectedScenarioId(null); // Optional: Clear selections for a fresh start
     toast.info("Call ended. Session cleared.");
   };
@@ -165,12 +165,12 @@ export default function Home() {
       const formData = new FormData();
       formData.append("input", data);
 
-      // Get selected patient and scenario
-      const selectedPatient = patients.find(p => p.id === selectedPatientId) || null;
-      const selectedScenario = scenarios.find(s => s.id === selectedScenarioId) || null;
+      // Get selected persona and scenario
+      const selectedPersona = personas.find(p => p.id === selectedPersonaId) || null;
+      const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId) || null;
 
-      if (selectedPatient) {
-        formData.append("roleplayProfile", JSON.stringify(selectedPatient));
+      if (selectedPersona) {
+        formData.append("roleplayProfile", JSON.stringify(selectedPersona));
       }
       if (selectedScenario) {
         formData.append("scenario", JSON.stringify(selectedScenario));
@@ -260,17 +260,17 @@ export default function Home() {
       // Prepare only the role and content for the API
       const conversationHistory = messages.map(({ role, content }) => ({ role, content }));
       let roleplayProfile = null;
-      if (selectedPatientId) {
-        const patient = patients.find(p => p.id === selectedPatientId);
-        if (patient) {
+      if (selectedPersonaId) {
+        const persona = personas.find(p => p.id === selectedPersonaId);
+        if (persona) {
           roleplayProfile = {
-            id: patient.id,
-            name: patient.name,
-            nric: patient.nric,
-            phone: patient.phone,
-            dob: patient.dob,
-            age: patient.age,
-            outstandingBalance: patient.outstandingBalance,
+            id: persona.id,
+            name: persona.name,
+            nric: persona.nric,
+            phone: persona.phone,
+            dob: persona.dob,
+            age: persona.age,
+            outstandingBalance: persona.outstandingBalance,
           };
         }
       } 
@@ -385,6 +385,7 @@ export default function Home() {
                       toast.error("Error: Scenario or Persona not fully selected for session start. Please go back.");
                       return;
                     }
+                    handleSubmit("START");
                     console.log("[Debug] Attempting to start session. Current VAD object:", vad);
                     setListeningInitiated(true);
                     if (vad && !vad.listening) {
@@ -393,13 +394,13 @@ export default function Home() {
                     }
                     setManualListening(true);
                     setSelectionStep(null); 
-                    const personaMessage: Message = {
-                      id: Date.now().toString(),
-                      role: 'assistant',
-                      content: scenario.personaOpeningLine,
-                      timestamp: new Date().toISOString(),
-                    };
-                    setMessages([personaMessage]);
+                    // const personaMessage: Message = {
+                    //   id: Date.now().toString(),
+                    //   role: 'assistant',
+                    //   content: scenario.personaOpeningLine,
+                    //   timestamp: new Date().toISOString(),
+                    // };
+                    // setMessages([personaMessage]);
                   }}
                   onChangePersona={() => setSelectionStep('selectPersona')}
                   onChangeScenario={() => setSelectionStep('selectScenario')}
@@ -462,7 +463,7 @@ export default function Home() {
                 )}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-white">
-                      {message.role === "assistant" ? "Assistant" : "Patient"}
+                      {message.role === "assistant" ? "Customer" : "You"}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -577,30 +578,30 @@ export default function Home() {
                 >
                   <CardHeader className="p-4 pb-2">
                     <CardTitle className="text-lg font-medium text-[#FFB800]">
-                      {scenarios.find(s => s.id === selectedScenarioId)?.name}
+                      {scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.name}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 pt-0">
-                    <p className="text-sm text-gray-300">{scenarios.find(s => s.id === selectedScenarioId)?.description}</p>
+                    <p className="text-sm text-gray-300">{scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.description}</p>
                   </CardContent>
                 </Card>
               </div>
             )}
 
             {/* Display Persona Details for Training Scenario */}
-            {selectedScenarioId && scenarios.find(s => s.id === selectedScenarioId)?.personaDetails && (
+            {selectedScenarioId && scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.personaDetails && (
               <div className="w-full mb-4">
                 <Card
                   className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border-2 border-yellow-400/70 shadow-[0_0_15px_rgba(255,223,0,0.3)]"
                 >
                   <CardHeader className="p-4 pb-2">
                     <CardTitle className="text-lg font-medium text-yellow-400">
-                      Role-Play Persona: {scenarios.find(s => s.id === selectedScenarioId)?.personaName}
+                      Role-Play Persona: {scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.personaName}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 pt-0">
                     <p className="text-sm text-gray-300 whitespace-pre-line">
-                      {scenarios.find(s => s.id === selectedScenarioId)?.personaDetails}
+                      {scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.personaDetails}
                     </p>
                     <p className="text-xs text-gray-400 mt-2">
                       (Note: You are the Financial Advisor. Interact with the AI as if it is Liang Chen.)
@@ -610,17 +611,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Selected Patient Display */}
-            {selectedPatientId && (
-              <div className="w-full max-w-sm">
-                <h2 className="text-2xl font-semibold text-center mb-4 text-white">Selected Patient</h2>
-                <RoleplayProfileCard
-                  patient={patients.find(p => p.id === selectedPatientId)!}
-                  isSelected={true} // Visual cue that this is the active context
-                  onSelect={() => {}} // No selection change during an active call
-                />
-              </div>
-            )}
           </div>
         ) : null}
 

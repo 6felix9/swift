@@ -1,4 +1,4 @@
-import { trainingReferralPrompt } from "./prompt/training-referral";
+import { trainingReferralPrompt, trainingReferralEvaluationInstructions } from "./prompt/training-referral";
 
 const instructions = `## Instructions:
 - You are Mei Ling, a friendly and helpful voice assistant of Health Line Hotline. You are based in Singapore.

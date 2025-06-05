@@ -5,7 +5,7 @@ import { extractAppointmentDetails, sendWhatsAppConfirmation, roleplayProfile } 
 import { generateSpeech } from '@/lib/elevenlabs';
 import { Readable } from "stream";
 import { getTranscript } from '@/lib/whisper';
-import { allScenarioDefinitions, getScenarioDefinitionById, ScenarioDefinition } from '@/lib/scenarios'; // Added for START_SESSION
+import { scenarioDefinitions, getScenarioDefinitionById, ScenarioDefinition } from '@/lib/scenarios'; // Added for START_SESSION
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -69,9 +69,9 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   if (roleplayProfileString) {
     try {
       roleplayProfile = JSON.parse(roleplayProfileString) as roleplayProfile;
-      console.log(`[${requestId}] Parsed patient profile for: ${roleplayProfile.name}`);
+      console.log(`[${requestId}] Parsed persona profile for: ${roleplayProfile.name}`);
     } catch (e) {
-      console.warn(`[${requestId}] Error parsing patient profile JSON, proceeding without profile:`, e);
+      console.warn(`[${requestId}] Error parsing persona profile JSON, proceeding without profile:`, e);
     }
   }
 
@@ -84,48 +84,40 @@ function buildCallerInfoString(roleplayProfile: roleplayProfile | null): string 
     return `\n\nCaller Information:\nName: ${roleplayProfile.name}\nMasked NRIC: ${roleplayProfile.nric}\nDOB: ${roleplayProfile.dob}\nOutstandingBalance: ${roleplayProfile.outstandingBalance || 'N/A'}`;
 }
 
-async function getIntentClassification(messages: Message[], roleplayProfile: roleplayProfile | null, requestId: string): Promise<string> {
-  console.log(`[${requestId}] Getting intent classification...`);
-  const classificationPrompt = `${PROMPTS.Classify}`;
+// async function getIntentClassification(messages: Message[], roleplayProfile: roleplayProfile | null, requestId: string): Promise<string> {
+//   console.log(`[${requestId}] Getting intent classification...`);
+//   const classificationPrompt = `${PROMPTS.Classify}`;
 
-  console.log(messages);
+//   console.log(messages);
 
-  try {
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [
-        { role: "system", content: classificationPrompt },
-        ...messages,
-      ],
-      model: "meta-llama/llama-4-maverick-17b-128e-instruct", // Use a smaller model for classification
-      temperature: 0.1,
-    });
-    const intent = chatCompletion.choices[0]?.message?.content?.trim().toUpperCase() || "UNKNOWN";
-    console.log(`[${requestId}] Classified intent: ${intent}`);
-    return intent;
-  } catch (error) {
-    console.error(`[${requestId}] Error during intent classification:`, error);
-    throw new Error("Failed to classify intent");
-  }
-}
+//   try {
+//     const chatCompletion = await groq.chat.completions.create({
+//       messages: [
+//         { role: "system", content: classificationPrompt },
+//         ...messages,
+//       ],
+//       model: "meta-llama/llama-4-maverick-17b-128e-instruct", // Use a smaller model for classification
+//       temperature: 0.1,
+//     });
+//     const intent = chatCompletion.choices[0]?.message?.content?.trim().toUpperCase() || "UNKNOWN";
+//     console.log(`[${requestId}] Classified intent: ${intent}`);
+//     return intent;
+//   } catch (error) {
+//     console.error(`[${requestId}] Error during intent classification:`, error);
+//     throw new Error("Failed to classify intent");
+//   }
+// }
 
 async function generateMainAiTextResponse(messages: Message[], intent: string, roleplayProfile: roleplayProfile | null, originalQuery: string, requestId: string, scenarioId?: string): Promise<string> {
   console.log(`[${requestId}] Generating main AI text response for intent: ${intent}`);
   let systemPromptContent = "";
   const callerInfo = buildCallerInfoString(roleplayProfile);
 
-  if (intent === "FAQ") {
-    console.log(`[${requestId}] Building RAG prompt for FAQ query: "${originalQuery}"`);
-    systemPromptContent = await PROMPTS.RAG(originalQuery); // RAG will include its own base prompt and context
-  } else if (scenarioId === 'PREPARATION') {
-    console.log(`[${requestId}] Using PREPARATION for scenario: ${scenarioId}`);
-    systemPromptContent = `${PROMPTS.PREPARATION}${callerInfo}`;
-  } else if (scenarioId === 'FOLLOW_UP') {
-    console.log(`[${requestId}] Using FOLLOW_UP for scenario: ${scenarioId}`);
-    systemPromptContent = `${PROMPTS.FOLLOW_UP}${callerInfo}`;
-  } else {
-    // Default to APPOINTMENT or other general intents if no specific scenario matches
-    console.log(`[${requestId}] Using APPOINTMENT for intent: ${intent} (no specific scenario or scenario not matched: ${scenarioId})`);
-    systemPromptContent = `${PROMPTS.APPOINTMENT}${callerInfo}`;
+  if (scenarioId) {
+    const scenario = getScenarioDefinitionById(scenarioId, scenarioDefinitions);
+    if (scenario) {
+      systemPromptContent = PROMPTS.trainingReferralPrompt;
+    }
   }
 
   try {
@@ -165,7 +157,7 @@ async function convertTextToSpeech(text: string, requestId: string): Promise<Rea
 
 async function handleAppointmentWorkflowInBackground(fullTranscript: string, roleplayProfile: roleplayProfile | null, requestId: string): Promise<void> {
   if (!roleplayProfile) {
-    console.log(`[${requestId}] No patient profile, skipping appointment workflow.`);
+    console.log(`[${requestId}] No persona profile, skipping appointment workflow.`);
     return;
   }
   console.log(`[${requestId}] Starting appointment workflow (background)...`);
@@ -194,9 +186,9 @@ export async function POST(req: Request) {
     let aiTextResponse: string;
     let effectiveTranscript = transcript;
     
-    if (action === 'START_SESSION' && scenarioId) {
+    if (input === 'START' && scenarioId) {
       console.log(`[${requestId}] Handling START_SESSION action for scenario ID: ${scenarioId}`);
-      const scenario = getScenarioDefinitionById(scenarioId, allScenarioDefinitions);
+      const scenario = getScenarioDefinitionById(scenarioId, scenarioDefinitions);
       if (scenario && scenario.personaOpeningLine) {
         // Use the persona opening line as the AI response
         aiTextResponse = scenario.personaOpeningLine;
