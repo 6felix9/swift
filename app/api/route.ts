@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import { PROMPTS } from "@/lib/prompt";
-import { extractAppointmentDetails, sendWhatsAppConfirmation, PatientProfile } from '@/lib/whatsappService';
+import { extractAppointmentDetails, sendWhatsAppConfirmation, roleplayProfile } from '@/lib/whatsappService';
 import { generateSpeech } from '@/lib/elevenlabs';
 import { Readable } from "stream";
 import { getTranscript } from '@/lib/whisper';
@@ -17,7 +17,7 @@ interface Message {
 interface ParsedRequestData {
   input: string;
   history: Message[];
-  patientProfile: PatientProfile | null;
+  roleplayProfile: roleplayProfile | null;
   transcript: string;
   allMessages: Message[];
   scenarioId?: string;
@@ -28,7 +28,7 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   const formData = await req.formData();
   let input: any = formData.get("input");
   const historyString = formData.get("message") as string | null;
-  const patientProfileString = formData.get("patientProfile") as string | null;
+  const roleplayProfileString = formData.get("roleplayProfile") as string | null;
   const scenario = formData.get("scenario") as string | null || "";
 
   let scenarioId = "";
@@ -62,26 +62,26 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   let allMessages: Message[] = [...history];
   allMessages.push({ role: "user", content: input });
 
-  let patientProfile: PatientProfile | null = null;
-  if (patientProfileString) {
+  let roleplayProfile: roleplayProfile | null = null;
+  if (roleplayProfileString) {
     try {
-      patientProfile = JSON.parse(patientProfileString) as PatientProfile;
-      console.log(`[${requestId}] Parsed patient profile for: ${patientProfile.name}`);
+      roleplayProfile = JSON.parse(roleplayProfileString) as roleplayProfile;
+      console.log(`[${requestId}] Parsed patient profile for: ${roleplayProfile.name}`);
     } catch (e) {
       console.warn(`[${requestId}] Error parsing patient profile JSON, proceeding without profile:`, e);
     }
   }
 
   console.log(`[${requestId}] Request parsed successfully.`);
-  return { input, history, patientProfile, transcript, allMessages, scenarioId };
+  return { input, history, roleplayProfile, transcript, allMessages, scenarioId };
 }
 
-function buildCallerInfoString(patientProfile: PatientProfile | null): string {
-    if (!patientProfile) return "";
-    return `\n\nCaller Information:\nName: ${patientProfile.name}\nMasked NRIC: ${patientProfile.nric}\nDOB: ${patientProfile.dob}\nOutstandingBalance: ${patientProfile.outstandingBalance || 'N/A'}`;
+function buildCallerInfoString(roleplayProfile: roleplayProfile | null): string {
+    if (!roleplayProfile) return "";
+    return `\n\nCaller Information:\nName: ${roleplayProfile.name}\nMasked NRIC: ${roleplayProfile.nric}\nDOB: ${roleplayProfile.dob}\nOutstandingBalance: ${roleplayProfile.outstandingBalance || 'N/A'}`;
 }
 
-async function getIntentClassification(messages: Message[], patientProfile: PatientProfile | null, requestId: string): Promise<string> {
+async function getIntentClassification(messages: Message[], roleplayProfile: roleplayProfile | null, requestId: string): Promise<string> {
   console.log(`[${requestId}] Getting intent classification...`);
   const classificationPrompt = `${PROMPTS.Classify}`;
 
@@ -105,10 +105,10 @@ async function getIntentClassification(messages: Message[], patientProfile: Pati
   }
 }
 
-async function generateMainAiTextResponse(messages: Message[], intent: string, patientProfile: PatientProfile | null, originalQuery: string, requestId: string, scenarioId?: string): Promise<string> {
+async function generateMainAiTextResponse(messages: Message[], intent: string, roleplayProfile: roleplayProfile | null, originalQuery: string, requestId: string, scenarioId?: string): Promise<string> {
   console.log(`[${requestId}] Generating main AI text response for intent: ${intent}`);
   let systemPromptContent = "";
-  const callerInfo = buildCallerInfoString(patientProfile);
+  const callerInfo = buildCallerInfoString(roleplayProfile);
 
   if (intent === "FAQ") {
     console.log(`[${requestId}] Building RAG prompt for FAQ query: "${originalQuery}"`);
@@ -160,8 +160,8 @@ async function convertTextToSpeech(text: string, requestId: string): Promise<Rea
   }
 }
 
-async function handleAppointmentWorkflowInBackground(fullTranscript: string, patientProfile: PatientProfile | null, requestId: string): Promise<void> {
-  if (!patientProfile) {
+async function handleAppointmentWorkflowInBackground(fullTranscript: string, roleplayProfile: roleplayProfile | null, requestId: string): Promise<void> {
+  if (!roleplayProfile) {
     console.log(`[${requestId}] No patient profile, skipping appointment workflow.`);
     return;
   }
@@ -170,7 +170,7 @@ async function handleAppointmentWorkflowInBackground(fullTranscript: string, pat
     const appointmentDetails = await extractAppointmentDetails(groq, fullTranscript, requestId);
     if (appointmentDetails && (appointmentDetails.appointment_date || appointmentDetails.appointment_time)) {
       console.log(`[${requestId}] Appointment details extracted for WhatsApp:`, appointmentDetails);
-      await sendWhatsAppConfirmation(appointmentDetails, patientProfile);
+      await sendWhatsAppConfirmation(appointmentDetails, roleplayProfile);
     } else {
       console.log(`[${requestId}] No specific appointment details for WhatsApp.`);
     }
@@ -185,27 +185,15 @@ export async function POST(req: Request) {
 
   try {
     // Step 1: Parse and Validate Incoming Request
-    const { input, patientProfile, transcript, allMessages, scenarioId } = await parseIncomingRequest(req, requestId);
+    const { input, roleplayProfile, transcript, allMessages, scenarioId } = await parseIncomingRequest(req, requestId);
 
-    // Step 2: Get Intent Classification
-    // Send allMessages for richer context for classification, but the helper might slice it.
-
-    console.log(`[${requestId}] Scenario ID: ${scenarioId}`);
-
-    let intent = "";
-    if (scenarioId === "APPOINTMENT") {
-      intent = await getIntentClassification(allMessages, patientProfile, requestId);
-    } else {
-      intent = scenarioId!;
-    }
-    
-    let aiTextResponse = await generateMainAiTextResponse(allMessages, intent, patientProfile, input, requestId, scenarioId);
+    let aiTextResponse = await generateMainAiTextResponse(allMessages, scenarioId!, roleplayProfile, input, requestId, scenarioId);
     
     // Step 4: Handle Appointment Workflow (Asynchronously - Fire and Forget)
-    if (intent === "APPOINTMENT") {
+    if (scenarioId === "APPOINTMENT") {
       if (aiTextResponse.includes('receive') || aiTextResponse.includes('confirm') || aiTextResponse.includes('whatsapp')) {
         const fullTranscriptForAppointment = allMessages.map(m => `${m.role}: ${m.content}`).join('\n');
-        handleAppointmentWorkflowInBackground(fullTranscriptForAppointment, patientProfile, requestId);   
+        handleAppointmentWorkflowInBackground(fullTranscriptForAppointment, roleplayProfile, requestId);   
       }
     }
 

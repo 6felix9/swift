@@ -13,6 +13,7 @@ const DEFAULT_MODEL = 'eleven_flash_v2_5';
 
 // Voice ID mapping - Add more as needed
 const VOICE_IDS: Record<string, string> = {
+  'Insurance': 'ZyIwtt7dzBKVYuXxaRw7',
   'English': '7QwDAfHpHjPD14XYTSiq', //'Auntie';
   'Malay': 'UcqZLa941Kkt8ZhEEybf',
   'Chinese': 'FjfxJryh105iTLL4ktHB', // Liang
@@ -39,6 +40,8 @@ enum DetectedLanguage {
  * @returns DetectedLanguage enum value.
  */
 function detectLanguage(text: string): DetectedLanguage {
+  return 'Insurance';
+
   if (!text || text.trim() === "") {
     return DetectedLanguage.Unknown; // Handle empty or whitespace-only strings
   }

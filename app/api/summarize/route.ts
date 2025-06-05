@@ -10,7 +10,7 @@ const SummarizeRequestSchema = z.object({
       content: z.string(),
     })
   ).min(1, { message: "Conversation history cannot be empty." }),
-  patientProfile: z.object({
+  roleplayProfile: z.object({
     id: z.string(),
     name: z.string(),
     nric: z.string(),
@@ -33,10 +33,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request body', details: validationResult.error.flatten() }, { status: 400 });
     }
 
-    const { messages, patientProfile } = validationResult.data;
+    const { messages, roleplayProfile } = validationResult.data;
     
     console.log(`[${requestId}] /api/summarize: Calling summarization service...`);
-    const summaryText = await generateCallSummary(messages, patientProfile);
+    const summaryText = await generateCallSummary(messages, roleplayProfile);
     console.log(`[${requestId}] /api/summarize: Summary received from service.`);
 
     return NextResponse.json({ summary: summaryText });

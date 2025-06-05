@@ -74,7 +74,7 @@ export async function extractAppointmentDetails(
   }
 }
 
-export interface PatientProfile {
+export interface roleplayProfile {
   id: string;
   name: string;
   nric: string; // Masked NRIC
@@ -85,7 +85,7 @@ export interface PatientProfile {
 
 export async function sendWhatsAppConfirmation(
   appointmentDetails: { appointment_date: string | null; appointment_time: string | null },
-  patientProfile: PatientProfile
+  roleplayProfile: roleplayProfile
 ): Promise<void> {
   const webhookUrl = process.env.WHATSAPP_WEBHOOK_URL;
   const apiKey = process.env.DEMO_API_KEY;
@@ -96,7 +96,7 @@ export async function sendWhatsAppConfirmation(
   }
 
   // Format phone number: remove '+' and spaces
-  const formattedSenderId = patientProfile.phone.replace(/\+|\s/g, "");
+  const formattedSenderId = roleplayProfile.phone.replace(/\+|\s/g, "");
 
   console.log("sender_id", formattedSenderId);
 
@@ -108,10 +108,10 @@ export async function sendWhatsAppConfirmation(
       data: {
         appointment_date: appointmentDetails.appointment_date || "Not Specified", // Fallback if not extracted
         appointment_time: appointmentDetails.appointment_time || "Not Specified", // Fallback if not extracted
-        patient_name: patientProfile.name,
-        patient_nric_masked: patientProfile.nric,
-        patient_dob: patientProfile.dob,
-        patient_outstanding_balance: patientProfile.outstandingBalance || "Not applicable", // Include outstanding balance
+        patient_name: roleplayProfile.name,
+        patient_nric_masked: roleplayProfile.nric,
+        patient_dob: roleplayProfile.dob,
+        patient_outstanding_balance: roleplayProfile.outstandingBalance || "Not applicable", // Include outstanding balance
       },
       next: {
         event: "goto",

@@ -9,8 +9,8 @@ import {
 import { UserCircle, ShieldCheck, Phone, CalendarDays, CreditCard, CheckCircle2 } from 'lucide-react'; // Assuming lucide-react for icons
 import clsx from 'clsx';
 
-// Define PatientProfile interface (can be imported from a shared types file)
-export interface PatientProfile {
+// Define roleplayProfile interface (can be imported from a shared types file)
+export interface roleplayProfile {
   id: string;
   name: string;
   gender: string; // Added gender
@@ -21,8 +21,8 @@ export interface PatientProfile {
   outstandingBalance?: string;
 }
 
-interface PatientProfileCardProps {
-  patient: PatientProfile;
+interface roleplayProfileCardProps {
+  patient: roleplayProfile;
   isSelected: boolean;
   onSelect: (id: string) => void;
 }
@@ -32,7 +32,7 @@ const mask = (phone: string) => {
   return phone.replace(/\+65 \d\d\d\d/g, '+65 ****');
 }
 
-const PatientProfileCard: React.FC<PatientProfileCardProps> = ({ patient, isSelected, onSelect }) => {
+const roleplayProfileCard: React.FC<roleplayProfileCardProps> = ({ patient, isSelected, onSelect }) => {
   return (
     <Card 
       onClick={() => onSelect(patient.id)}
@@ -92,4 +92,4 @@ const PatientProfileCard: React.FC<PatientProfileCardProps> = ({ patient, isSele
   );
 };
 
-export {PatientProfileCard};
+export {roleplayProfileCard};

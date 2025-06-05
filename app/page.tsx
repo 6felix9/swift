@@ -11,20 +11,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // import { AIVoiceInput } from "@/components/ui/ai-voice-input";
-import { brandColors } from "@/lib/constants";
 import { Message } from "@/lib/types";
+import { brandColors } from "@/lib/constants";
 import { FlickeringGrid } from "@/components/ui/flickering-grid"; // Assuming named export
-import { CheckCircle2, PhoneOff } from 'lucide-react'; // Added PhoneOff
-import { PatientProfileCard, PatientProfile } from "@/components/ui/patient-profile-card";
+import { PhoneOff } from 'lucide-react'; // CheckCircle2 moved to ScenarioSelection
+import { ScenarioSelection } from '@/components/ui/ScenarioSelection';
+import { PersonaSelection } from '@/components/ui/PersonaSelection';
+import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
+import { roleplayProfileCard as RoleplayProfileCard, roleplayProfile } from "@/components/ui/patient-profile-card";
 
-
-// Define Scenario interface
-export interface Scenario {
-  id: string;
-  name: string;
-  description: string;
-
-}
+import { Persona, personas as allPersonas, getPersonaById } from '@/lib/personas';
+import { ScenarioDefinition, scenarioDefinitions as allScenarioDefinitions, getScenarioDefinitionById } from '@/lib/scenarios';
 
 export default function Home() {
   const mainContainerStyle = {
@@ -39,8 +36,8 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isListening, setIsListening] = useState(false);
   const [manualListening, setManualListening] = useState(false);
-
   const [messages, setMessages] = useState<Message[]>([]);
+
   const [isPending, setIsPending] = useState(false);
 
   // State for summarization
@@ -51,48 +48,20 @@ export default function Home() {
   // State to track if user has initiated listening
   const [listeningInitiated, setListeningInitiated] = useState<boolean>(false);
 
-  // Patient Profile State
-  const [patients, setPatients] = useState<PatientProfile[]>([]);
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
-
-  // Scenario State
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  // State for new Scenario-based training
+  const [scenarioDefinitionsData, setScenarioDefinitionsData] = useState<ScenarioDefinition[]>([]);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+  const [personasData, setPersonasData] = useState<Persona[]>([]);
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
 
-  // Wizard Step State
-  const [selectionStep, setSelectionStep] = useState<'scenario' | 'patient' | 'summary'>('scenario');
+  // Wizard Step State for new flow
+  const [selectionStep, setSelectionStep] = useState<'selectScenario' | 'selectPersona' | 'summary'>('selectScenario');
 
-  // Simulate fetching patient data (could be an API call in a real app)
   useEffect(() => {
-    const mockPatients: PatientProfile[] = [
-      { id: '1', name: 'Kevin Yeap', gender: 'Male', nric: 'S****123A', phone: '+65 9093 3395', dob: '01 Jan 1980', age: 45, outstandingBalance: 'SGD 175' },
-      { id: '2', name: 'Peiru Teo', gender: 'Female', nric: 'S****567B', phone: '+65 9199 3563', dob: '15 May 1992', age: 33, outstandingBalance: 'None' },
-      { id: '3', name: 'Max Xu', gender: 'Male', nric: 'S****890C', phone: '+65 8288 8399', dob: '22 Nov 1975', age: 50, outstandingBalance: 'SGD 230' },
-    ];
-    setPatients(mockPatients);
-
-    const mockScenarios: Scenario[] = [
-      { 
-        id: 'APPOINTMENT', 
-        name: 'Healthier SG FAQ & Appointment Booking', 
-        description: 'Healthier SG general queries and appointment booking.',
-        
-      },
-      { 
-        id: 'PREPARATION', 
-        name: 'Pre-Procedure Preparation & Medication Counselling', 
-        description: 'Guidance on preparation for medical procedures and medication counselling.',
-        
-      },
-      { 
-        id: 'FOLLOW_UP', 
-        name: 'Post-Endoscopy Follow-up & Community Outreach', 
-        description: 'Outbound follow-up after endoscopy, medication counseling, and community program information.',
-        
-      },
-    ];
-    setScenarios(mockScenarios);
-  }, []); // Removed vad from dependency array here, it was causing the initialization error.
+    // Load scenario definitions and personas from the imported data
+    setScenarioDefinitionsData(allScenarioDefinitions);
+    setPersonasData(allPersonas);
+  }, []);
 
   // Define vad first before using it in submit
   const vad = useMicVAD({
@@ -201,7 +170,7 @@ export default function Home() {
       const selectedScenario = scenarios.find(s => s.id === selectedScenarioId) || null;
 
       if (selectedPatient) {
-        formData.append("patientProfile", JSON.stringify(selectedPatient));
+        formData.append("roleplayProfile", JSON.stringify(selectedPatient));
       }
       if (selectedScenario) {
         formData.append("scenario", JSON.stringify(selectedScenario));
@@ -277,7 +246,7 @@ export default function Home() {
     } finally {
       setIsPending(false);
     }
-  }, [isPending, messages, player, selectedPatientId, patients, selectedScenarioId, scenarios, vad]);
+  }, [isPending, messages, player, selectedScenarioId, scenarioDefinitionsData, vad]);
 
   const handleGenerateSummary = async () => {
     if (isSummarizing || messages.length === 0) {
@@ -290,11 +259,11 @@ export default function Home() {
     try {
       // Prepare only the role and content for the API
       const conversationHistory = messages.map(({ role, content }) => ({ role, content }));
-      let patientProfile = null;
+      let roleplayProfile = null;
       if (selectedPatientId) {
         const patient = patients.find(p => p.id === selectedPatientId);
         if (patient) {
-          patientProfile = {
+          roleplayProfile = {
             id: patient.id,
             name: patient.name,
             nric: patient.nric,
@@ -311,7 +280,7 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ messages: conversationHistory, patientProfile }),
+        body: JSON.stringify({ messages: conversationHistory, roleplayProfile }),
       });
 
       if (!response.ok) {
@@ -365,8 +334,7 @@ export default function Home() {
   }, []);
 
   // Derive selected objects from IDs
-  const selectedScenario = scenarios.find(s => s.id === selectedScenarioId);
-  const selectedPatient = patients.find(p => p.id === selectedPatientId);
+  const selectedScenarioDefinition = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
 
   if (!listeningInitiated) {
     return (
@@ -378,181 +346,66 @@ export default function Home() {
               <h1 className="text-4xl font-bold text-center mb-2 text-white">Health Line</h1>
               <p className="text-center mb-8 text-gray-300">Powered by AI assistant</p> */}
 
-              {selectionStep === 'scenario' && (
-                <>
-                  {/* Step 1: Scenario Selection */}
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-semibold text-center mb-1 text-white">Step 1: Select a Scenario</h2>
-                    <p className="text-sm text-center mb-4 text-gray-400">Choose the purpose of this session.</p>
-                    <div className="space-y-3">
-                      {scenarios.map(scenario => (
-                        <Card 
-                          key={scenario.id}
-                          className={clsx(
-                            "transition-all duration-300 cursor-pointer hover:shadow-lg",
-                            selectedScenarioId === scenario.id
-                              ? "bg-gradient-to-r from-[#002B49]/90 to-[#001425]/95 border-2 border-[#FFB800]/80 shadow-[0_0_20px_rgba(255,184,0,0.4)] scale-105"
-                              : "bg-gradient-to-r from-[#002B49]/60 to-[#001425]/70 border border-white/10 hover:border-white/30 hover:scale-[1.02]"
-                          )}
-                          onClick={() => {
-                            setSelectedScenarioId(scenario.id);
-                            setSelectionStep('patient');
-                          }}
-                        >
-                          <CardHeader className="p-4 pb-2">
-                            <div className="flex items-center justify-between">
-                              <CardTitle className={clsx(
-                                "text-lg font-medium transition-colors",
-                                selectedScenarioId === scenario.id
-                                  ? "text-[#FFB800]"
-                                  : "text-white"
-                              )}>
-                                {scenario.name}
-                              </CardTitle>
-                              {selectedScenarioId === scenario.id && (
-                                <CheckCircle2 className="w-5 h-5 text-[#FFB800]" />
-                              )}
-                            </div>
-                          </CardHeader>
-                          <CardContent className="p-4 pt-0">
-                            <p className="text-sm text-gray-300">{scenario.description}</p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                </>
+              {selectionStep === 'selectScenario' && (
+                <ScenarioSelection 
+                  scenarioDefinitions={scenarioDefinitionsData}
+                  selectedScenarioId={selectedScenarioId}
+                  onSelectScenarioAndPersona={(scenarioId, defaultPersonaId) => {
+                    setSelectedScenarioId(scenarioId);
+                    setSelectedPersonaId(defaultPersonaId);
+                    setSelectionStep('selectPersona');
+                  }}
+                />
               )}
 
-              {selectionStep === 'patient' && selectedScenario && (
-                <>
-                  {/* Step 2: Patient Profile Selection */}
-                  <div className="mb-4 p-3 border border-white/20 rounded-lg bg-white/5 shadow-sm">
-                    <p className="text-xs text-gray-400 mb-0.5">Selected Scenario:</p>
-                    <h3 className="text-base font-semibold text-[#FFD700]">{selectedScenario.name}</h3>
-                  </div>
-                  <div className="mb-1">
-                    <Button 
-                      variant="outline"
-                      onClick={() => {
-                        setSelectionStep('scenario');
-                        // setSelectedPatientId(null); // Optionally clear patient if going back to scenario
-                      }}
-                      className="mb-3 text-sm text-gray-300 hover:text-white border-gray-600 hover:border-gray-400 bg-transparent hover:bg-white/5"
-                    >
-                      &larr; Change Scenario
-                    </Button>
-                  </div>
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-semibold text-center mb-1 text-white">Step 2: Select a Patient Profile</h2>
-                    <p className="text-sm text-center mb-4 text-gray-400">Choose the patient for this session.</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
-                      {patients.map(patient => (
-                        <PatientProfileCard
-                          key={patient.id}
-                          patient={patient}
-                          isSelected={selectedPatientId === patient.id}
-                          onSelect={() => {
-                            setSelectedPatientId(patient.id);
-                            setSelectionStep('summary');
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </>
+              {/* New Persona Selection Step */}
+              {selectionStep === 'selectPersona' && selectedScenarioId && (
+                <PersonaSelection 
+                  personas={personasData}
+                  selectedPersonaId={selectedPersonaId}
+                  currentScenario={selectedScenarioDefinition} // Pass the derived scenario object
+                  onSelectPersona={setSelectedPersonaId}
+                  onBackToScenarioSelection={() => {
+                    setSelectionStep('selectScenario');
+                    // setSelectedPersonaId(null); // Optional: Clear persona if going back
+                  }}
+                  onNextToSummary={() => setSelectionStep('summary')}
+                />
               )}
 
-              {selectionStep === 'summary' && selectedScenario && selectedPatient && (
-                <>
-                  {/* Step 3: Summary and Confirmation */}
-                  <div className="mb-2 space-y-2">
-                    {/* Selected Scenario Display */}
-                    <Card className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
-                      <CardHeader className="p-4 pb-2">
-                        <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Scenario</p>
-                        <CardTitle className="text-lg font-medium text-[#FFD700]">
-                          {selectedScenario.name}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-0">
-                        <p className="text-sm text-gray-300">{selectedScenario.description}</p>
-                      </CardContent>
-                    </Card>
-
-                    {/* Selected Patient Display */}
-                    <div>
-                      <PatientProfileCard
-                        patient={selectedPatient}
-                        isSelected={true} // Always visually selected in summary
-                        onSelect={() => {}} // Non-interactive in summary
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 mt-8">
-                    <Button
-                      onClick={() => {
-                        if (!selectedScenarioId || !selectedPatientId) {
-                          toast.error("Error: Scenario or Patient not selected. Please review selections.");
-                          return;
-                        }
-                        console.log("[Debug] Attempting to start session. Current VAD object:", vad);
-                        setListeningInitiated(true);
-
-                        // Send initial "hi" message to make the agent speak first
-                        console.log("[Debug] Sending initial 'hi' to server.");
-                        handleSubmit("hi"); // This will add 'hi' to messages and send to backend
-
-                        if (vad && typeof vad.start === 'function') {
-                            if (vad.loading) { // vad.loading is a boolean
-                                console.warn("[Debug] VAD is currently loading. Please wait a moment.");
-                                toast.info("Speech model is loading. Please wait...");
-                            } else if (vad.errored) {
-                                console.error("[Debug] VAD is in an errored state:", vad.errored);
-                                toast.error("Speech detection model has an error. Please refresh.");
-                            } else {
-                                try {
-                                    vad.start();
-                                } catch (e) {
-                                    console.error("[Debug] Error calling vad.start():", e);
-                                    toast.error("Failed to start voice detection.");
-                                }
-                            }
-                        } else {
-                            toast.error("Speech detection is not ready. Please refresh or try again.");
-                        }
-                      }}
-                      className="w-full bg-gradient-to-r from-[#FFB800] to-[#FFCC40] hover:from-[#EAA900] hover:to-[#FFB800] text-[#001425] font-semibold transition-all duration-300 shadow-lg hover:shadow-xl py-3 text-lg rounded-xl"
-                    >
-                      Start Session
-                    </Button>
-                    <div className="flex gap-3">
-                      <Button 
-                        variant="outline"
-                        onClick={() => {
-                          setSelectionStep('patient');
-                          setSelectedPatientId(null); // Clear patient to allow re-selection
-                        }}
-                        className="w-full text-sm text-gray-300 hover:text-white border-gray-600 hover:border-gray-400 bg-transparent hover:bg-white/10 py-2.5 rounded-lg"
-                      >
-                        &larr; Change Patient
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={() => {
-                          setSelectionStep('scenario');
-                          setSelectedPatientId(null);
-                          // setSelectedScenarioId(null); // Optionally clear scenario too
-                        }}
-                        className="w-full text-sm text-gray-300 hover:text-white border-gray-600 hover:border-gray-400 bg-transparent hover:bg-white/10 py-2.5 rounded-lg"
-                      >
-                        &larr; Change Scenario
-                      </Button>
-                    </div>
-                  </div>
-                </>
+              {/* New Summary Step */}
+              {selectionStep === 'summary' && selectedScenarioId && selectedPersonaId && (
+                <SummaryDisplay
+                  currentScenario={getScenarioDefinitionById(selectedScenarioId)}
+                  currentPersona={getPersonaById(selectedPersonaId)}
+                  onStartSession={() => {
+                    const scenario = getScenarioDefinitionById(selectedScenarioId);
+                    const persona = getPersonaById(selectedPersonaId);
+                    if (!scenario || !persona) { 
+                      toast.error("Error: Scenario or Persona not fully selected for session start. Please go back.");
+                      return;
+                    }
+                    console.log("[Debug] Attempting to start session. Current VAD object:", vad);
+                    setListeningInitiated(true);
+                    if (vad && !vad.listening) {
+                      console.log("[Debug] VAD found, but not listening. Attempting to start VAD manually.");
+                      vad.start();
+                    }
+                    setManualListening(true);
+                    setSelectionStep(null); 
+                    const personaMessage: Message = {
+                      id: Date.now().toString(),
+                      role: 'assistant',
+                      content: scenario.personaOpeningLine,
+                      timestamp: new Date().toISOString(),
+                    };
+                    setMessages([personaMessage]);
+                  }}
+                  onChangePersona={() => setSelectionStep('selectPersona')}
+                  onChangeScenario={() => setSelectionStep('selectScenario')}
+                />
               )}
+
 
               {/* Display loader during model loading (common for both steps if needed) */}
               {vad.loading && (
@@ -734,11 +587,34 @@ export default function Home() {
               </div>
             )}
 
+            {/* Display Persona Details for Training Scenario */}
+            {selectedScenarioId && scenarios.find(s => s.id === selectedScenarioId)?.personaDetails && (
+              <div className="w-full mb-4">
+                <Card
+                  className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border-2 border-yellow-400/70 shadow-[0_0_15px_rgba(255,223,0,0.3)]"
+                >
+                  <CardHeader className="p-4 pb-2">
+                    <CardTitle className="text-lg font-medium text-yellow-400">
+                      Role-Play Persona: {scenarios.find(s => s.id === selectedScenarioId)?.personaName}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0">
+                    <p className="text-sm text-gray-300 whitespace-pre-line">
+                      {scenarios.find(s => s.id === selectedScenarioId)?.personaDetails}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-2">
+                      (Note: You are the Financial Advisor. Interact with the AI as if it is Liang Chen.)
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             {/* Selected Patient Display */}
             {selectedPatientId && (
               <div className="w-full max-w-sm">
                 <h2 className="text-2xl font-semibold text-center mb-4 text-white">Selected Patient</h2>
-                <PatientProfileCard
+                <RoleplayProfileCard
                   patient={patients.find(p => p.id === selectedPatientId)!}
                   isSelected={true} // Visual cue that this is the active context
                   onSelect={() => {}} // No selection change during an active call
