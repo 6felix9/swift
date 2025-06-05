@@ -11,18 +11,6 @@ const DEFAULT_VOICE = 'English';
 // Default model to use
 const DEFAULT_MODEL = 'eleven_flash_v2_5';
 
-// Voice ID mapping - Add more as needed
-const VOICE_IDS: Record<string, string> = {
-  'Insurance': 'ZyIwtt7dzBKVYuXxaRw7',
-  'English': '7QwDAfHpHjPD14XYTSiq', //'Auntie';
-  'Malay': 'UcqZLa941Kkt8ZhEEybf',
-  'Chinese': 'FjfxJryh105iTLL4ktHB', // Liang
-  'Tamil': 'EaBs7G1VibMrNAuz2Na7', // Temporary 'gCr8TeSJgJaeaIoV4RWH', //Meera
-  'Indonesian': 'iWydkXKoiVtvdn4vLKp9', //'Afifah';
-  'Unknown': 'iWydkXKoiVtvdn4vLKp9', 
-  'Multiple': 'iWydkXKoiVtvdn4vLKp9',
-};
-
 // Define an enum for the languages we want to detect
 enum DetectedLanguage {
   Insurance = "Insurance",
@@ -102,23 +90,20 @@ function detectLanguage(text: string): DetectedLanguage {
  */
 export async function generateSpeech(
   text: string, 
-  voice: string = DEFAULT_VOICE,
+  voice_id: string = DEFAULT_VOICE,
   streamOutput: boolean = true
 ): Promise<ReadableStream<Uint8Array>> {
 
-  const language = detectLanguage(text);
+  // const language = detectLanguage(text);
 
-  voice = VOICE_IDS[language];
 
   // remove text within brackets
   text = text.replace(/\(.*?\)/g, '');
 
   try {
-    console.log(`Generating speech with ElevenLabs - Voice: ${voice}, Model: ${DEFAULT_MODEL}, Text length: ${text.length}`);
+    console.log(`Generating speech with ElevenLabs - Voice: ${voice_id}, Model: ${DEFAULT_MODEL}, Text length: ${text.length}`);
     console.log(`API Key present: ${!!process.env.ELEVENLABS_API_KEY}`);
     
-    // Get the voice ID from the mapping or use the provided voice as an ID
-    const voice_id = VOICE_IDS[voice] || voice;
     console.log(`Using voice_id: ${voice_id}`);
     
     // Using the textToSpeech API endpoint

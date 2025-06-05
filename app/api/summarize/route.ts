@@ -13,9 +13,9 @@ const SummarizeRequestSchema = z.object({
   roleplayProfile: z.object({
     id: z.string(),
     name: z.string(),
-    nric: z.string(),
-    phone: z.string(),
-    dob: z.string(),
+    nric: z.string().optional(),
+    phone: z.string().optional(),
+    dob: z.string().optional(),
     outstandingBalance: z.string().optional(),
   }).optional(),
   evaluationPrompt: z.string().optional(),

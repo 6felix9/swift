@@ -19,8 +19,8 @@ export const ScenarioSelection: React.FC<ScenarioSelectionProps> = ({
     <>
       {/* Step 1: Scenario Selection */}
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-center mb-1 text-white">Step 1: Select a Scenario</h2>
-        <p className="text-sm text-center mb-4 text-gray-400">Choose the purpose of this session.</p>
+        <h2 className="text-2xl font-semibold text-center mb-1 text-white">Step 1: Select a Training Scenario</h2>
+        <p className="text-sm text-center mb-4 text-gray-400">What scenario would you like to practice?</p>
         <div className="space-y-3">
           {scenarioDefinitions.map(scenarioDef => (
             <Card 

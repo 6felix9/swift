@@ -63,6 +63,7 @@ export default function Home() {
 
   // Wizard Step State for new flow
   const [selectionStep, setSelectionStep] = useState<'selectScenario' | 'selectPersona' | 'summary' | 'evaluationResults' | null>('selectScenario'); // Added 'evaluationResults' and null
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
     // Load scenario definitions and personas from the imported data
@@ -224,6 +225,7 @@ export default function Home() {
 
   const handleSubmit = useCallback(async (data: string | Blob) => {
     if (isPending) return; // Prevent multiple submissions
+    setSuggestions([]); // Clear previous suggestions
 
     // For Blob inputs, ensure it's an audio file
     if (data instanceof Blob && !data.type.startsWith('audio/')) {
@@ -306,6 +308,24 @@ export default function Home() {
           { role: "user", content: transcript },
           { role: "assistant", content: text, latency },
         ]);
+
+        const recommendationsHeader = response.headers.get("X-Recommendations");
+        if (recommendationsHeader) {
+          try {
+            const parsedSuggestions = JSON.parse(recommendationsHeader);
+            if (Array.isArray(parsedSuggestions) && parsedSuggestions.length > 0 && parsedSuggestions.every(s => typeof s === 'string')) {
+              setSuggestions(parsedSuggestions);
+            } else {
+              console.warn("X-Recommendations header was not a valid string array or was empty:", parsedSuggestions);
+              setSuggestions([]);
+            }
+          } catch (e) {
+            console.error("Error parsing X-Recommendations header:", e);
+            setSuggestions([]);
+          }
+        } else {
+          setSuggestions([]);
+        }
 
       } catch (error) {
         console.error(error);
@@ -513,7 +533,7 @@ export default function Home() {
         >
           <div className="flex flex-col items-center gap-2">
             <h1 className="text-4xl font-semibold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D3B86] via-[#00A9E7] to-[#1D3B86]">
-              HealthLine <span className="font-light">Voice Assistant</span>
+              <span className="font-light">{selectedScenarioDefinition?.name}</span>
             </h1>
           </div>
         </motion.div>
@@ -560,6 +580,25 @@ export default function Home() {
             </div>
           )}
           
+          {suggestions && suggestions.length > 0 && (
+            <div className="mt-4 mb-2 w-full max-w-3xl mx-auto flex flex-wrap justify-center gap-2 px-4">
+              {suggestions.map((suggestion, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  size="sm"
+                  className="bg-[#00385C]/80 border-sky-500/60 text-sky-200 hover:bg-sky-700/70 hover:text-sky-100 transition-all duration-200 px-3 py-1.5 text-xs rounded-lg shadow-md hover:shadow-lg focus:ring-2 focus:ring-sky-400/50"
+                  onClick={() => {
+                    setInput(suggestion); // Set input field with suggestion
+                    handleSubmit(suggestion); // Submit the suggestion
+                  }}
+                >
+                  {suggestion}
+                </Button>
+              ))}
+            </div>
+          )}
+
           <form
             className="flex items-center w-full max-w-3xl mx-4 gap-3"
             onSubmit={(e) => {
@@ -588,7 +627,7 @@ export default function Home() {
               )}
             </Button>
           </form>
-
+          
           {/* End Call Button - Moved below the form */}
           <div className="w-full max-w-3xl mx-4 mt-4">
             <Button

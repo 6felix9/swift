@@ -2,6 +2,7 @@ export interface Persona {
   id: string;
   name: string;
   profileDetails: string;
+  elevenLabsVoiceId: string;
   // Base behavior can be added later if needed for more complex AI instructions
   // baseSystemBehavior?: string; 
 }
@@ -24,15 +25,27 @@ Decision-Making Style: Methodical. You prefer time to reflect and discuss with y
 Motivations & Emotional Triggers:
 Family: Your decisions are driven by the long-term benefit for your children and respect for your aging parents.
 Responsibility: You feel a deep personal obligation to protect and grow the wealth you’ve earned.
-Reputation: You will only refer someone if you are confident it won’t reflect poorly on you.`
+Reputation: You will only refer someone if you are confident it won’t reflect poorly on you.`,
+    elevenLabsVoiceId: 'ZyIwtt7dzBKVYuXxaRw7'
   },
   {
     id: 'ALEX_MILLER',
     name: 'Alex Miller',
-    profileDetails: 'Alex Miller (34): Software engineer, married, one child (3). Saving for house. Has basic work life insurance. Skeptical, budget-conscious. Focus: Overcoming objections like "work coverage is enough", "too expensive", "need to think".'
+    profileDetails: 'Alex Miller (34): Software engineer, married, one child (3). Saving for house. Has basic work life insurance. Skeptical, budget-conscious. Focus: Overcoming objections like "work coverage is enough", "too expensive", "need to think".',
     // Note: Alex Miller's persona was previously embedded directly in app/page.tsx. 
     // We're moving it here for consistency. More details can be fleshed out if needed.
-  }
+    elevenLabsVoiceId: 'ZyIwtt7dzBKVYuXxaRw7' // Assuming same voice as Liang Chen for now
+  },
+  {
+    id: 'ELEANOR_VANCE',
+    name: 'Eleanor Vance',
+    profileDetails: `Age: 68
+Background: Retired school principal, widowed. Generally calm and articulate but currently very distressed and a little flustered. Client of the advisor for 7 years.
+Situation: Submitted a significant claim for water damage to her home under her comprehensive home insurance policy. The claim has just been rejected by "SecureHome Mutual" insurance. The rejection letter cited "neglect" or "lack of maintenance" regarding her roof, which she vehemently disputes.
+Emotional State: Anxious, frustrated, feeling let down by the insurance company. Worried about the cost of repairs. Her trust in the advisor is still there, but this situation is testing it.
+Goal: To understand why the claim was rejected and what her options are for appealing or resolving the situation. She wants the advisor to help her navigate this.`,
+    elevenLabsVoiceId: '7QwDAfHpHjPD14XYTSiq'
+  },
   // Add other personas here
 ];
 

@@ -21,12 +21,12 @@ export const scenarioDefinitions: ScenarioDefinition[] = [
   },
   {
     id: 'INSURANCE_REJECTION_HANDLING',
-    name: 'Rejection Handling: Life Insurance Consultation',
-    description: 'Practice overcoming common objections when discussing life insurance with a skeptical client.',
-    userRole: 'Insurance Agent',
-    scenarioContext: 'You are following up with a potential client, Alex Miller, after an initial chat and email about personal life insurance. Alex is now expressing reluctance due to budget concerns and existing work coverage.',
-    defaultPersonaId: 'ALEX_MILLER',
-    personaOpeningLine: "Hi [Agent Name], thanks for the call. I got your email. Honestly, after looking things over and considering our current savings goals for the house, I'm leaning towards holding off on additional life insurance for now. I think what I have through work is probably sufficient for the time being."
+    name: 'Claim Rejection: Home Insurance Issue',
+    description: 'Practice handling a distressed client whose home insurance claim has been rejected.',
+    userRole: 'Financial Advisor',
+    scenarioContext: `Your client, Mrs. Eleanor Vance, has called unexpectedly. She is very distressed because her significant home insurance claim for water damage has just been rejected by "SecureHome Mutual". She received a letter with technical jargon she doesn't fully understand, citing "neglect" or "lack of maintenance" regarding her roof, which she disputes.`,
+    defaultPersonaId: 'ELEANOR_VANCE',
+    personaOpeningLine: "Hello? It's Eleanor Vance. I'm so sorry to bother you out of the blue, but I'm quite upset. I've just received a letter from SecureHome Mutual about my water damage claim... they've rejected it! I simply don't understand it, something about the roof... Can you help me make sense of this?"
   }
   // Add other scenario definitions here
 ];
