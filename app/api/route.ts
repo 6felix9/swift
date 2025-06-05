@@ -112,7 +112,7 @@ async function generateMainAiTextResponse(messages: Message[], intent: string, r
   const callerInfo = buildCallerInfoString(roleplayProfile);
 
   if (scenarioId) {
-    const scenario = getScenarioDefinitionById(scenarioId, scenarioDefinitions);
+    const scenario = getScenarioDefinitionById(scenarioId);
     if (scenario) {
       systemPromptContent = PROMPTS.trainingReferralPrompt;
     }
@@ -186,7 +186,7 @@ export async function POST(req: Request) {
     
     if (input === 'START' && scenarioId) {
       console.log(`[${requestId}] Handling START_SESSION action for scenario ID: ${scenarioId}`);
-      const scenario = getScenarioDefinitionById(scenarioId, scenarioDefinitions);
+      const scenario = getScenarioDefinitionById(scenarioId);
       if (scenario && scenario.personaOpeningLine) {
         // Use the persona opening line as the AI response
         aiTextResponse = scenario.personaOpeningLine;

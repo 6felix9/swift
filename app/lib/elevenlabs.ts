@@ -25,6 +25,7 @@ const VOICE_IDS: Record<string, string> = {
 
 // Define an enum for the languages we want to detect
 enum DetectedLanguage {
+  Insurance = "Insurance",
   English = "English",
   Chinese = "Chinese",
   Tamil = "Tamil",
@@ -40,7 +41,7 @@ enum DetectedLanguage {
  * @returns DetectedLanguage enum value.
  */
 function detectLanguage(text: string): DetectedLanguage {
-  return 'Insurance';
+  return DetectedLanguage.Insurance;
 
   if (!text || text.trim() === "") {
     return DetectedLanguage.Unknown; // Handle empty or whitespace-only strings

@@ -36,6 +36,6 @@ Reputation: You will only refer someone if you are confident it won’t reflect 
   // Add other personas here
 ];
 
-export const getPersonaById = (id: string): Persona | undefined => {
-  return personas.find(p => p.id === id);
+export const getPersonaById = (id: string): Persona | null => {
+  return personas.find(p => p.id === id) || null;
 };

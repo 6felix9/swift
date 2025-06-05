@@ -44,8 +44,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ result: resultText }); // Changed key to 'result'
 
   } catch (error: any) {
-    console.error(`[${requestId}] /api/summarize: Error processing ${validationResult.success && validationResult.data.evaluationPrompt ? 'evaluation' : 'summarization'} request:`, error);
+    console.error(`[${requestId}] /api/summarize: Error processing`);
     // The service might throw an error, catch it here
-    return NextResponse.json({ error: `Failed to generate ${validationResult.success && validationResult.data.evaluationPrompt ? 'evaluation' : 'summary'}`, details: error.message || 'Unknown error' }, { status: 500 });
+    return NextResponse.json({ error: `Failed to generate summary`, details: error.message || 'Unknown error' }, { status: 500 });
   }
 }

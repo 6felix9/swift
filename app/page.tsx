@@ -19,7 +19,7 @@ import { ScenarioSelection } from '@/components/ui/ScenarioSelection';
 import { PersonaSelection } from '@/components/ui/PersonaSelection';
 import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
 import { EvaluationDisplay } from '@/components/ui/EvaluationDisplay'; // Added
-import { roleplayProfileCard as RoleplayProfileCard, roleplayProfile } from "@/components/ui/persona-profile-card";
+import { roleplayProfileCard as RoleplayProfileCard, roleplayProfile } from "@/components/ui/patient-profile-card";
 
 import { Persona, personas, getPersonaById } from '@/lib/personas';
 import { ScenarioDefinition, scenarioDefinitions, getScenarioDefinitionById } from '@/lib/scenarios';
@@ -239,8 +239,8 @@ export default function Home() {
       formData.append("input", data);
 
       // Get selected persona and scenario
-      const selectedPersona = personas.find(p => p.id === selectedPersonaId) || null;
-      const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId) || null;
+      const selectedPersona = personas.find(p => p.id === selectedPersonaId) || undefined;
+      const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId) || undefined;
 
       if (selectedPersona) {
         formData.append("roleplayProfile", JSON.stringify(selectedPersona));
@@ -334,18 +334,7 @@ export default function Home() {
       const conversationHistory = messages.map(({ role, content }) => ({ role, content }));
       let roleplayProfile = null;
       if (selectedPersonaId) {
-        const persona = personas.find(p => p.id === selectedPersonaId);
-        if (persona) {
-          roleplayProfile = {
-            id: persona.id,
-            name: persona.name,
-            nric: persona.nric,
-            phone: persona.phone,
-            dob: persona.dob,
-            age: persona.age,
-            outstandingBalance: persona.outstandingBalance,
-          };
-        }
+        roleplayProfile = personas.find(p => p.id === selectedPersonaId);
       } 
 
       const response = await fetch("/api/summarize", {
@@ -673,19 +662,19 @@ export default function Home() {
             )}
 
             {/* Display Persona Details for Training Scenario */}
-            {selectedScenarioId && scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.personaDetails && (
+            {selectedScenarioId && scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.defaultPersonaId && (
               <div className="w-full mb-4">
                 <Card
                   className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border-2 border-yellow-400/70 shadow-[0_0_15px_rgba(255,223,0,0.3)]"
                 >
                   <CardHeader className="p-4 pb-2">
                     <CardTitle className="text-lg font-medium text-yellow-400">
-                      Role-Play Persona: {scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.personaName}
+                      Role-Play Persona: {scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.defaultPersonaId}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 pt-0">
                     <p className="text-sm text-gray-300 whitespace-pre-line">
-                      {scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.personaDetails}
+                      {scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.defaultPersonaId}
                     </p>
                     <p className="text-xs text-gray-400 mt-2">
                       (Note: You are the Financial Advisor. Interact with the AI as if it is Liang Chen.)
