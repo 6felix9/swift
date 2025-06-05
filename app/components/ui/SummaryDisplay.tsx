@@ -6,21 +6,23 @@ import { Persona } from '@/lib/personas';
 import { toast } from 'sonner'; // Assuming toast is used for error notifications
 
 interface SummaryDisplayProps {
-  currentScenario: ScenarioDefinition | undefined;
-  currentPersona: Persona | undefined;
+  selectedScenario: ScenarioDefinition | undefined;
+  selectedPersona: Persona | null;
+  isStartingSession?: boolean;
   onStartSession: () => void;
   onChangePersona: () => void;
   onChangeScenario: () => void;
 }
 
 export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
-  currentScenario,
-  currentPersona,
+  selectedScenario,
+  selectedPersona,
+  isStartingSession,
   onStartSession,
   onChangePersona,
   onChangeScenario,
 }) => {
-  if (!currentScenario || !currentPersona) {
+  if (!selectedScenario || !selectedPersona) {
     // This case should ideally be handled before rendering SummaryDisplay,
     // but as a fallback:
     toast.error("Error: Scenario or Persona details missing in Summary. Please go back.");
@@ -41,12 +43,12 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
         <CardHeader className="p-4 pb-2">
           <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Scenario</p>
           <CardTitle className="text-lg font-medium text-[#FFD700]">
-            {currentScenario.name}
+            {selectedScenario.name}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-0">
-          <p className="text-sm text-gray-300 mb-1">{currentScenario.description}</p>
-          <p className="text-xs text-gray-400">Your Role: {currentScenario.userRole}</p>
+          <p className="text-sm text-gray-300 mb-1">{selectedScenario.description}</p>
+          <p className="text-xs text-gray-400">Your Role: {selectedScenario.userRole}</p>
         </CardContent>
       </Card>
 
@@ -55,13 +57,13 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
         <CardHeader className="p-4 pb-2">
           <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Selected Persona</p>
           <CardTitle className="text-lg font-medium text-[#60A5FA]">
-            {currentPersona.name}
+            {selectedPersona.name}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-0">
           <p className="text-sm font-semibold text-gray-200 mb-1">Profile Details:</p>
           <div className="text-sm text-gray-300 whitespace-pre-wrap max-h-48 overflow-y-auto p-3 bg-black/25 rounded-md">
-            {currentPersona.profileDetails}
+            {selectedPersona.profileDetails}
           </div>
         </CardContent>
       </Card>
@@ -70,7 +72,8 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
       <div className="space-y-3 mt-8">
         <Button
           onClick={onStartSession}
-          className="w-full bg-gradient-to-r from-[#FFB800] to-[#FFCC40] hover:from-[#EAA900] hover:to-[#FFB800] text-[#001425] font-semibold transition-all duration-300 shadow-lg hover:shadow-xl py-3 text-lg rounded-xl"
+          disabled={isStartingSession}
+          className="w-full bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-150 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-opacity-50 text-lg flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed"
         >
           Start Session
         </Button>

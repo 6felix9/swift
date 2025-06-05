@@ -376,8 +376,8 @@ export default function Home() {
               {/* New Summary Step */}
               {selectionStep === 'summary' && selectedScenarioId && selectedPersonaId && (
                 <SummaryDisplay
-                  currentScenario={getScenarioDefinitionById(selectedScenarioId)}
-                  currentPersona={getPersonaById(selectedPersonaId)}
+                  selectedScenario={getScenarioDefinitionById(selectedScenarioId)}
+                  selectedPersona={getPersonaById(selectedPersonaId)}
                   onStartSession={() => {
                     const scenario = getScenarioDefinitionById(selectedScenarioId);
                     const persona = getPersonaById(selectedPersonaId);

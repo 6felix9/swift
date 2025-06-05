@@ -5,6 +5,7 @@ import { extractAppointmentDetails, sendWhatsAppConfirmation, roleplayProfile } 
 import { generateSpeech } from '@/lib/elevenlabs';
 import { Readable } from "stream";
 import { getTranscript } from '@/lib/whisper';
+import { allScenarioDefinitions, getScenarioDefinitionById, ScenarioDefinition } from '@/lib/scenarios'; // Added for START_SESSION
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -21,6 +22,7 @@ interface ParsedRequestData {
   transcript: string;
   allMessages: Message[];
   scenarioId?: string;
+  action?: string; // Added for START_SESSION
 }
 
 async function parseIncomingRequest(req: Request, requestId: string): Promise<ParsedRequestData> {
@@ -30,6 +32,7 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   const historyString = formData.get("message") as string | null;
   const roleplayProfileString = formData.get("roleplayProfile") as string | null;
   const scenario = formData.get("scenario") as string | null || "";
+  const action = formData.get("action") as string | null; // Added for START_SESSION
 
   let scenarioId = "";
   try {
@@ -72,8 +75,8 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
     }
   }
 
-  console.log(`[${requestId}] Request parsed successfully.`);
-  return { input, history, roleplayProfile, transcript, allMessages, scenarioId };
+  console.log(`[${requestId}] Request parsed successfully. Action: ${action}`);
+  return { input, history, roleplayProfile, transcript, allMessages, scenarioId, action }; // Added action
 }
 
 function buildCallerInfoString(roleplayProfile: roleplayProfile | null): string {
@@ -185,9 +188,33 @@ export async function POST(req: Request) {
 
   try {
     // Step 1: Parse and Validate Incoming Request
-    const { input, roleplayProfile, transcript, allMessages, scenarioId } = await parseIncomingRequest(req, requestId);
+    const { input, roleplayProfile, transcript, allMessages, scenarioId, action } = await parseIncomingRequest(req, requestId);
 
-    let aiTextResponse = await generateMainAiTextResponse(allMessages, scenarioId!, roleplayProfile, input, requestId, scenarioId);
+    // Determine the AI text response based on action type
+    let aiTextResponse: string;
+    let effectiveTranscript = transcript;
+    
+    if (action === 'START_SESSION' && scenarioId) {
+      console.log(`[${requestId}] Handling START_SESSION action for scenario ID: ${scenarioId}`);
+      const scenario = getScenarioDefinitionById(scenarioId, allScenarioDefinitions);
+      if (scenario && scenario.personaOpeningLine) {
+        // Use the persona opening line as the AI response
+        aiTextResponse = scenario.personaOpeningLine;
+        effectiveTranscript = "SESSION_START"; // No actual user transcript for session start
+        console.log(`[${requestId}] Using personaOpeningLine for START_SESSION: "${aiTextResponse.substring(0, 100)}..."`);
+      } else {
+        console.error(`[${requestId}] Scenario or personaOpeningLine not found for ID: ${scenarioId}`);
+        return NextResponse.json({ error: 'Failed to start session. Scenario details missing.' }, { status: 400 });
+      }
+    } else {
+      // If not START_SESSION, or if scenarioId was missing for START_SESSION, proceed with normal flow
+      if (action === 'START_SESSION' && !scenarioId) {
+        console.warn(`[${requestId}] START_SESSION action received without scenarioId. Proceeding to normal flow but this might be an error.`);
+      }
+      
+      // Generate AI response for normal conversation flow
+      aiTextResponse = await generateMainAiTextResponse(allMessages, scenarioId!, roleplayProfile, input, requestId, scenarioId);
+    }
     
     // Step 4: Handle Appointment Workflow (Asynchronously - Fire and Forget)
     if (scenarioId === "APPOINTMENT") {

@@ -51,7 +51,7 @@ export const ScenarioSelection: React.FC<ScenarioSelectionProps> = ({
                 </div>
               </CardHeader>
               <CardContent className="p-4 pt-0">
-                <p className="text-sm text-gray-300\">{scenarioDef.description}</p>
+                <p className="text-sm text-white">{scenarioDef.description}</p>
               </CardContent>
             </Card>
           ))}
