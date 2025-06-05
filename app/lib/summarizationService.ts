@@ -14,7 +14,7 @@ interface Message {
   content: string;
 }
 
-export async function generateCallSummary(conversationHistory: Message[], roleplayProfile?: any): Promise<string> {
+export async function generateCallSummary(conversationHistory: Message[], roleplayProfile?: any, customSystemPrompt?: string): Promise<string> {
   if (!conversationHistory || conversationHistory.length === 0) {
     console.log("summarizationService: Conversation history is empty. Returning empty summary.");
     return "";
@@ -22,10 +22,10 @@ export async function generateCallSummary(conversationHistory: Message[], rolepl
 
   const groqMessages = [
     ...conversationHistory,
-    { role: "system" as const, content: summarizationSystemPrompt + (roleplayProfile ? `\nPatient Profile: ${JSON.stringify(roleplayProfile)}` : "") },
+    { role: "system" as const, content: (customSystemPrompt || summarizationSystemPrompt) + (roleplayProfile ? `\nPatient Profile: ${JSON.stringify(roleplayProfile)}` : "") },
   ];
 
-  console.log("summarizationService: Calling Groq AI for summarization with history length:", conversationHistory.length);
+  console.log(`summarizationService: Calling Groq AI for ${customSystemPrompt ? 'evaluation' : 'summarization'} with history length:`, conversationHistory.length);
 
   try {
     const summaryCompletion = await groq.chat.completions.create({

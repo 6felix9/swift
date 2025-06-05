@@ -39,7 +39,7 @@ export const PersonaSelection: React.FC<PersonaSelectionProps> = ({
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-center mb-1 text-white">Step 2: Select a Persona</h2>
         <p className="text-sm text-center mb-4 text-gray-400">
-          Confirm or choose a different persona for the "{currentScenario.name}" scenario.
+          Confirm or choose a different persona for the &quot;{currentScenario.name}&quot; scenario.
         </p>
         <div className="space-y-3">
           {personas.map(persona => (

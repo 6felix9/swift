@@ -18,10 +18,12 @@ import { PhoneOff } from 'lucide-react'; // CheckCircle2 moved to ScenarioSelect
 import { ScenarioSelection } from '@/components/ui/ScenarioSelection';
 import { PersonaSelection } from '@/components/ui/PersonaSelection';
 import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
+import { EvaluationDisplay } from '@/components/ui/EvaluationDisplay'; // Added
 import { roleplayProfileCard as RoleplayProfileCard, roleplayProfile } from "@/components/ui/persona-profile-card";
 
 import { Persona, personas, getPersonaById } from '@/lib/personas';
 import { ScenarioDefinition, scenarioDefinitions, getScenarioDefinitionById } from '@/lib/scenarios';
+import { trainingReferralEvaluationInstructions } from '@/lib/prompt/training-referral'; // Added
 
 export default function Home() {
   const mainContainerStyle = {
@@ -45,6 +47,11 @@ export default function Home() {
   const [isSummarizing, setIsSummarizing] = useState<boolean>(false);
   const [summaryError, setSummaryError] = useState<string>("");
 
+  // State for evaluation
+  const [evaluationText, setEvaluationText] = useState<string>("");
+  const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
+  const [evaluationError, setEvaluationError] = useState<string | null>(null);
+
   // State to track if user has initiated listening
   const [listeningInitiated, setListeningInitiated] = useState<boolean>(false);
 
@@ -55,7 +62,7 @@ export default function Home() {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
 
   // Wizard Step State for new flow
-  const [selectionStep, setSelectionStep] = useState<'selectScenario' | 'selectPersona' | 'summary'>('selectScenario');
+  const [selectionStep, setSelectionStep] = useState<'selectScenario' | 'selectPersona' | 'summary' | 'evaluationResults' | null>('selectScenario'); // Added 'evaluationResults' and null
 
   useEffect(() => {
     // Load scenario definitions and personas from the imported data
@@ -132,21 +139,87 @@ export default function Home() {
 
 
 
-  const handleEndCall = () => {
+  const handleEndCall = async () => {
     if (vad && typeof vad.pause === 'function') {
-      console.log("[Debug] Ending call. Stopping VAD.");
+      console.log("[Debug] Ending call. Stopping VAD for evaluation.");
       vad.pause();
     }
+    setIsListening(false); // Stop active listening UI
+    // Don't clear messages yet, needed for evaluation
+
+    setSelectionStep('evaluationResults');
+    setIsEvaluating(true);
+    setEvaluationError(null);
+    setEvaluationText("");
+    toast.info("Call ended. Generating evaluation...");
+
+    try {
+      const conversationHistory = messages.map(({ role, content }) => ({ role, content }));
+      let profileData = null;
+      if (selectedPersonaId) {
+        const persona = personasData.find(p => p.id === selectedPersonaId);
+        if (persona) {
+          profileData = persona; // Pass the whole persona object or a subset as needed by prompt
+        }
+      }
+
+      const response = await fetch("/api/summarize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: conversationHistory,
+          roleplayProfile: profileData, 
+          evaluationPrompt: trainingReferralEvaluationInstructions,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage = errorData.details || errorData.error || "Failed to generate evaluation.";
+        console.error("Error generating evaluation:", errorMessage);
+        toast.error(`Evaluation failed: ${errorMessage}`);
+        setEvaluationError(errorMessage);
+        setIsEvaluating(false);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.result) {
+        setEvaluationText(data.result);
+        toast.success("Evaluation generated!");
+      } else {
+        console.error("No evaluation content received");
+        toast.error("Received empty evaluation from server.");
+        setEvaluationError("Received empty evaluation.");
+      }
+    } catch (error: any) {
+      console.error("Exception during evaluation generation:", error);
+      const message = error.message || "An unexpected error occurred.";
+      toast.error(`Evaluation error: ${message}`);
+      setEvaluationError(message);
+    } finally {
+      setIsEvaluating(false);
+    }
+  };
+
+  const handleRestartSession = () => {
     setMessages([]);
     setInput("");
     setSummaryText("");
     setSummaryError("");
-    setIsListening(false);
+    setIsSummarizing(false);
+    setEvaluationText("");
+    setEvaluationError(null);
+    setIsEvaluating(false);
     setListeningInitiated(false);
-    setSelectionStep('scenario');
-    setSelectedPersonaId(null); // Optional: Clear selections for a fresh start
-    setSelectedScenarioId(null); // Optional: Clear selections for a fresh start
-    toast.info("Call ended. Session cleared.");
+    setManualListening(false);
+    setSelectedScenarioId(null);
+    setSelectedPersonaId(null);
+    setSelectionStep('selectScenario');
+    // setSelectedPatientId(null); // This was removed, ensure it's not needed elsewhere
+    toast.info("Session Reset. Please select a new scenario.");
   };
 
   const handleSubmit = useCallback(async (data: string | Blob) => {
@@ -246,7 +319,7 @@ export default function Home() {
     } finally {
       setIsPending(false);
     }
-  }, [isPending, messages, player, selectedScenarioId, scenarioDefinitionsData, vad]);
+  }, [isPending, messages, player, selectedScenarioId, selectedPersonaId, scenarioDefinitionsData, vad]);
 
   const handleGenerateSummary = async () => {
     if (isSummarizing || messages.length === 0) {
@@ -374,7 +447,8 @@ export default function Home() {
               )}
 
               {/* New Summary Step */}
-              {selectionStep === 'summary' && selectedScenarioId && selectedPersonaId && (
+              {selectionStep === 'summary' && selectedScenarioId && selectedPersonaId && !isEvaluating && (
+                // Ensure evaluation screen isn't trying to show at same time
                 <SummaryDisplay
                   selectedScenario={getScenarioDefinitionById(selectedScenarioId)}
                   selectedPersona={getPersonaById(selectedPersonaId)}
@@ -407,6 +481,16 @@ export default function Home() {
                 />
               )}
 
+
+              {/* New Evaluation Display Step */}
+              {selectionStep === 'evaluationResults' && (
+                <EvaluationDisplay 
+                  evaluationText={evaluationText}
+                  isLoading={isEvaluating}
+                  error={evaluationError}
+                  onRestartSession={handleRestartSession}
+                />
+              )}
 
               {/* Display loader during model loading (common for both steps if needed) */}
               {vad.loading && (

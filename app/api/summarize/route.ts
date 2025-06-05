@@ -18,6 +18,7 @@ const SummarizeRequestSchema = z.object({
     dob: z.string(),
     outstandingBalance: z.string().optional(),
   }).optional(),
+  evaluationPrompt: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -33,17 +34,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request body', details: validationResult.error.flatten() }, { status: 400 });
     }
 
-    const { messages, roleplayProfile } = validationResult.data;
+    const { messages, roleplayProfile, evaluationPrompt } = validationResult.data;
     
-    console.log(`[${requestId}] /api/summarize: Calling summarization service...`);
-    const summaryText = await generateCallSummary(messages, roleplayProfile);
+    console.log(`[${requestId}] /api/summarize: Calling service for ${evaluationPrompt ? 'evaluation' : 'summarization'}...`);
+    const resultText = await generateCallSummary(messages, roleplayProfile, evaluationPrompt);
+    console.log(`[${requestId}] /api/summarize: ${evaluationPrompt ? 'Evaluation' : 'Summary'} received from service.`);
     console.log(`[${requestId}] /api/summarize: Summary received from service.`);
 
-    return NextResponse.json({ summary: summaryText });
+    return NextResponse.json({ result: resultText }); // Changed key to 'result'
 
   } catch (error: any) {
-    console.error(`[${requestId}] /api/summarize: Error processing summarization request:`, error);
+    console.error(`[${requestId}] /api/summarize: Error processing ${validationResult.success && validationResult.data.evaluationPrompt ? 'evaluation' : 'summarization'} request:`, error);
     // The service might throw an error, catch it here
-    return NextResponse.json({ error: 'Failed to generate summary', details: error.message || 'Unknown error' }, { status: 500 });
+    return NextResponse.json({ error: `Failed to generate ${validationResult.success && validationResult.data.evaluationPrompt ? 'evaluation' : 'summary'}`, details: error.message || 'Unknown error' }, { status: 500 });
   }
 }

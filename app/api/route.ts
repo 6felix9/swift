@@ -32,7 +32,6 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   const historyString = formData.get("message") as string | null;
   const roleplayProfileString = formData.get("roleplayProfile") as string | null;
   const scenario = formData.get("scenario") as string | null || "";
-  const action = formData.get("action") as string | null; // Added for START_SESSION
 
   let scenarioId = "";
   try {
@@ -75,8 +74,7 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
     }
   }
 
-  console.log(`[${requestId}] Request parsed successfully. Action: ${action}`);
-  return { input, history, roleplayProfile, transcript, allMessages, scenarioId, action }; // Added action
+  return { input, history, roleplayProfile, transcript, allMessages, scenarioId }; // Added action
 }
 
 function buildCallerInfoString(roleplayProfile: roleplayProfile | null): string {
