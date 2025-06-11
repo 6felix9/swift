@@ -1,8 +1,8 @@
-export const trainingInsuranceRejectionEvaluationInstructions = `
+export const trainingGoalPlanningEvaluationInstructions = `
 {
   "evaluationSummary": {
     "totalScore": 0,
-    "maxPossibleScore": 90,
+    "maxPossibleScore": 75,
     "keyStrengths": "",
     "keyAreasForImprovement": "",
     "referralContextSuccessfullyCreated": {
@@ -12,7 +12,7 @@ export const trainingInsuranceRejectionEvaluationInstructions = `
   },
   "detailedEvaluation": [
     {
-      "categoryName": "1. Empathy & Emotional Support",
+      "categoryName": "1. Empathy & Rapport Building",
       "subtotal": 0,
       "redFlagCheck": {
         "raised": false,
@@ -21,32 +21,26 @@ export const trainingInsuranceRejectionEvaluationInstructions = `
       "criteria": [
         {
           "criterionId": "1.1",
-          "criterionText": "Acknowledged the client's distress and validated her feelings",
+          "criterionText": "Acknowledges Alex’s concerns about budget and timelines",
           "score": 0,
           "commentsAndExamples": ""
         },
         {
           "criterionId": "1.2",
-          "criterionText": "Used empathetic and comforting language throughout",
+          "criterionText": "Uses clear, client-centric language; makes Alex feel heard",
           "score": 0,
           "commentsAndExamples": ""
         },
         {
           "criterionId": "1.3",
-          "criterionText": "Maintained a calm, patient tone despite client's upset",
-          "score": 0,
-          "commentsAndExamples": ""
-        },
-        {
-          "criterionId": "1.4",
-          "criterionText": "Built rapport before diving into policy details",
+          "criterionText": "Maintains a supportive, non-judgmental tone",
           "score": 0,
           "commentsAndExamples": ""
         }
       ]
     },
     {
-      "categoryName": "2. Explanation & Clarity",
+      "categoryName": "2. Information Gathering & Clarification",
       "subtotal": 0,
       "redFlagCheck": {
         "raised": false,
@@ -55,32 +49,26 @@ export const trainingInsuranceRejectionEvaluationInstructions = `
       "criteria": [
         {
           "criterionId": "2.1",
-          "criterionText": "Translated technical jargon into clear, layman’s terms",
+          "criterionText": "Asks targeted questions about income, savings rate, down-payment goal, emergency fund, insurance gaps",
           "score": 0,
           "commentsAndExamples": ""
         },
         {
           "criterionId": "2.2",
-          "criterionText": "Clearly explained the reasons for claim rejection",
+          "criterionText": "Clarifies misconceptions (e.g., minimum down-payment rules, lender requirements)",
           "score": 0,
           "commentsAndExamples": ""
         },
         {
           "criterionId": "2.3",
-          "criterionText": "Checked client understanding and invited questions",
-          "score": 0,
-          "commentsAndExamples": ""
-        },
-        {
-          "criterionId": "2.4",
-          "criterionText": "Summarized key points before moving on",
+          "criterionText": "Confirms understanding before moving on",
           "score": 0,
           "commentsAndExamples": ""
         }
       ]
     },
     {
-      "categoryName": "3. Technical Accuracy & Knowledge",
+      "categoryName": "3. Goal Prioritization & Trade-Off Explanation",
       "subtotal": 0,
       "redFlagCheck": {
         "raised": false,
@@ -89,26 +77,26 @@ export const trainingInsuranceRejectionEvaluationInstructions = `
       "criteria": [
         {
           "criterionId": "3.1",
-          "criterionText": "Accurately referenced relevant policy terms and clauses",
+          "criterionText": "Helps Alex rank short-term (house purchase) vs. long-term goals (retirement, education)",
           "score": 0,
           "commentsAndExamples": ""
         },
         {
           "criterionId": "3.2",
-          "criterionText": "Identified valid grounds for appeal or dispute",
+          "criterionText": "Quantifies trade-offs (e.g., impact of larger down payment on liquidity)",
           "score": 0,
           "commentsAndExamples": ""
         },
         {
           "criterionId": "3.3",
-          "criterionText": "Avoided providing any misinformation or speculation",
+          "criterionText": "Uses simple examples or projections to illustrate choices",
           "score": 0,
           "commentsAndExamples": ""
         }
       ]
     },
     {
-      "categoryName": "4. Client Empowerment & Guidance",
+      "categoryName": "4. Solution & Action Planning",
       "subtotal": 0,
       "redFlagCheck": {
         "raised": false,
@@ -117,26 +105,26 @@ export const trainingInsuranceRejectionEvaluationInstructions = `
       "criteria": [
         {
           "criterionId": "4.1",
-          "criterionText": "Offered clear, actionable next steps (e.g., appeal process, additional documentation)",
+          "criterionText": "Presents a clear, step-by-step savings plan (timeline, amount, vehicle)",
           "score": 0,
           "commentsAndExamples": ""
         },
         {
           "criterionId": "4.2",
-          "criterionText": "Provided relevant resources or contacts (e.g., adjuster, legal aid)",
+          "criterionText": "Addresses risk management (life / disability insurance) in context of mortgage responsibility",
           "score": 0,
           "commentsAndExamples": ""
         },
         {
           "criterionId": "4.3",
-          "criterionText": "Encouraged client's active participation and ownership of the process",
+          "criterionText": "Suggests realistic next steps (budget adjustments, automated transfers, follow-up review)",
           "score": 0,
           "commentsAndExamples": ""
         }
       ]
     },
     {
-      "categoryName": "5. Next Steps & Follow-through Facilitation",
+      "categoryName": "5. Managing Expectations & Professionalism",
       "subtotal": 0,
       "redFlagCheck": {
         "raised": false,
@@ -145,25 +133,19 @@ export const trainingInsuranceRejectionEvaluationInstructions = `
       "criteria": [
         {
           "criterionId": "5.1",
-          "criterionText": "Proposed a clear follow-up plan with timeline",
+          "criterionText": "Sets realistic timelines and affordability limits (no “unrealistic dream home” promises)",
           "score": 0,
           "commentsAndExamples": ""
         },
         {
           "criterionId": "5.2",
-          "criterionText": "Offered assistance in drafting appeal letters or forms",
+          "criterionText": "Explains that assumptions may change (interest rates, market conditions)",
           "score": 0,
           "commentsAndExamples": ""
         },
         {
           "criterionId": "5.3",
-          "criterionText": "Scheduled or offered to schedule a follow-up check-in",
-          "score": 0,
-          "commentsAndExamples": ""
-        },
-        {
-          "criterionId": "5.4",
-          "criterionText": "Reassured the client of continued support regardless of outcome",
+          "criterionText": "Maintains a professional, transparent demeanor; avoids product pushiness",
           "score": 0,
           "commentsAndExamples": ""
         }
@@ -171,4 +153,5 @@ export const trainingInsuranceRejectionEvaluationInstructions = `
     }
   ]
 }
-`
+
+`;

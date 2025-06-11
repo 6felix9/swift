@@ -1,5 +1,6 @@
-import { trainingReferralPrompt, trainingReferralEvaluationInstructions } from "./prompt/training-referral";
-import { trainingInsuranceRejectionPrompt, trainingInsuranceRejectionEvaluationInstructions } from "./prompt/training-insurance-rejection";
+import { trainingReferralEvaluationInstructions } from "./prompt/training-referral";
+import { trainingInsuranceRejectionEvaluationInstructions } from "./prompt/training-insurance-rejection";
+import { trainingGoalPlanningEvaluationInstructions } from "./prompt/training-goal-planning";
 
 const instructions = `## Instructions:
 - You are Mei Ling, a friendly and helpful voice assistant of Health Line Hotline. You are based in Singapore.
@@ -88,8 +89,7 @@ ${data.questionListItems.join("\n\n")}`
 export const PROMPTS = {
 	Classify,
 	RAG,
-	trainingReferralPrompt,
-	trainingInsuranceRejectionPrompt,
+  trainingGoalPlanningEvaluationInstructions,
 	trainingReferralEvaluationInstructions,
   trainingInsuranceRejectionEvaluationInstructions
 }

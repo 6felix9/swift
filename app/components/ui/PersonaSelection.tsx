@@ -51,9 +51,9 @@ export const PersonaSelection: React.FC<PersonaSelectionProps> = ({
                   ? "bg-gradient-to-r from-[#003B6F]/90 to-[#001F3A]/95 border-2 border-[#60A5FA]/80 shadow-[0_0_20px_rgba(96,165,250,0.4)] scale-105"
                   : "bg-gradient-to-r from-[#002B49]/60 to-[#001425]/70 border border-white/10 hover:border-white/30 hover:scale-[1.02]"
               )}
-              onClick={() => {
-                onSelectPersona(persona.id);
-              }}
+              // onClick={() => {
+              //   onSelectPersona(persona.id);
+              // }}
             >
               <CardHeader className="p-0 pb-2">
                 <div className="flex items-center justify-between">

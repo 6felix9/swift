@@ -7,12 +7,17 @@ import { Readable } from "stream";
 import { getTranscript } from '@/lib/whisper';
 import { scenarioDefinitions, getScenarioDefinitionById, ScenarioDefinition } from '@/lib/scenarios'; // Added for START_SESSION
 import { Persona, getPersonaById } from '@/lib/personas';
+import { GoogleGenAI } from "@google/genai";
+import { PERSONA_PROMPTS } from "@/lib/prompt/persona";
+
+// Testing Gemini flash 2.5 model for evaluation
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 
 interface Message {
-  role: "user" | "assistant" | "system";
+  role: "advisor" | "client" | "system";
   content: string;
 }
 
@@ -63,7 +68,7 @@ async function parseIncomingRequest(req: Request, requestId: string): Promise<Pa
   }
 
   let allMessages: Message[] = [...history];
-  allMessages.push({ role: "user", content: input });
+  allMessages.push({ role: "advisor", content: input });
 
   let roleplayProfile: Persona | null = null;
   if (roleplayProfileString) {
@@ -107,111 +112,175 @@ function buildCallerInfoString(roleplayProfile: Persona | null): string {
 //   }
 // }
 
-async function generateNextTurnSuggestions(conversationHistory: Message[], aiLastResponse: string, requestId: string): Promise<string[]> {
-  console.log(`[${requestId}] Generating next turn suggestions...`);
-  const historyString = conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n');
+async function generateNextTurnSuggestions(
+  conversationHistory: Message[],
+  aiLastResponse: string,
+  requestId: string
+): Promise<string[]> {
+  console.log(`[${requestId}] Generating next turn suggestions with Gemini...`);
 
-  const suggestionPrompt = `You are an AI assistant helping a Financial Advisor in a role-play conversation with a client.
-The client's persona is Liang Chen. The Financial Advisor is the 'user'. The client (AI) is the 'assistant'.
+  const historyString = conversationHistory
+    .map(m => `${m.role}: ${m.content}`)
+    .join('\n');
 
-Below is the conversation history up to the client's latest response.
-Your task is to provide two distinct, concise, and actionable suggestions for what the Financial Advisor (user) could say next to continue the conversation effectively.
-The suggestions should be from the Financial Advisor's perspective and be suitable for quick selection (e.g., button text).
-Keep the suggestions short, ideally under 15 words each.
+  const suggestionPrompt = `
+You are an AI assistant coaching a Financial Advisor. Based on the transcript below, generate exactly two distinct, concise, and actionable prompts the Advisor can say next.  
 
-Return your suggestions ONLY as a JSON array of two strings. For example:
-["That's a good point, let's explore that.", "What are your thoughts on this alternative?"]
+Requirements:
+- Perspective: Advisor (not the client)
+- Format: Raw JSON array of two strings, e.g. ["…","…"]
+- No markdown, fences, labels, or extra text
+- ≤15 words per suggestion
+- Address the client’s last concern directly
 
-Conversation History (User is Financial Advisor, Assistant is Liang Chen):
+Conversation History (Advisor → Client):
 ---
 ${historyString}
 ---
-Client's (Liang Chen's) Last Response:
+Client’s Last Response:
 ${aiLastResponse}
----
-Provide two distinct suggestions for the Financial Advisor's next response in JSON array format:`;
+
+Now provide two next-step suggestions for the Advisor.
+`;
 
   try {
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [
-        { role: "system", content: "You are an AI assistant that provides response suggestions for a financial advisor." },
-        { role: "user", content: suggestionPrompt }
-      ],
-      model: "meta-llama/llama-4-maverick-17b-128e-instruct", // Or a model suitable for this task
-      temperature: 0.7,
-      max_tokens: 100,
-      stop: ["\n\n"],
+    // Call Gemini Flash 2.5
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-05-20",
+      contents: suggestionPrompt
     });
 
-    const rawSuggestions = chatCompletion.choices[0]?.message?.content?.trim();
-    console.log(`[${requestId}] Raw suggestions from LLM: ${rawSuggestions}`);
+    const rawSuggestions = response.text?.trim() ?? "";
+    console.log(`[${requestId}] Raw suggestions from Gemini: ${rawSuggestions}`);
 
-    if (rawSuggestions) {
-      try {
-        const suggestionsArray = JSON.parse(rawSuggestions);
-        if (Array.isArray(suggestionsArray) && suggestionsArray.length === 2 && suggestionsArray.every(s => typeof s === 'string')) {
-          console.log(`[${requestId}] Parsed suggestions:`, suggestionsArray);
-          return suggestionsArray;
-        }
-      } catch (e) {
-        console.error(`[${requestId}] Error parsing suggestions JSON: ${rawSuggestions}`, e);
-        // Fallback: Try to extract from a numbered list if JSON parsing fails
-        const lines = rawSuggestions.split('\n').map(line => line.replace(/^\d+\.\s*/, '').trim()).filter(line => line.length > 0);
-        if (lines.length >= 2) return [lines[0], lines[1]];
+    // Try JSON parse first
+    try {
+      const suggestionsArray = JSON.parse(rawSuggestions);
+      if (Array.isArray(suggestionsArray) &&
+          suggestionsArray.length === 2 &&
+          suggestionsArray.every(s => typeof s === 'string')) {
+        console.log(`[${requestId}] Parsed suggestions:`, suggestionsArray);
+        return suggestionsArray;
       }
+    } catch (e) {
+      console.warn(`[${requestId}] JSON parse failed, falling back to line split`);
     }
+
+    // Fallback: extract first two non-empty lines
+    const lines = rawSuggestions
+      .split('\n')
+      .map(line => line.replace(/^\d+\.\s*/, '').trim())
+      .filter(line => line.length > 0);
+
+    if (lines.length >= 2) {
+      return [lines[0], lines[1]];
+    }
+
     console.warn(`[${requestId}] Could not parse suggestions, returning empty array.`);
-    return []; // Return empty array if parsing fails or no suggestions
+    return [];
   } catch (error) {
-    console.error(`[${requestId}] Error generating next turn suggestions:`, error);
-    return []; // Return empty array on error
+    console.error(`[${requestId}] Error generating next turn suggestions with Gemini:`, error);
+    return [];
   }
 }
 
-async function generateMainAiTextResponse(messages: Message[], intent: string, roleplayProfile: Persona | null, originalQuery: string, requestId: string, scenarioId?: string): Promise<string> {
-  console.log(`[${requestId}] Generating main AI text response for scenario: ${scenarioId}. Messages count: ${messages.length}`);
+async function generateMainAiTextResponse(
+  messages: Message[],
+  intent: string,
+  roleplayProfile: Persona | null,
+  originalQuery: string,
+  requestId: string,
+  scenarioId?: string
+): Promise<string> {
+  console.log(`[${requestId}] Generating main AI text response with Gemini, scenario: ${scenarioId}. Messages count: ${messages.length}`);
+
+  // 1. pick the system prompt as you already do --------
+  // let systemPromptContent = "";
+  // if (scenarioId === 'REFERRAL_ANNUAL_REVIEW') {
+  //   systemPromptContent = PROMPTS.trainingReferralPrompt;
+  // } else if (scenarioId === 'INSURANCE_REJECTION_HANDLING') {
+  //   systemPromptContent = PROMPTS.trainingInsuranceRejectionPrompt;
+  // } else {
+  //   systemPromptContent = PROMPTS.trainingReferralPrompt;
+  // }
   let systemPromptContent = "";
-  const callerInfo = buildCallerInfoString(roleplayProfile);
-
-  if (scenarioId) {
-    console.log(`[${requestId}] Scenario ID: ${scenarioId}`);
-
-    if (scenarioId === 'REFERRAL_ANNUAL_REVIEW') {
-      systemPromptContent = PROMPTS.trainingReferralPrompt;
-    } else if (scenarioId === 'INSURANCE_REJECTION_HANDLING') {
-      systemPromptContent = PROMPTS.trainingInsuranceRejectionPrompt;
-    } else {
-      systemPromptContent = PROMPTS.trainingReferralPrompt;
-    }
-    
+  if (roleplayProfile?.id == "LIANG_CHEN") {
+    systemPromptContent = PERSONA_PROMPTS.LIANG_CHEN;
+  } else if (roleplayProfile?.id == "ELEANOR_VANCE") {
+    systemPromptContent = PERSONA_PROMPTS.ELEANOR_VANCE;
+  } else if (roleplayProfile?.id == "ALEX_MILLER") {
+    systemPromptContent = PERSONA_PROMPTS.ALEX_MILLER;
   } else {
-    // If no scenarioId is provided, perhaps use a default prompt or handle error
-    console.warn(`[${requestId}] No scenarioId provided. Using referral prompt as default.`);
-    systemPromptContent = PROMPTS.trainingReferralPrompt; // Default if no scenario context
+    systemPromptContent = PERSONA_PROMPTS.LIANG_CHEN; // Default system prompt
   }
 
-  if (!systemPromptContent) {
-    console.error(`[${requestId}] System prompt content is empty. This should not happen.`);
-    // Fallback to a very basic default to prevent errors, though this indicates a logic flaw.
-    systemPromptContent = "You are a helpful AI assistant."; 
-  }
+  // 2. build full prompt (system + conversation) -------
+  // const fullPrompt = [
+  //   { role: "system", content: systemPromptContent },
+  //   ...messages
+  // ].map(m => `${m.role}: ${m.content}`).join("\n");
+
+  // 3. call Gemini & time it ---------------------------
+  // try {
+  //   const resp = await ai.models.generateContent({
+  //     model: "gemini-2.5-flash-preview-05-20",
+  //     contents: fullPrompt
+  //   });
+  //   const latencyMs = Date.now() - t0;
+  //   console.log(`[${requestId}] Gemini response latency: ${latencyMs} ms`);
+
+  //   const aiResponse = resp.text?.trim() || "";
+  //   if (!aiResponse) throw new Error("Gemini returned empty response");
+  //   console.log(`[${requestId}] Gemini main response: "${aiResponse.substring(0, 100)}..."`);
+  //   return aiResponse;
+  // } catch (err) {
+  //   console.error(`[${requestId}] Error from Gemini:`, err);
+  //   throw new Error("Failed to get main AI response (Gemini)");
+  // }
+
+  // 1. Separate out the last message
+  const lastMsgObj = messages[messages.length - 1];
+  const priorMsgs = messages.slice(0, -1);
+
+  // 2. Create the chat with the earlier history, mapping roles
+  const t0 = Date.now();
+  let chat; // Declare chat outside the try block for broader scope
 
   try {
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [
-        { role: "system", content: systemPromptContent },
-        ...messages,
-      ],
-      model: "meta-llama/llama-4-maverick-17b-128e-instruct",
-      temperature: 0.7,
+    console.log(`[${requestId}] Creating Gemini chat session...`);
+    chat = ai.chats.create({
+      model: "gemini-2.5-flash-preview-05-20",
+      history: priorMsgs.map(m => ({
+        role: m.role === "advisor" ? "user" : "model",
+        parts: [{ text: m.content }]
+      })),
+      config: {
+        systemInstruction: systemPromptContent
+      }
     });
-    const aiResponse = chatCompletion.choices[0]?.message?.content || "";
-    console.log(`[${requestId}] Main AI response generated: "${aiResponse.substring(0, 100)}..."`);
-    if (!aiResponse.trim()) throw new Error("AI returned an empty main response.");
+    console.log(`[${requestId}] Gemini chat session created.`);
+
+    // 3. Send the very last message as the user’s new turn, mapping its role
+    console.log(`[${requestId}] Sending last message to Gemini chat...`);
+    const resp = await chat.sendMessage({
+      message: lastMsgObj.content
+    });
+
+    const latencyMs = Date.now() - t0;
+    console.log(`[${requestId}] Gemini chat response latency: ${latencyMs} ms`);
+
+    const aiResponse = resp.text?.trim() || "";
+    if (!aiResponse) {
+      console.error(`[${requestId}] Gemini returned an empty response for chat.sendMessage.`);
+      throw new Error("Gemini chat returned empty response");
+    }
+
+    console.log(`[${requestId}] Gemini chat main response: "${aiResponse.substring(0, 100)}..."`);
     return aiResponse;
-  } catch (error) {
-    console.error(`[${requestId}] Error generating main AI response:`, error);
-    throw new Error("Failed to get main AI response");
+
+  } catch (err: any) {
+    console.error(`[${requestId}] Error during Gemini chat interaction:`, err);
+    throw new Error(`Failed to get main AI response (Gemini chat): ${err.message || 'Unknown error'}`);
   }
 }
 
@@ -263,14 +332,14 @@ export async function POST(req: Request) {
     let effectiveTranscript = transcript;
     
     if (input === 'START' && scenarioId) {
-      console.log(`[${requestId}] Handling START_SESSION action for scenario ID: ${scenarioId}`);
+      console.log(`[${requestId}] Handling START_SESSION action for scenario ID: ${scenarioId} for persona: ${roleplayProfile?.name}`);
       const scenario = getScenarioDefinitionById(scenarioId);
       if (scenario && scenario.personaOpeningLine) {
         // Use the persona opening line as the AI response
         aiTextResponse = scenario.personaOpeningLine;
         effectiveTranscript = "SESSION_START"; // No actual user transcript for session start
         console.log(`[${requestId}] Using personaOpeningLine for START_SESSION: "${aiTextResponse.substring(0, 100)}..."`);
-        allMessages.push({ role: "assistant", content: aiTextResponse });
+        allMessages.push({ role: "client", content: aiTextResponse });
       } else {
         console.error(`[${requestId}] Scenario or personaOpeningLine not found for ID: ${scenarioId}`);
         return NextResponse.json({ error: 'Failed to start session. Scenario details missing.' }, { status: 400 });
@@ -285,7 +354,7 @@ export async function POST(req: Request) {
     // We need to ensure `allMessages` here includes the user's latest input and `aiTextResponse` is the AI's reply to that.
     // The current `allMessages` in scope is from `parseIncomingRequest` which is user's input + history *before* AI's current response.
     // So, we form a temporary history for suggestion generation.
-    const historyForSuggestions = [...allMessages, { role: "assistant" as const, content: aiTextResponse }];
+    const historyForSuggestions = [...allMessages, { role: "client" as const, content: aiTextResponse }];
     suggestionsPromise = generateNextTurnSuggestions(historyForSuggestions, aiTextResponse, requestId);
 
     // Step 6: Convert AI Text to Speech

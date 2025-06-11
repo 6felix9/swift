@@ -7,7 +7,7 @@ import { PersonaSchema } from '@/lib/personas';
 const EvaluateRequestSchema = z.object({
   messages: z.array(
     z.object({
-      role: z.enum(['user', 'assistant', 'system']),
+      role: z.enum(['advisor', 'client', 'system']),
       content: z.string(),
     })
   ),
