@@ -1,4 +1,14 @@
 export const trainingGoalPlanningEvaluationInstructions = `
+
+### Scoring Rules – MUST Follow
+1. If the transcript has **fewer than 3 advisor turns** OR a criterion is **not demonstrated**, 
+give that criterion **score = 0** and set commentsAndExamples to "Not observed in transcript".
+2. Any score **≥ 1** must include at least **one exact quote** from the transcript as evidence. 
+If no quote exists, lower the score to 0.
+3. Totals and subtotals are arithmetic sums of the numeric scores you assign.
+4. If every criterion scores 0, the **totalScore must be 0** and keyStrengths = "None observed."  
+keyAreasForImprovement must list all five categories.
+
 {
   "evaluationSummary": {
     "totalScore": 0,
