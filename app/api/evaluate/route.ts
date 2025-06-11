@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { generateCallEvaluation } from '@/lib/evaluationService';
 import { PersonaSchema } from '@/lib/personas';
 
+// Maximum duration for the evaluation process in seconds
+export const maxDuration = 60;
+
 // Define the schema for the request body
 const EvaluateRequestSchema = z.object({
   messages: z.array(

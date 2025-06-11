@@ -135,8 +135,6 @@ export default function Home() {
     }
   }, [vad, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
 
-
-
   const handleEndCall = async () => {
     console.log("[handleEndCall] Ending call. Current selectionStep:", selectionStep);
     if (vad && typeof vad.pause === 'function') {
