@@ -1,5 +1,5 @@
 export type Message = {
-  role: "user" | "assistant";
+  role: "advisor" | "client";
   content: string;
   latency?: number;
 };

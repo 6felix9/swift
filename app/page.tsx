@@ -138,6 +138,7 @@ export default function Home() {
 
 
   const handleEndCall = async () => {
+    console.log("[handleEndCall] Ending call. Current selectionStep:", selectionStep);
     if (vad && typeof vad.pause === 'function') {
       console.log("[Debug] Ending call. Stopping VAD for evaluation.");
       vad.pause();
@@ -162,9 +163,11 @@ export default function Home() {
           profileData = persona; // Pass the whole persona object or a subset as needed by prompt
         }
       }
-
+      
       const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
+      console.log('[handleEndCall] selectedScenarioId:', selectedScenarioId);
       const evaluationPromptContent = selectedScenario ? PROMPTS[selectedScenario.evaluationPromptKey as keyof typeof PROMPTS] : '';
+      console.log('[handleEndCall] Evaluation prompt content:', evaluationPromptContent);
       const requestBody = {
         messages: conversationHistory,
         roleplayProfile: profileData,
@@ -311,8 +314,8 @@ export default function Home() {
         // Update messages with new content
         setMessages(messages => [
           ...messages,
-          { role: "user", content: transcript },
-          { role: "assistant", content: text, latency },
+          { role: "advisor", content: transcript },
+          { role: "client", content: text, latency },
         ]);
 
         const recommendationsHeader = response.headers.get("X-Recommendations");
@@ -373,6 +376,7 @@ export default function Home() {
   const selectedScenarioDefinition = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
   console.log('[Home Component Render] Current selectionStep:', selectionStep);
   console.log('[Home Component Render] Current listeningInitiated:', listeningInitiated);
+  // console.log('All available PROMPTS', PROMPTS);
 
   if (!listeningInitiated) {
     return (
@@ -506,13 +510,13 @@ export default function Home() {
                 <Card 
                 className={clsx(
                   "backdrop-blur-md shadow-lg transition-all duration-300 hover:shadow-xl",
-                  message.role === "assistant" 
+                  message.role === "client" 
                     ? "bg-[#1D3B86]/60 border border-[#1D3B86]/60 hover:bg-[#1D3B86]/70" 
                     : "bg-[#00A9E7]/40 border border-[#00A9E7]/40 hover:bg-[#00A9E7]/50"
                 )}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-white">
-                      {message.role === "assistant" ? "Customer" : "You"}
+                      {message.role === "client" ? "Customer" : "You"}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -664,15 +668,15 @@ export default function Home() {
                 >
                   <CardHeader className="p-4 pb-2">
                     <CardTitle className="text-lg font-medium text-yellow-400">
-                      Role-Play Persona: {scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.defaultPersonaId}
+                      Role-Play Persona: {selectedPersonaId ? getPersonaById(selectedPersonaId)?.name : ""}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 pt-0">
                     <p className="text-sm text-gray-300 whitespace-pre-line">
-                      {scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.defaultPersonaId}
+                      {selectedPersonaId ? getPersonaById(selectedPersonaId)?.name : ""}
                     </p>
                     <p className="text-xs text-gray-400 mt-2">
-                      (Note: You are the Financial Advisor. Interact with the AI as if it is Liang Chen.)
+                      (Note: You are the Financial Advisor. Interact with the AI as if it is {selectedPersonaId ? getPersonaById(selectedPersonaId)?.name : ""}.)
                     </p>
                   </CardContent>
                 </Card>

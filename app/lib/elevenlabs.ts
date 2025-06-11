@@ -9,6 +9,7 @@ export const elevenlabs = new ElevenLabsClient({
 // Default voice to use if not specified
 const DEFAULT_VOICE = 'English'; 
 // Default model to use
+// const DEFAULT_MODEL = 'eleven_v3';
 const DEFAULT_MODEL = 'eleven_flash_v2_5';
 
 // Define an enum for the languages we want to detect

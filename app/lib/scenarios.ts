@@ -30,8 +30,18 @@ export const scenarioDefinitions: ScenarioDefinition[] = [
     defaultPersonaId: 'ELEANOR_VANCE',
     personaOpeningLine: "Hello? It's Eleanor Vance. I'm so sorry to bother you out of the blue, but I'm quite upset. I've just received a letter from SecureHome Mutual about my water damage claim... they've rejected it! I simply don't understand it, something about the roof... Can you help me make sense of this?",
     evaluationPromptKey: 'trainingInsuranceRejectionEvaluationInstructions'
-  }
+  },
   // Add other scenario definitions here
+  {
+    id: 'FIRST_HOME_PLANNING',
+    name: 'Financial Planning: First-Time Homebuyer Consultation',
+    description: 'Practice guiding a young couple preparing to buy their first home.',
+    userRole: 'Financial Advisor',
+    scenarioContext: `You're meeting with a couple looking to buy their first home within the next 12–18 months. They’re unsure how to balance their down payment savings with emergency funds, insurance, and long-term investing. They want clarity on trade-offs and timelines.`,
+    defaultPersonaId: 'ALEX_MILLER',
+    personaOpeningLine: "We’ve been talking about buying a place next year, but honestly, we’re not sure where to start. Do we just save everything for the down payment? What happens to everything else we’ve been planning?",
+    evaluationPromptKey: 'trainingGoalPlanningEvaluationInstructions'
+  }  
 ];
 
 export const getScenarioDefinitionById = (id: string): ScenarioDefinition | undefined => {
