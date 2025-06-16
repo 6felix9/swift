@@ -35,7 +35,7 @@ ${scenarioContext}
 ## Evaluation Criteria:
 ${evaluationPrompt}
 
-## Caller Profile (if available):
+## Client Profile:
 Name: ${roleplayProfile?.name || "N/A"}
 Details: ${roleplayProfile?.profileDetails || "N/A"}
 
@@ -43,8 +43,6 @@ Details: ${roleplayProfile?.profileDetails || "N/A"}
 Analyze the transcript strictly against the evaluation criteria above.  
 Populate every field in the JSON schema above.  
 All numeric fields (score, subtotal, totalScore, maxPossibleScore) must be numbers, **not strings**.  
-Compute **totalScore** on a 0–100 scale (maxPossibleScore is always 100).
-
 `;
 
   // Build the full text prompt
@@ -73,7 +71,7 @@ Compute **totalScore** on a 0–100 scale (maxPossibleScore is always 100).
     );
 
     // Clean any markdown fences
-    const cleaned = raw.replace(/^```json\s*|\s*```$/g, "");
+    const cleaned = raw.replace(/^```json\s*|\s*```$/g, "").trim();
     try {
       const evaluation: EvaluationResponse = JSON.parse(cleaned);
       // For speed testing

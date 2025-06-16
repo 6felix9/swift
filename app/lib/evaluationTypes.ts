@@ -27,6 +27,7 @@ export interface EvaluationSummary {
   maxPossibleScore: number;
   keyStrengths: string;
   keyAreasForImprovement: string;
+  whereYouCouldHaveSaidBetter: string;
   referralContextSuccessfullyCreated: ReferralContextSuccessfullyCreated;
 }
 

@@ -12,7 +12,7 @@ interface PersonaSelectionProps {
   currentScenario: ScenarioDefinition | undefined; // Can be undefined if ID is invalid
   onSelectPersona: (personaId: string) => void;
   onBackToScenarioSelection: () => void;
-  onNextToSummary: () => void;
+  onNextToDifficulty: () => void;
 }
 
 export const PersonaSelection: React.FC<PersonaSelectionProps> = ({
@@ -21,7 +21,7 @@ export const PersonaSelection: React.FC<PersonaSelectionProps> = ({
   currentScenario,
   onSelectPersona,
   onBackToScenarioSelection,
-  onNextToSummary,
+  onNextToDifficulty,
 }) => {
   if (!currentScenario) {
     // Handle case where scenario might not be found (e.g., bad ID)
@@ -51,9 +51,9 @@ export const PersonaSelection: React.FC<PersonaSelectionProps> = ({
                   ? "bg-gradient-to-r from-[#003B6F]/90 to-[#001F3A]/95 border-2 border-[#60A5FA]/80 shadow-[0_0_20px_rgba(96,165,250,0.4)] scale-105"
                   : "bg-gradient-to-r from-[#002B49]/60 to-[#001425]/70 border border-white/10 hover:border-white/30 hover:scale-[1.02]"
               )}
-              // onClick={() => {
-              //   onSelectPersona(persona.id);
-              // }}
+              onClick={() => {
+                onSelectPersona(persona.id);
+              }}
             >
               <CardHeader className="p-0 pb-2">
                 <div className="flex items-center justify-between">
@@ -71,7 +71,7 @@ export const PersonaSelection: React.FC<PersonaSelectionProps> = ({
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <p className="text-sm text-gray-300 truncate">{persona.profileDetails.substring(0, 100)}...</p>
+                <p className="text-sm text-gray-300 truncate">{persona.profileDetails}</p>
               </CardContent>
             </Card>
           ))}
@@ -88,7 +88,7 @@ export const PersonaSelection: React.FC<PersonaSelectionProps> = ({
           &larr; Change Scenario
         </Button>
         <Button
-          onClick={onNextToSummary}
+          onClick={onNextToDifficulty}
           disabled={!selectedPersonaId}
           className="w-full px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-300 disabled:opacity-50"
         >

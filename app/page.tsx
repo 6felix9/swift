@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { useActionState, useEffect, useRef, useState, useCallback, startTransition } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { EnterIcon, LoadingIcon } from "@/lib/icons";
 import { usePlayer } from "@/lib/usePlayer";
@@ -14,17 +14,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Message } from "@/lib/types";
 import { brandColors } from "@/lib/constants";
 import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
-import { FlickeringGrid } from "@/components/ui/flickering-grid"; // Assuming named export
 import { PhoneOff } from 'lucide-react'; // CheckCircle2 moved to ScenarioSelection
 import { ScenarioSelection } from '@/components/ui/ScenarioSelection';
 import { PersonaSelection } from '@/components/ui/PersonaSelection';
+import { DifficultySelection } from "@/components/ui/DifficultySelection";
 import { EvaluationDisplay } from '@/components/ui/EvaluationDisplay'; // Added
-import { roleplayProfileCard as RoleplayProfileCard, roleplayProfile } from "@/components/ui/patient-profile-card";
 
 import { Persona, personas, getPersonaById } from '@/lib/personas';
 import { ScenarioDefinition, scenarioDefinitions, getScenarioDefinitionById } from '@/lib/scenarios';
 import { PROMPTS } from '@/lib/prompt';
 import { EvaluationResponse } from "./lib/evaluationTypes";
+import { Difficulty } from '@/lib/difficultyTypes';
 
 export default function Home() {
   const mainContainerStyle = {
@@ -35,6 +35,7 @@ export default function Home() {
   };
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const endCallRef = useRef<HTMLButtonElement>(null);
   const player = usePlayer();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isListening, setIsListening] = useState(false);
@@ -42,7 +43,6 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
 
   const [isPending, setIsPending] = useState(false);
-
 
   // State for evaluation
   const [evaluationData, setEvaluationData] = useState<EvaluationResponse | null>(null);
@@ -57,9 +57,12 @@ export default function Home() {
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
   const [personasData, setPersonasData] = useState<Persona[]>([]);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null); 
+  const [difficultyProfile, setDifficultyProfile] = useState<String | null>(null);
+  const [loadingDifficulty, setLoadingDifficulty] = useState<boolean>(false);
 
   // Wizard Step State for new flow
-  const [selectionStep, setSelectionStep] = useState<'selectScenario' | 'selectPersona' | 'summary' | 'evaluationResults' | null>('selectScenario'); // Added 'evaluationResults' and null
+  const [selectionStep, setSelectionStep] = useState<'selectScenario' | 'selectPersona' | 'selectDifficulty' | 'summary' | 'evaluationResults' | null>('selectScenario'); // Added 'evaluationResults' and null
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
@@ -136,6 +139,7 @@ export default function Home() {
   }, [vad, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
 
   const handleEndCall = async () => {
+    player.stop(); // Stop any currently playing audio
     console.log("[handleEndCall] Ending call. Current selectionStep:", selectionStep);
     if (vad && typeof vad.pause === 'function') {
       console.log("[Debug] Ending call. Stopping VAD for evaluation.");
@@ -225,8 +229,9 @@ export default function Home() {
     setManualListening(false);
     setSelectedScenarioId(null);
     setSelectedPersonaId(null);
+    setSelectedDifficulty(null);
+    setDifficultyProfile(null);
     setSelectionStep('selectScenario');
-    // setSelectedPatientId(null); // This was removed, ensure it's not needed elsewhere
     toast.info("Session Reset. Please select a new scenario.");
   };
 
@@ -243,6 +248,7 @@ export default function Home() {
 
     setIsPending(true);
     try {
+      // 1️⃣ Send to /api → audio + text
       const submittedAt = Date.now();
       const formData = new FormData();
       formData.append("input", data);
@@ -257,102 +263,111 @@ export default function Home() {
       if (selectedScenario) {
         formData.append("scenario", JSON.stringify(selectedScenario));
       }
+      if (difficultyProfile) {
+        formData.append("difficultyProfile", JSON.stringify(difficultyProfile))
+      };
+      
+      formData.append("message", JSON.stringify(messages.slice(-10).map(m => ({ role: m.role, content: m.content }))));
 
-      // Only send the last 10 messages to keep the payload size reasonable
-      const recentMessages = messages.slice(-10);
-      formData.append(
-        "message",
-        JSON.stringify(
-          recentMessages.map(({ role, content }) => ({ role, content }))
-        )
-      );
+      const response = await fetch("/api", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error(await response.text() || "Main AI call failed");
 
-      try {
-        const response = await fetch("/api", {
-          method: "POST",
-          body: formData,
-        });
+      // 2️⃣ Parse audio + transcript + text
+      const audioBlob = await response.blob();
+      const latency = Date.now() - submittedAt;
+      const transcript = decodeURIComponent(response.headers.get("X-Transcript") || "");
+      const text       = decodeURIComponent(response.headers.get("X-Response")   || "");
 
-        if (!response.ok) {
-          if (response.status === 429) {
-            toast.error("We're experiencing high traffic. Please try again in a moment.");
-          } else {
-            toast.error((await response.text()) || "We couldn't process your request. Please try again.");
-          }
-          return;
-        }
-
-        const audioBlob = await response.blob();
-        const latency = Date.now() - submittedAt;
-        const transcript = decodeURIComponent(response.headers.get("X-Transcript") || "");
-        const text = decodeURIComponent(response.headers.get("X-Response") || "");
-
-        if (!transcript || !text) {
-          toast.error("We couldn't understand the response. Please try again.");
-          return;
-        }
-
-        if (typeof data === "string") {
-          setInput("");
-        }
-
-        const contentType = response.headers.get("Content-Type");
-
-        // Play audio and handle browser-specific behavior
-        try {
-          player.play(audioBlob as any, () => {
-            const isFirefox = navigator.userAgent.includes("Firefox");
-            if (isFirefox && vad) vad.start();
-          }, contentType || undefined);
-        } catch (audioError) {
-          console.error("Audio playback error:", audioError);
-          toast.error("We couldn't play the audio response. Please check your sound settings.");
-        }
-
-        // Update messages with new content
-        setMessages(messages => [
-          ...messages,
+      // 3️⃣ Immediately render the new turn
+      if (data === "START") {
+        setMessages([{ role: "client", content: text }]);
+      } else {
+        setMessages(msgs => [
+          ...msgs,
           { role: "advisor", content: transcript },
-          { role: "client", content: text, latency },
+          { role: "client",  content: text, latency },
         ]);
+      }
 
-        const recommendationsHeader = response.headers.get("X-Recommendations");
-        if (recommendationsHeader) {
-          try {
-            const parsedSuggestions = JSON.parse(recommendationsHeader);
-            if (Array.isArray(parsedSuggestions) && parsedSuggestions.length > 0 && parsedSuggestions.every(s => typeof s === 'string')) {
-              setSuggestions(parsedSuggestions);
-            } else {
-              console.warn("X-Recommendations header was not a valid string array or was empty:", parsedSuggestions);
-              setSuggestions([]);
-            }
-          } catch (e) {
-            console.error("Error parsing X-Recommendations header:", e);
-            setSuggestions([]);
-          }
-        } else {
+      // Clear input field
+      setInput("");
+
+      // 4️⃣ Fire-and-forget the suggestions fetch
+      (async () => {
+        try {
+          const hist = [
+            ...(data === "START" ? [] : messages.slice(-10)),  
+            { role: "client", content: text }
+          ];
+          const sugRes = await fetch("/api/suggestion", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              conversationHistory: hist,
+              aiLastResponse: text,
+              requestId: crypto.randomUUID().slice(0,8),
+            }),
+          });
+          if (!sugRes.ok) throw new Error(await sugRes.text());
+          const { suggestions } = (await sugRes.json()) as { suggestions: string[] };
+          setSuggestions(Array.isArray(suggestions) ? suggestions : []);
+        } catch (e) {
+          console.error("Failed to load suggestions:", e);
           setSuggestions([]);
         }
+      })();
 
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to send message");
-      } finally {
-        setIsPending(false);
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to send message");
+      // 5️⃣ Play audio
+      const contentType = response.headers.get("Content-Type") || undefined;
+      const audioStream = audioBlob.stream();
+      player.play(audioStream, () => {
+        if (navigator.userAgent.includes("Firefox") && vad) vad.start();
+      }, contentType);
+
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to send message");
     } finally {
       setIsPending(false);
     }
-  }, [isPending, messages, player, selectedScenarioId, selectedPersonaId, scenarioDefinitionsData, vad]);
+  }, [
+    isPending, messages, player, vad,
+    selectedPersonaId, selectedScenarioId,
+    difficultyProfile, scenarioDefinitionsData
+  ]);
 
+  const handleDifficultyProfileGeneration = useCallback(
+    async (
+      difficulty: Difficulty | null,
+      scenarioId: string,
+    ) => {
+      try {
+        const res = await fetch("/api/difficulty", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ difficulty, scenarioId }),
+        });
 
-  const vadRef = useRef(vad); // Create a ref for VAD
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || "Failed to fetch difficulty profile");
+        }
+
+        const { profile } = (await res.json()) as { profile: string };
+        setDifficultyProfile(profile);
+      } catch (err: any) {
+        toast.error("Could not generate difficulty profile. Please try again.");
+      }
+    },
+    [setDifficultyProfile]
+  );
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    endCallRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, suggestions]);
 
   useEffect(() => {
     if (!manualListening) {
@@ -374,7 +389,6 @@ export default function Home() {
   const selectedScenarioDefinition = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
   console.log('[Home Component Render] Current selectionStep:', selectionStep);
   console.log('[Home Component Render] Current listeningInitiated:', listeningInitiated);
-  // console.log('All available PROMPTS', PROMPTS);
 
   if (!listeningInitiated) {
     return (
@@ -382,9 +396,6 @@ export default function Home() {
         <div className="mx-auto w-full max-w-7xl flex flex-col px-4 sm:px-6 lg:px-8 relative py-6">
           <div className="flex-1 flex flex-col justify-center items-center mb-20">
             <div className="w-full mb-10">
-              {/* 
-              <h1 className="text-4xl font-bold text-center mb-2 text-white">Health Line</h1>
-              <p className="text-center mb-8 text-gray-300">Powered by AI assistant</p> */}
 
               {selectionStep === 'selectScenario' && (
                 <ScenarioSelection 
@@ -409,16 +420,43 @@ export default function Home() {
                     setSelectionStep('selectScenario');
                     // setSelectedPersonaId(null); // Optional: Clear persona if going back
                   }}
-                  onNextToSummary={() => setSelectionStep('summary')}
+                  onNextToDifficulty={() => setSelectionStep('selectDifficulty')}
                 />
               )}
 
+              {/* New Difficulty Selection Step */}
+              {selectionStep === 'selectDifficulty' && selectedScenarioId && selectedPersonaId && (
+                <DifficultySelection 
+                  selectedScenario={getScenarioDefinitionById(selectedScenarioId)}
+                  selectedPersona={getPersonaById(selectedPersonaId)}
+                  selectedDifficulty={selectedDifficulty}
+                  onSelectDifficulty={setSelectedDifficulty}
+                  onChangePersona={() => setSelectionStep('selectPersona')}
+                  onChangeScenario={() => setSelectionStep('selectScenario')}
+                  onNextToSummary={async () => {
+                    setSelectionStep('summary');
+                    setLoadingDifficulty(true);
+                    try {
+                      await handleDifficultyProfileGeneration(
+                        selectedDifficulty,
+                        selectedScenarioId,
+                      );
+                    } catch (error) {
+                      console.error("Error generating difficulty profile:", error);
+                    } finally {
+                      setLoadingDifficulty(false);
+                    }
+                  }}
+                  />
+              )}
+
               {/* New Summary Step */}
-              {selectionStep === 'summary' && selectedScenarioId && selectedPersonaId && !isEvaluating && (
+              {selectionStep === 'summary' && selectedScenarioId && selectedPersonaId && !isEvaluating && selectedDifficulty && (
                 // Ensure evaluation screen isn't trying to show at same time
                 <SummaryDisplay
                   selectedScenario={getScenarioDefinitionById(selectedScenarioId)}
                   selectedPersona={getPersonaById(selectedPersonaId)}
+                  selectedDifficulty={selectedDifficulty}
                   onStartSession={() => {
                     const scenario = getScenarioDefinitionById(selectedScenarioId);
                     const persona = getPersonaById(selectedPersonaId);
@@ -435,16 +473,11 @@ export default function Home() {
                     }
                     setManualListening(true);
                     setSelectionStep(null); 
-                    // const personaMessage: Message = {
-                    //   id: Date.now().toString(),
-                    //   role: 'assistant',
-                    //   content: scenario.personaOpeningLine,
-                    //   timestamp: new Date().toISOString(),
-                    // };
-                    // setMessages([personaMessage]);
                   }}
+                  onChangeDifficulty={() => setSelectionStep('selectDifficulty')}
                   onChangePersona={() => setSelectionStep('selectPersona')}
                   onChangeScenario={() => setSelectionStep('selectScenario')}
+                  loadingDifficulty={loadingDifficulty}
                 />
               )}
 
@@ -452,6 +485,7 @@ export default function Home() {
               {/* New Evaluation Display Step */}
               {selectionStep === 'evaluationResults' && (
                 <EvaluationDisplay 
+                  difficulty={selectedDifficulty}
                   evaluationData={evaluationData}
                   isLoading={isEvaluating}
                   error={evaluationError}
@@ -566,7 +600,6 @@ export default function Home() {
           >
             <Input
               type="text"
-              
               value={input}
               onChange={(e) => setInput(e.target.value)}
               ref={inputRef}
@@ -589,6 +622,7 @@ export default function Home() {
           {/* End Call Button - Moved below the form */}
           <div className="w-full max-w-3xl mx-4 mt-4">
             <Button
+              ref={endCallRef}
               type="button"
               onClick={handleEndCall}
               className="w-full bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-semibold transition-all duration-300 shadow-lg hover:shadow-xl py-3 text-lg rounded-xl flex items-center justify-center gap-2"

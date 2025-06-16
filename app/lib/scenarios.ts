@@ -14,11 +14,11 @@ export const scenarioDefinitions: ScenarioDefinition[] = [
   {
     id: 'REFERRAL_ANNUAL_REVIEW',
     name: 'Referral Skills: Annual Review Meeting',
-    description: 'Practice seeking referrals during a positive annual review meeting.',
+    description: 'Practice seeking referrals during a routine annual review meeting.',
     userRole: 'Financial Advisor',
-    scenarioContext: `You are in a scheduled annual review meeting with your client. The meeting has been positive so far. Your client has just shared some good news regarding the performance of their children's education funds, and you've briefly discussed the initial steps for business continuity planning, which they found helpful.`,
+    scenarioContext: `You are in a scheduled annual review meeting with your client, reviewing portfolio performance and discussing future goals.`,
     defaultPersonaId: 'LIANG_CHEN',
-    personaOpeningLine: "Thanks for walking me through that. It’s reassuring to see the education funds growing steadily. My wife, Mei, and I were just talking about how much clearer our financial picture has become since we started working with you. That past experience with the other advisor left me a bit wary, but you’ve really earned our trust.",
+    personaOpeningLine: `Okay, thanks for giving me a clear overview of what to expect and manage.`,    
     evaluationPromptKey: 'trainingReferralEvaluationInstructions'
   },
   {

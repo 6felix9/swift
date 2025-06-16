@@ -1,4 +1,13 @@
 export const trainingInsuranceRejectionEvaluationInstructions = `
+
+### Scoring rules
+
+1. Evaluate each criterion strictly from the transcript.  
+2. Replace every "0", empty string, or “Undetermined” with the correct score (1-5) or text evidence.  
+3. If a behaviour is not observed, keep score = 0 and set ""commentsAndExamples": "Not observed"".  
+4. Compute all subtotals and totalScore.
+5. Output only the completed JSON object.
+
 {
   "evaluationSummary": {
     "totalScore": 0,

@@ -8,19 +8,25 @@ import { toast } from 'sonner'; // Assuming toast is used for error notification
 interface SummaryDisplayProps {
   selectedScenario: ScenarioDefinition | undefined;
   selectedPersona: Persona | null;
+  selectedDifficulty?: string;
   isStartingSession?: boolean;
   onStartSession: () => void;
+  onChangeDifficulty: () => void;
   onChangePersona: () => void;
   onChangeScenario: () => void;
+  loadingDifficulty?: boolean;
 }
 
 export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
   selectedScenario,
   selectedPersona,
+  selectedDifficulty,
   isStartingSession,
   onStartSession,
+  onChangeDifficulty,
   onChangePersona,
   onChangeScenario,
+  loadingDifficulty,
 }) => {
   if (!selectedScenario || !selectedPersona) {
     // This case should ideally be handled before rendering SummaryDisplay,
@@ -52,6 +58,26 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
         </CardContent>
       </Card>
 
+      {/* Selected Difficulty Display */}
+      <Card className="mb-3 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
+        <CardHeader className="p-4 pb-2">
+          <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Difficulty</p>
+          <CardTitle className="text-lg font-medium text-[#FFD700]">
+            {selectedDifficulty && (() => {
+              // Capitalize first letter
+              const label = selectedDifficulty[0].toUpperCase() + selectedDifficulty.slice(1);
+              // 1 star for easy, 2 for medium, 3 for hard
+              const count = selectedDifficulty === 'easy'
+                ? 1
+                : selectedDifficulty === 'medium'
+                  ? 2
+                  : 3;
+              return `${label} ${'⭐'.repeat(count)}`;
+            })()}
+          </CardTitle>
+        </CardHeader>
+      </Card>
+
       {/* Selected Persona Display */}
       <Card className="mb-6 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
         <CardHeader className="p-4 pb-2">
@@ -72,12 +98,23 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
       <div className="space-y-3 mt-8">
         <Button
           onClick={onStartSession}
-          disabled={isStartingSession}
+          disabled={isStartingSession || loadingDifficulty}
           className="w-full bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-150 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-opacity-50 text-lg flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          Start Session
+          {isStartingSession || loadingDifficulty ? (
+            <span>Starting Session...</span>
+          ) : (
+            <span>Start Session</span>
+          )}
         </Button>
         <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={onChangeDifficulty}
+            className="w-full text-sm text-gray-300 hover:text-white border-gray-600 hover:border-gray-400 bg-transparent hover:bg-white/10 py-2.5 rounded-lg"
+          >
+            &larr; Change Difficulty
+          </Button>
           <Button
             variant="outline"
             onClick={onChangePersona}

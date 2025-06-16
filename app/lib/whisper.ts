@@ -40,8 +40,9 @@ export async function getTranscript(input: string | File) {
 		let file = input;
 		const { text } = await groq.audio.transcriptions.create({
 			file,
-			prompt: "Support English, Chinese, Malay or Tamil. When transcribing, focus on the words used and not the accent.",
-			model: "whisper-large-v3",
+			prompt: "English only",
+			model: "distil-whisper-large-v3-en",
+			// model: "whisper-large-v3-en",
 		});
 
 		return text.trim() || null;

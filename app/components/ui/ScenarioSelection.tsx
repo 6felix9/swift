@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Assuming these are aliased correctly
 import { CheckCircle2 } from 'lucide-react';
 import { ScenarioDefinition } from '@/lib/scenarios'; // Ensure this path is correct
+import { useState, useEffect } from 'react';
 
 interface ScenarioSelectionProps {
   scenarioDefinitions: ScenarioDefinition[];

@@ -1,13 +1,12 @@
 export const trainingGoalPlanningEvaluationInstructions = `
 
-### Scoring Rules – MUST Follow
-1. If the transcript has **fewer than 3 advisor turns** OR a criterion is **not demonstrated**, 
-give that criterion **score = 0** and set commentsAndExamples to "Not observed in transcript".
-2. Any score **≥ 1** must include at least **one exact quote** from the transcript as evidence. 
-If no quote exists, lower the score to 0.
-3. Totals and subtotals are arithmetic sums of the numeric scores you assign.
-4. If every criterion scores 0, the **totalScore must be 0** and keyStrengths = "None observed."  
-keyAreasForImprovement must list all five categories.
+### Scoring rules
+
+1. Evaluate each criterion strictly from the transcript.  
+2. Replace every "0", empty string, or “Undetermined” with the correct score (1-5) or text evidence.  
+3. If a behaviour is not observed, keep score = 0 and set ""commentsAndExamples": "Not observed"".  
+4. Compute all subtotals and totalScore.
+5. Output only the completed JSON object.
 
 {
   "evaluationSummary": {

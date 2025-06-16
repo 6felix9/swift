@@ -1,0 +1,47 @@
+// app/api/suggestion/route.ts
+
+import { NextResponse } from "next/server";
+import { generateNextTurnSuggestions } from "@/lib/suggestionService";
+import type { Message } from "@/lib/suggestionService";
+
+export interface SuggestionRequest {
+  conversationHistory: Message[];
+  aiLastResponse: string;
+  requestId: string;
+}
+
+export interface SuggestionResponse {
+  suggestions: string[];
+}
+
+export async function POST(request: Request) {
+  try {
+    const { conversationHistory, aiLastResponse, requestId } =
+      (await request.json()) as SuggestionRequest;
+
+    if (
+      !Array.isArray(conversationHistory) ||
+      typeof aiLastResponse !== "string" ||
+      typeof requestId !== "string"
+    ) {
+      return NextResponse.json(
+        { error: "Invalid request payload" },
+        { status: 400 }
+      );
+    }
+
+    const suggestions = await generateNextTurnSuggestions(
+      conversationHistory,
+      aiLastResponse,
+      requestId
+    );
+
+    return NextResponse.json<SuggestionResponse>({ suggestions });
+  } catch (error) {
+    console.error("[/api/suggestion] Error generating suggestions:", error);
+    return NextResponse.json(
+      { error: "Failed to generate suggestions" },
+      { status: 500 }
+    );
+  }
+}
