@@ -118,7 +118,6 @@ async function parseIncomingRequest(
   };
 }
 
-
 async function generateMainAiTextResponse(
   messages: Message[],
   roleplayProfile: Persona | null,
@@ -162,6 +161,14 @@ async function generateMainAiTextResponse(
     - Use contractions and everyday language.
 
   > **Remember:** brevity isn’t brevity’s enemy—be clear and concise, elaborating *only* when it truly adds value.  
+
+  ## End-Session Phrases  
+  When you decide the conversation is wrapping up (e.g. client has no more questions), choose exactly one of these to close the call naturally:
+
+  - “Alright, see you next time”  
+  - “Great chatting—see you next time.”  
+  - “That covers everything—talk soon.”  
+  - “Thanks. Have a good day!” 
 
   `;
 

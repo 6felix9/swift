@@ -235,6 +235,9 @@ export default function Home() {
     toast.info("Session Reset. Please select a new scenario.");
   };
 
+  // Ending phrases
+  const END_REGEX = /\b(alright,\s*see you next time|great chatting—see you next time|that covers everything—talk soon|thanks\.?\s*have a good day!?)\b/i;
+
   const handleSubmit = useCallback(async (data: string | Blob) => {
     if (isPending) return; // Prevent multiple submissions
     setSuggestions([]); // Clear previous suggestions
@@ -292,6 +295,9 @@ export default function Home() {
         ]);
       }
 
+      // 3.5️⃣ Detect if AI’s reply contains an end-session phrase
+      const isEnding = END_REGEX.test(text);
+
       // Clear input field
       setInput("");
 
@@ -325,6 +331,12 @@ export default function Home() {
       const audioStream = audioBlob.stream();
       player.play(audioStream, () => {
         if (navigator.userAgent.includes("Firefox") && vad) vad.start();
+        if (isEnding) {
+          console.log("[handleSubmit] Goodbye phrase spoken — ending session.");
+          setTimeout(() => {
+            handleEndCall();
+          }, 2000);
+        }
       }, contentType);
 
     } catch (err: any) {

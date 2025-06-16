@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2 } from 'lucide-react';
 import { ScenarioDefinition } from '@/lib/scenarios'; // Ensure this path is correct
 import { useState, useEffect } from 'react';
+// import DigitalHumanLive from '@/components/ui/DigitalHumanLive'
 
 interface ScenarioSelectionProps {
   scenarioDefinitions: ScenarioDefinition[];
@@ -60,4 +61,21 @@ export const ScenarioSelection: React.FC<ScenarioSelectionProps> = ({
       </div>
     </>
   );
+
+  // Testing Avatar 
+  
+  // return(
+  //   <>
+  //     <DigitalHumanLive 
+  //       appId="your_appid"
+  //       accessToken="your_token"
+  //       liveId="my_live_demo"
+  //       rtcAppId="bytertc_appid"
+  //       rtcRoomId="room1"
+  //       rtcUid="demo123"
+  //       rtcToken="secure_rtc_token"
+  //     />
+  //   </>
+  // )
+
 };
