@@ -36,6 +36,7 @@ export default function Home() {
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const endCallRef = useRef<HTMLButtonElement>(null);
+  const endCalledRef = useRef(false);
   const player = usePlayer();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isListening, setIsListening] = useState(false);
@@ -139,6 +140,10 @@ export default function Home() {
   }, [vad, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
 
   const handleEndCall = async () => {
+    /* 🚦 GUARD  */
+    if (endCalledRef.current) return;     // already running once
+    endCalledRef.current = true;          // mark as entered
+
     player.stop(); // Stop any currently playing audio
     console.log("[handleEndCall] Ending call. Current selectionStep:", selectionStep);
     if (vad && typeof vad.pause === 'function') {
@@ -231,6 +236,7 @@ export default function Home() {
     setSelectedPersonaId(null);
     setSelectedDifficulty(null);
     setDifficultyProfile(null);
+    endCalledRef.current = false;
     setSelectionStep('selectScenario');
     toast.info("Session Reset. Please select a new scenario.");
   };
@@ -335,7 +341,8 @@ export default function Home() {
           console.log("[handleSubmit] Goodbye phrase spoken — ending session.");
           setTimeout(() => {
             handleEndCall();
-          }, 2000);
+          }, 1000);
+          return;
         }
       }, contentType);
 

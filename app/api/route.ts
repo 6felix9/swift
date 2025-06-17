@@ -172,6 +172,7 @@ async function generateMainAiTextResponse(
 
   `;
 
+  // Using Gemini for responses
   // 1. Separate out the last message
   const lastMsgObj = messages[messages.length - 1];
   const priorMsgs = messages.slice(0, -1);
@@ -216,6 +217,53 @@ async function generateMainAiTextResponse(
     console.error(`[${requestId}] Error during Gemini chat interaction:`, err);
     throw new Error(`Failed to get main AI response (Gemini chat): ${err.message || 'Unknown error'}`);
   }
+
+  // // Using Groq for responses
+  // try {
+  //   console.log(`[${requestId}] Preparing Groq chat messages...`);
+  //   const t0 = Date.now();
+    
+  //   // 1️⃣ Define a mini‐type alias for Groq’s roles
+  //   type GroqRole = "system" | "user" | "assistant";
+
+  //   // 2️⃣ Annotate your chat array
+  //   const chat: { role: GroqRole; content: string }[] = [
+  //     { role: "system", content: systemPromptContent }
+  //   ];
+
+  //   // 3️⃣ Push your prior messages, *casting* to the literal types
+  //   chat.push(
+  //     ...messages.map(m => ({
+  //       role: (m.role === "advisor" ? "user" : "assistant") as GroqRole,
+  //       content: m.content
+  //     }))
+  //   );
+    
+  //   console.log(`[${requestId}] Groq chat messages prepared.`);
+
+  //   // Send the chat completion request
+  //   console.log(`[${requestId}] Sending request to Groq...`);
+  //   const completion = await groq.chat.completions.create({
+  //     messages: chat,
+  //     model: "meta-llama/llama-4-scout-17b-16e-instruct",
+  //   });
+
+  //   const latencyMs = Date.now() - t0;
+  //   console.log(`[${requestId}] Groq response latency: ${latencyMs} ms`);
+
+  //   const aiResponse = completion.choices[0]?.message?.content?.trim() || "";
+  //   if (!aiResponse) {
+  //     console.error(`[${requestId}] Groq returned an empty response.`);
+  //     throw new Error("Groq returned empty response");
+  //   }
+
+  //   console.log(`[${requestId}] Groq main response: "${aiResponse.substring(0, 100)}..."`);
+  //   return aiResponse;
+
+  // } catch (err: any) {
+  //   console.error(`[${requestId}] Error during Groq chat interaction:`, err);
+  //   throw new Error(`Failed to get main AI response (Groq): ${err.message || 'Unknown error'}`);
+  // }
 }
 
 async function convertTextToSpeech(text: string, requestId: string, voice: string): Promise<ReadableStream<Uint8Array>> {

@@ -19,7 +19,7 @@ export async function generateNextTurnSuggestions(
   aiLastResponse: string,
   requestId: string
 ): Promise<string[]> {
-  console.log(`[${requestId}] Generating next turn suggestions with Gemini...`);
+  console.log(`[${requestId}] Generating next turn suggestions with Groq...`);
 
   const historyString = conversationHistory
     .map(m => `${m.role}: ${m.content}`)
@@ -96,7 +96,7 @@ const t0 = Date.now();
     console.warn(`[${requestId}] Could not parse suggestions, returning empty array.`);
     return [];
   } catch (error) {
-    console.error(`[${requestId}] Error generating next turn suggestions with Gemini:`, error);
+    console.error(`[${requestId}] Error generating next turn suggestions with Groq:`, error);
     return [];
   }
 }
