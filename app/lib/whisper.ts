@@ -38,12 +38,16 @@ export async function getTranscript(input: string | File) {
 
 		// Create a new File with proper MIME type if needed
 		let file = input;
+		// Measure latency for the Groq Whisper API call
+		const sttStart = Date.now();
 		const { text } = await groq.audio.transcriptions.create({
 			file,
 			prompt: "English only",
 			model: "distil-whisper-large-v3-en",
 			// model: "whisper-large-v3-en",
 		});
+		const sttEnd = Date.now();
+		console.log(`Groq Whisper STT API latency: ${sttEnd - sttStart} ms`);
 
 		return text.trim() || null;
 	} catch (e) {

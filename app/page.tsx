@@ -2,7 +2,6 @@
 
 import clsx from "clsx";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { toast } from "sonner";
 import { EnterIcon, LoadingIcon } from "@/lib/icons";
 import { usePlayer } from "@/lib/usePlayer";
 import { useMicVAD, utils } from "@ricky0123/vad-react";
@@ -10,7 +9,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-// import { AIVoiceInput } from "@/components/ui/ai-voice-input";
 import { Message } from "@/lib/types";
 import { brandColors } from "@/lib/constants";
 import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
@@ -19,12 +17,14 @@ import { ScenarioSelection } from '@/components/ui/ScenarioSelection';
 import { PersonaSelection } from '@/components/ui/PersonaSelection';
 import { DifficultySelection } from "@/components/ui/DifficultySelection";
 import { EvaluationDisplay } from '@/components/ui/EvaluationDisplay'; // Added
+import { toast } from 'sonner';
 
 import { Persona, personas, getPersonaById } from '@/lib/personas';
 import { ScenarioDefinition, scenarioDefinitions, getScenarioDefinitionById } from '@/lib/scenarios';
 import { PROMPTS } from '@/lib/prompt';
 import { EvaluationResponse } from "./lib/evaluationTypes";
 import { Difficulty } from '@/lib/difficultyTypes';
+import { initializeAndJoinRoom, leaveAndDestroyRoom } from '@/lib/rtcService';
 
 export default function Home() {
   const mainContainerStyle = {
@@ -39,11 +39,20 @@ export default function Home() {
   const endCalledRef = useRef(false);
   const player = usePlayer();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
   const [isListening, setIsListening] = useState(false);
   const [manualListening, setManualListening] = useState(false);
+  const [isAvatarConnected, setIsAvatarConnected] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isRoomJoined, setIsRoomJoined] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  const [isPending, setIsPending] = useState(false);
+  const [isApiLoading, setIsApiLoading] = useState(false);
+  const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false);
+  const pendingEndCall = useRef(false);
+
+  const isPending = isApiLoading || isAvatarSpeaking;
 
   // State for evaluation
   const [evaluationData, setEvaluationData] = useState<EvaluationResponse | null>(null);
@@ -60,7 +69,8 @@ export default function Home() {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null); 
   const [difficultyProfile, setDifficultyProfile] = useState<String | null>(null);
-  const [loadingDifficulty, setLoadingDifficulty] = useState<boolean>(false);
+  const [isPreparingSession, setIsPreparingSession] = useState<boolean>(false);
+  const [tempID, setTempID] = useState<string | null>(null);
 
   // Wizard Step State for new flow
   const [selectionStep, setSelectionStep] = useState<'selectScenario' | 'selectPersona' | 'selectDifficulty' | 'summary' | 'evaluationResults' | null>('selectScenario'); // Added 'evaluationResults' and null
@@ -71,6 +81,36 @@ export default function Home() {
     setScenarioDefinitionsData(scenarioDefinitions);
     setPersonasData(personas);
   }, []);
+
+  // Effect to listen for digital human status events via SSE
+  useEffect(() => {
+    console.log('[StatusListener] Digital human status listener initialized');
+    if (!sessionId) return;
+
+    const es = new EventSource(`/api/digital-human-status?sessionId=${sessionId}`);
+    es.addEventListener('voice_start', () => {
+      console.log('[StatusListener] Digital human voice started');
+      setIsAvatarSpeaking(true);
+    });
+    es.addEventListener('voice_end', () => {
+      console.log('[StatusListener] Digital human voice ended');
+      setIsAvatarSpeaking(false);
+    });
+    es.onerror = () => {
+      // Don't close here, let it retry
+      console.error('[StatusListener] EventSource error. It will attempt to reconnect.');
+    };
+    return () => es.close();
+  }, [sessionId]);
+
+  // Effect to end the call after the avatar finishes speaking
+  useEffect(() => {
+    if (!isAvatarSpeaking && pendingEndCall.current) {
+      console.log('[handleEndCall] Avatar finished speaking, proceeding with end call.');
+      // Use a timeout to ensure any final state updates are processed
+      setTimeout(() => handleEndCall(), 500);
+    }
+  }, [isAvatarSpeaking]);
 
   // Define vad first before using it in submit
   const vad = useMicVAD({
@@ -150,6 +190,13 @@ export default function Home() {
       console.log("[Debug] Ending call. Stopping VAD for evaluation.");
       vad.pause();
     }
+
+    // Disconnect avatar and leave room
+    await Promise.all([
+      handleDisconnectAvatar(),
+      handleLeaveRoom(),
+    ]);
+
     setIsListening(false); // Stop active listening UI
     setListeningInitiated(false); // Crucial: Return to the wizard/results view
     // Don't clear messages yet, needed for evaluation
@@ -174,14 +221,13 @@ export default function Home() {
       const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
       console.log('[handleEndCall] selectedScenarioId:', selectedScenarioId);
       const evaluationPromptContent = selectedScenario ? PROMPTS[selectedScenario.evaluationPromptKey as keyof typeof PROMPTS] : '';
-      console.log('[handleEndCall] Evaluation prompt content:', evaluationPromptContent);
       const requestBody = {
         messages: conversationHistory,
         roleplayProfile: profileData,
         evaluationPrompt: evaluationPromptContent,
         scenarioContext: selectedScenario?.scenarioContext || "",
       };
-      console.log('[handleEndCall] Fetching /api/evaluate with body:', JSON.stringify(requestBody, null, 2));
+      console.log('[handleEndCall] Fetching /api/evaluate with body:', JSON.stringify(requestBody, null, 2).substring(0, 100));
 
       const response = await fetch("/api/evaluate", {
         method: "POST",
@@ -193,7 +239,7 @@ export default function Home() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response from API.' })); // Gracefully handle if error response isn't JSON
-        console.error('[handleEndCall] API response not OK. Status:', response.status, 'Response body:', JSON.stringify(errorData, null, 2));
+        console.error('[handleEndCall] API response not OK. Status:', response.status, 'Response body:', JSON.stringify(errorData, null, 2).substring(0, 100));
         const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
         toast.error(`Evaluation failed: ${errorMessage}`);
         setEvaluationError(errorMessage);
@@ -202,7 +248,7 @@ export default function Home() {
       }
 
       const result = await response.json();
-      console.log('[handleEndCall] API response JSON:', JSON.stringify(result, null, 2));
+      console.log('[handleEndCall] API response JSON:', JSON.stringify(result, null, 2).substring(0, 100));
 
       if (result.evaluation) {
         setEvaluationData(result.evaluation as EvaluationResponse);
@@ -237,14 +283,20 @@ export default function Home() {
     setSelectedDifficulty(null);
     setDifficultyProfile(null);
     endCalledRef.current = false;
+    pendingEndCall.current = false;
     setSelectionStep('selectScenario');
+    setIsPreparingSession(false);
+    setIsRoomJoined(false);
+    setIsAvatarConnected(false);
+    setSessionId(null);
+    setTempID(null);
     toast.info("Session Reset. Please select a new scenario.");
   };
 
   // Ending phrases
   const END_REGEX = /\b(alright,\s*see you next time|great chatting—see you next time|that covers everything—talk soon|thanks\.?\s*have a good day!?)\b/i;
 
-  const handleSubmit = useCallback(async (data: string | Blob) => {
+  const handleSubmit = useCallback(async (data: string | Blob, sid?: string) => {
     if (isPending) return; // Prevent multiple submissions
     setSuggestions([]); // Clear previous suggestions
 
@@ -255,12 +307,21 @@ export default function Home() {
       return;
     }
 
-    setIsPending(true);
+    setIsApiLoading(true);
     try {
       // 1️⃣ Send to /api → audio + text
       const submittedAt = Date.now();
       const formData = new FormData();
       formData.append("input", data);
+
+      // Get sessionId
+      const effectiveSessionId = sid ?? sessionId;
+      if (effectiveSessionId) {
+        formData.append("sessionId", effectiveSessionId);
+      } else {
+        toast.error("Session ID not found. Please try again.");
+        return;
+      }
 
       // Get selected persona and scenario
       const selectedPersona = personas.find(p => p.id === selectedPersonaId) || undefined;
@@ -285,7 +346,6 @@ export default function Home() {
       if (!response.ok) throw new Error(await response.text() || "Main AI call failed");
 
       // 2️⃣ Parse audio + transcript + text
-      const audioBlob = await response.blob();
       const latency = Date.now() - submittedAt;
       const transcript = decodeURIComponent(response.headers.get("X-Transcript") || "");
       const text       = decodeURIComponent(response.headers.get("X-Response")   || "");
@@ -301,8 +361,11 @@ export default function Home() {
         ]);
       }
 
-      // 3.5️⃣ Detect if AI’s reply contains an end-session phrase
+      // // // 3.5️⃣ Detect if AI’s reply contains an end-session phrase
       const isEnding = END_REGEX.test(text);
+      if (isEnding) {
+        pendingEndCall.current = true;
+      }
 
       // Clear input field
       setInput("");
@@ -332,25 +395,11 @@ export default function Home() {
         }
       })();
 
-      // 5️⃣ Play audio
-      const contentType = response.headers.get("Content-Type") || undefined;
-      const audioStream = audioBlob.stream();
-      player.play(audioStream, () => {
-        if (navigator.userAgent.includes("Firefox") && vad) vad.start();
-        if (isEnding) {
-          console.log("[handleSubmit] Goodbye phrase spoken — ending session.");
-          setTimeout(() => {
-            handleEndCall();
-          }, 1000);
-          return;
-        }
-      }, contentType);
-
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to send message");
     } finally {
-      setIsPending(false);
+      setIsApiLoading(false);
     }
   }, [
     isPending, messages, player, vad,
@@ -384,9 +433,83 @@ export default function Home() {
     [setDifficultyProfile]
   );
 
+  const handleConnectAvatar = async (selectedPersonaId: string): Promise<string> => {
+    if (isAvatarConnected && sessionId) {
+      console.log('[Page] Avatar already connected.');
+      return sessionId;
+    }
+    try {
+      const response = await fetch('/api/digital-human', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ personaId: selectedPersonaId })
+      });
+      const result = await response.json();
+      if (response.ok) {
+        toast.success('Digital Human connection initiated: ' + result.message);
+        setIsAvatarConnected(true);
+        setSessionId(result.sessionId);
+        return result.sessionId;
+      } else {
+        toast.error('Failed to connect: ' + result.error);
+        setIsAvatarConnected(false);
+        setSessionId(null);
+        throw new Error(result.error || 'Failed to connect to Digital Human');
+      }
+    } catch (error: any) {
+      toast.error('Error connecting: ' + error.message);
+      setIsAvatarConnected(false);
+      throw error;
+    }
+  };
+
+  const handleDisconnectAvatar = async () => {
+    if (!isAvatarConnected || !sessionId) return;
+    try {
+      const response = await fetch(`/api/digital-human?action=disconnect&sessionId=${sessionId}`);
+      const result = await response.json();
+      if (response.ok) {
+        toast.success('Digital Human disconnected: ' + result.status);
+        setIsAvatarConnected(false);
+        setSessionId(null); // Clear sessionId on disconnect
+      } else {
+        toast.error('Failed to disconnect: ' + result.status);
+      }
+    } catch (error: any) {
+      toast.error('Error disconnecting: ' + error.message);
+    }
+  };
+
+  const handleJoinRoom = async () => {
+    try {
+      console.log('[Page] User attempting join room');
+      await initializeAndJoinRoom({ videoContainerId: 'video-container' });
+      setIsRoomJoined(true);
+      console.log('[Page] Initialized and joined RTC room.');
+    } catch (error) {
+      console.error('[Page] Failed to join RTC room:', error);
+      // Re-throw the error to be caught by Promise.all
+      throw error;
+    }
+  };
+
+  const handleLeaveRoom = async () => {
+    await leaveAndDestroyRoom();
+    setIsRoomJoined(false);
+    console.log('[Page] Left and destroyed RTC room.');
+  };
+
   useEffect(() => {
     endCallRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, suggestions]);
+  }, [suggestions]);
+
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (!manualListening) {
@@ -406,8 +529,8 @@ export default function Home() {
 
   // Derive selected objects from IDs
   const selectedScenarioDefinition = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
-  console.log('[Home Component Render] Current selectionStep:', selectionStep);
-  console.log('[Home Component Render] Current listeningInitiated:', listeningInitiated);
+  // console.log('[Home Component Render] Current selectionStep:', selectionStep);
+  // console.log('[Home Component Render] Current listeningInitiated:', listeningInitiated);
 
   if (!listeningInitiated) {
     return (
@@ -430,17 +553,19 @@ export default function Home() {
 
               {/* New Persona Selection Step */}
               {selectionStep === 'selectPersona' && selectedScenarioId && (
-                <PersonaSelection 
-                  personas={personasData}
-                  selectedPersonaId={selectedPersonaId}
-                  currentScenario={selectedScenarioDefinition} // Pass the derived scenario object
-                  onSelectPersona={setSelectedPersonaId}
-                  onBackToScenarioSelection={() => {
-                    setSelectionStep('selectScenario');
-                    // setSelectedPersonaId(null); // Optional: Clear persona if going back
-                  }}
-                  onNextToDifficulty={() => setSelectionStep('selectDifficulty')}
-                />
+                  <PersonaSelection
+                    personas={selectedScenarioDefinition?.personas
+                      ? personasData.filter(p => selectedScenarioDefinition.personas.includes(p.id))
+                      : []}
+                    selectedPersonaId={selectedPersonaId}
+                    currentScenario={selectedScenarioDefinition} // Pass the derived scenario object
+                    onSelectPersona={setSelectedPersonaId}
+                    onBackToScenarioSelection={() => {
+                      setSelectionStep('selectScenario');
+                      // setSelectedPersonaId(null); // Optional: Clear persona if going back
+                    }}
+                    onNextToDifficulty={() => setSelectionStep('selectDifficulty')}
+                  />
               )}
 
               {/* New Difficulty Selection Step */}
@@ -454,16 +579,18 @@ export default function Home() {
                   onChangeScenario={() => setSelectionStep('selectScenario')}
                   onNextToSummary={async () => {
                     setSelectionStep('summary');
-                    setLoadingDifficulty(true);
+                    setIsPreparingSession(true);
                     try {
-                      await handleDifficultyProfileGeneration(
-                        selectedDifficulty,
-                        selectedScenarioId,
-                      );
+                      await handleDifficultyProfileGeneration(selectedDifficulty, selectedScenarioId);
+                      const id = await handleConnectAvatar(selectedPersonaId);
+                      setTempID(id);
+                      console.log('[onNextToSummary] Session preparation complete.');
                     } catch (error) {
-                      console.error("Error generating difficulty profile:", error);
+                      console.error('[onNextToSummary] Session preparation failed:', error);
+                      toast.error('Failed to prepare the session. Please check your connection and try again.');
+                      setSelectionStep('selectDifficulty');
                     } finally {
-                      setLoadingDifficulty(false);
+                      setIsPreparingSession(false);
                     }
                   }}
                   />
@@ -476,30 +603,53 @@ export default function Home() {
                   selectedScenario={getScenarioDefinitionById(selectedScenarioId)}
                   selectedPersona={getPersonaById(selectedPersonaId)}
                   selectedDifficulty={selectedDifficulty}
-                  onStartSession={() => {
+                  onStartSession={async () => {
                     const scenario = getScenarioDefinitionById(selectedScenarioId);
                     const persona = getPersonaById(selectedPersonaId);
                     if (!scenario || !persona) { 
                       toast.error("Error: Scenario or Persona not fully selected for session start. Please go back.");
                       return;
                     }
-                    handleSubmit("START");
                     console.log("[Debug] Attempting to start session. Current VAD object:", vad);
+                    // Set states first to ensure video container is rendered
                     setListeningInitiated(true);
-                    if (vad && !vad.listening) {
-                      console.log("[Debug] VAD found, but not listening. Attempting to start VAD manually.");
-                      vad.start();
-                    }
                     setManualListening(true);
-                    setSelectionStep(null); 
+                    setSelectionStep(null);
+                    // Wait for state updates and DOM render
+                    setTimeout(async () => {
+                      try {
+                        // const id = await handleConnectAvatar(selectedPersonaId);
+                        await handleJoinRoom();
+                        await handleSubmit("START", tempID!);
+                        // Start VAD if needed
+                        if (vad && !vad.listening) {
+                          console.log("[Debug] VAD found, but not listening. Attempting to start VAD manually.");
+                          vad.start();
+                        }
+                      } catch (err) {
+                        console.error("[onStartSession] Error connecting avatar or joining RTC room:", err);
+                        toast.error("Failed to start session. Please check your connection and try again.");
+                      }
+                    }, 200); // Small delay to ensure state updates and re-render
                   }}
-                  onChangeDifficulty={() => setSelectionStep('selectDifficulty')}
-                  onChangePersona={() => setSelectionStep('selectPersona')}
-                  onChangeScenario={() => setSelectionStep('selectScenario')}
-                  loadingDifficulty={loadingDifficulty}
+                  onChangeDifficulty={() => {
+                    setSelectionStep('selectDifficulty')
+                    handleDisconnectAvatar();
+                    setTempID(null);
+                  }}
+                  onChangePersona={() => {
+                    setSelectionStep('selectPersona')
+                    handleDisconnectAvatar();
+                    setTempID(null);
+                  }}
+                  onChangeScenario={() => {
+                    setSelectionStep('selectScenario')
+                    handleDisconnectAvatar();
+                    setTempID(null);
+                  }}
+                  loading={isPreparingSession}
                 />
               )}
-
 
               {/* New Evaluation Display Step */}
               {selectionStep === 'evaluationResults' && (
@@ -531,7 +681,7 @@ export default function Home() {
       </div>
     );
   }
-
+  
   return (
     <div style={mainContainerStyle} className="flex flex-col items-center">
       {/* Content for listeningInitiated, wrapped to ensure it's on top */}
@@ -549,42 +699,63 @@ export default function Home() {
           </div>
         </motion.div>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-24 pt-4 space-y-6 w-full max-w-3xl mx-auto">
-          <AnimatePresence>
-            {messages.map((message, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Card 
-                className={clsx(
-                  "backdrop-blur-md shadow-lg transition-all duration-300 hover:shadow-xl",
-                  message.role === "client" 
-                    ? "bg-[#1D3B86]/60 border border-[#1D3B86]/60 hover:bg-[#1D3B86]/70" 
-                    : "bg-[#00A9E7]/40 border border-[#00A9E7]/40 hover:bg-[#00A9E7]/50"
-                )}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-white">
-                      {message.role === "client" ? "Customer" : "You"}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="whitespace-pre-wrap" style={{
-              color: '#FFFFFF',
-              lineHeight: '1.6',
-              fontSize: '1rem'
-            }}>{message.content}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-          <div ref={messagesEndRef} />
+        {/* Main Content Area - Avatar Left, Messages Right */}
+        <div className="flex w-full max-w-6xl mx-auto px-4 gap-8 flex-1">
+          {/* Left Side - Avatar Video */}
+          <div className="w-1/2 flex flex-col items-center">
+            {sessionId ? (
+              <div id="video-container" ref={videoContainerRef} className="h-150 max-w-md aspect-video bg-black rounded-xl shadow-lg" />
+            ) : (
+              <div className="h-150 max-w-md aspect-video bg-black rounded-xl shadow-lg flex items-center justify-center text-white text-lg">
+                Connecting to Avatar...
+              </div>
+            )}
+          </div>
+
+          {/* Right Side - Scrollable Messages */}
+          <div className="w-1/2 flex flex-col">
+            <div className="h-150 overflow-y-auto pr-2 flex flex-col" ref={messagesContainerRef}>
+              <div className="flex-1"></div>
+              <div className="space-y-4">
+                <AnimatePresence>
+                  {messages.map((message, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Card 
+                      className={clsx(
+                        "backdrop-blur-md shadow-lg transition-all duration-300 hover:shadow-xl",
+                        message.role === "client" 
+                          ? "bg-[#1D3B86]/60 border border-[#1D3B86]/60 hover:bg-[#1D3B86]/70" 
+                          : "bg-[#00A9E7]/40 border border-[#00A9E7]/40 hover:bg-[#00A9E7]/50"
+                      )}>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-white">
+                            {message.role === "client" ? "Customer" : "You"}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="whitespace-pre-wrap" style={{
+                    color: '#FFFFFF',
+                    lineHeight: '1.6',
+                    fontSize: '1rem'
+                  }}>{message.content}</p>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-col items-center justify-center w-full max-w-3xl mx-auto">
+        {/* Bottom Controls Section */}
+        <div className="flex flex-col items-center justify-center w-full max-w-3xl mx-auto mt-8">
           {isListening && (
             <div className="mb-4 text-sm font-medium animate-pulse" style={{ color: brandColors.secondary }}>
               Listening...
@@ -712,7 +883,7 @@ export default function Home() {
             )}
 
             {/* Display Persona Details for Training Scenario */}
-            {selectedScenarioId && scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.defaultPersonaId && (
+            {selectedScenarioId && scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.personas[0] && (
               <div className="w-full mb-4">
                 <Card
                   className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border-2 border-yellow-400/70 shadow-[0_0_15px_rgba(255,223,0,0.3)]"
@@ -740,4 +911,34 @@ export default function Home() {
       </div>
     </div>
   );
+
+  // return (
+  //   <>
+  //     <div style={{ padding: '20px', textAlign: 'center' }}>
+  //       <h1 style={{ color: 'white', marginBottom: '20px' }}>Digital Human WebSocket Test</h1>
+  //       <div className="flex justify-center items-center space-x-4">
+  //         {!isAvatarConnected ? (
+  //           <Button onClick={() => handleConnectAvatar(selectedPersonaId!)} className="bg-green-500 hover:bg-green-600 text-white">
+  //             Connect to Digital Human
+  //           </Button>
+  //         ) : (
+  //           <Button onClick={handleDisconnectAvatar} className="bg-red-500 hover:bg-red-600 text-white">
+  //             Disconnect from Digital Human
+  //           </Button>
+  //         )}
+  //         <Button
+  //             onClick={isRoomJoined ? handleLeaveRoom : handleJoinRoom}
+  //             className={`${isRoomJoined ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
+  //           >
+  //             {isRoomJoined ? 'Leave Room' : 'Join Room'}
+  //           </Button>
+  //       </div>
+  //       <p style={{ color: 'white', marginTop: '10px' }}>
+  //         Connection Status: {isAvatarConnected ? 'Connected' : 'Disconnected'}
+  //       </p>
+
+  //       <div id="video-container" className="w-80 h-100 bg-black rounded-xl shadow-lg mt-6 mx-auto" />
+  //     </div>
+  //   </>
+  // );
 }

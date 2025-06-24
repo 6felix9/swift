@@ -14,7 +14,7 @@ interface SummaryDisplayProps {
   onChangeDifficulty: () => void;
   onChangePersona: () => void;
   onChangeScenario: () => void;
-  loadingDifficulty?: boolean;
+  loading?: boolean;
 }
 
 export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
@@ -26,7 +26,7 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
   onChangeDifficulty,
   onChangePersona,
   onChangeScenario,
-  loadingDifficulty,
+  loading,
 }) => {
   if (!selectedScenario || !selectedPersona) {
     // This case should ideally be handled before rendering SummaryDisplay,
@@ -98,10 +98,10 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
       <div className="space-y-3 mt-8">
         <Button
           onClick={onStartSession}
-          disabled={isStartingSession || loadingDifficulty}
+          disabled={isStartingSession || loading}
           className="w-full bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-150 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-opacity-50 text-lg flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          {isStartingSession || loadingDifficulty ? (
+          {isStartingSession || loading ? (
             <span>Starting Session...</span>
           ) : (
             <span>Start Session</span>

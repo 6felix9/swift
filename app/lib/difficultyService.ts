@@ -21,11 +21,17 @@ export async function generateDifficultyProfile(
   );
 
   try {
+    const t0 = Date.now();
+
     // 2) Call Gemini
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-05-20",
+      // model: "gemini-2.5-flash",
+      model: "gemini-2.5-flash-lite-preview-06-17",
       contents: [prompt],
     });
+
+    const latencyMs = Date.now() - t0;
+    console.log(`[${requestId}] Gemini difficulty profile response latency: ${latencyMs} ms`);
 
     const rawProfile = response.text?.trim() ?? "";
     let sanitized = rawProfile
@@ -34,7 +40,7 @@ export async function generateDifficultyProfile(
     .replace(/```$/, "")
     .trim();
     console.log(
-      `[${requestId}] Sanitized difficulty profile:\n${sanitized}`
+      `[${requestId}] Sanitized difficulty profile:\n${sanitized.substring(0, 100)}`
     );
 
     // 3) Validate JSON

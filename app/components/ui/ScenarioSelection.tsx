@@ -34,7 +34,7 @@ export const ScenarioSelection: React.FC<ScenarioSelectionProps> = ({
                   : "bg-gradient-to-r from-[#002B49]/60 to-[#001425]/70 border border-white/10 hover:border-white/30 hover:scale-[1.02]"
               )}
               onClick={() => {
-                onSelectScenarioAndPersona(scenarioDef.id, scenarioDef.defaultPersonaId);
+                onSelectScenarioAndPersona(scenarioDef.id, scenarioDef.personas[0]);
               }}
             >
               <CardHeader className="p-4 pb-2">

@@ -14,7 +14,6 @@ export const trainingReferralEvaluationInstructions = `
     "maxPossibleScore": 85,
     "keyStrengths": "",
     "keyAreasForImprovement": "",
-    "whereYouCouldHaveSaidBetter": "",
     "referralContextSuccessfullyCreated": {
       "answer": "",
       "justification": ""

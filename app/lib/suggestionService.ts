@@ -1,5 +1,4 @@
 import { GoogleGenAI } from "@google/genai";
-import Groq from "groq-sdk";
 import { generateText } from "ai";
 import { groq } from '@ai-sdk/groq';
 
@@ -19,7 +18,7 @@ export async function generateNextTurnSuggestions(
   aiLastResponse: string,
   requestId: string
 ): Promise<string[]> {
-  console.log(`[${requestId}] Generating next turn suggestions with Groq...`);
+  console.log(`[${requestId}] Generating next turn suggestions Groq...`);
 
   const historyString = conversationHistory
     .map(m => `${m.role}: ${m.content}`)
@@ -52,13 +51,14 @@ const t0 = Date.now();
   try {
     // // Call Gemini Flash 2.5
     // const response = await ai.models.generateContent({
+    //   // model: "gemini-2.5-flash-preview-05-20",
     //   model: "gemini-2.5-flash-preview-05-20",
     //   contents: suggestionPrompt
     // });
 
     // Call Groq
     const { text } = await generateText({
-        model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+        model: groq('meta-llama/llama-4-maverick-17b-128e-instruct'),
         prompt: suggestionPrompt,
     });
     const response = { text };

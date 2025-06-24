@@ -1,0 +1,19 @@
+# Sample Texts for TTS Latency Testing
+
+---
+Short Text (1 sentence):
+The quick brown fox jumps over the lazy dog.
+
+---
+Medium Text (2-3 sentences):
+Artificial intelligence is transforming the world in unprecedented ways. From healthcare to transportation, AI is making systems smarter and more efficient. The future holds even greater promise as technology continues to evolve.
+
+---
+Long Text (1 paragraph):
+In today's fast-paced digital landscape, the ability to communicate effectively using both written and spoken language is more important than ever. Text-to-speech technology enables users to interact with devices hands-free, making information more accessible to people with visual impairments or reading difficulties. As TTS models improve in naturalness and speed, their applications will expand into new domains such as education, entertainment, and customer service, revolutionizing how we consume and interact with content.
+
+---
+Very Long Text (multiple paragraphs):
+The development of advanced text-to-speech models has been a significant milestone in the field of artificial intelligence. Early TTS systems relied on concatenating pre-recorded speech segments, resulting in robotic and unnatural voices. Recent advancements in deep learning have enabled the creation of neural TTS models, which generate speech that closely mimics human prosody, intonation, and emotion. These models are trained on large datasets of human speech and can adapt to various accents, languages, and speaking styles.
+
+Despite these advances, challenges remain. Processing long passages of text can introduce latency, as the model must analyze and synthesize each word and sentence in sequence. Network latency, server load, and model complexity all contribute to the total time required to generate speech. By benchmarking different TTS models with texts of varying lengths and complexities, developers can better understand performance trade-offs and optimize their applications for real-world use cases.

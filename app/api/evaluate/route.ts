@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { generateCallEvaluation } from '@/lib/evaluationService';
-import { PersonaSchema } from '@/lib/personas';
+import { PersonaSchema, getPersonaById, Persona } from '@/lib/personas';
 
 // Maximum duration for the evaluation process in seconds
 export const maxDuration = 60;
@@ -40,9 +40,15 @@ export async function POST(request: Request) {
 
   try {
     console.log(`[${requestId}] /api/evaluate: Calling generateCallEvaluation service...`);
+    // Ensure roleplayProfile is a full Persona (with avatarRole)
+    let persona: Persona | null = null;
+    if (roleplayProfile?.id) {
+      // Look up full Persona object by id
+      persona = getPersonaById(roleplayProfile.id) || null;
+    }
     const evaluation = await generateCallEvaluation(
       messages,
-      roleplayProfile || null, // Ensure undefined becomes null
+      persona,
       evaluationPrompt,
       scenarioContext
     );

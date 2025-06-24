@@ -1,5 +1,6 @@
-import { ElevenLabsClient } from 'elevenlabs';
-import { Readable } from 'stream';
+import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
+import { sendDigitalHumanBinaryData, sendDigitalHumanMessage, Protocol } from './digitalHumanService';
+import { stopStreamRef } from './digitalHumanService';
 
 // Initialize the ElevenLabs client
 export const elevenlabs = new ElevenLabsClient({
@@ -12,91 +13,17 @@ const DEFAULT_VOICE = 'English';
 // const DEFAULT_MODEL = 'eleven_v3';
 const DEFAULT_MODEL = 'eleven_flash_v2_5';
 
-// Define an enum for the languages we want to detect
-enum DetectedLanguage {
-  Insurance = "Insurance",
-  English = "English",
-  Chinese = "Chinese",
-  Tamil = "Tamil",
-  Unknown = "Unknown",
-  Multiple = "Multiple" // Added for cases where multiple scripts are detected
-}
-
-/**
- * Detects the primary language of a given text string.
- * It checks for English, Chinese, and Tamil characters.
- *
- * @param text The text string to analyze.
- * @returns DetectedLanguage enum value.
- */
-function detectLanguage(text: string): DetectedLanguage {
-  return DetectedLanguage.Insurance;
-
-  if (!text || text.trim() === "") {
-    return DetectedLanguage.Unknown; // Handle empty or whitespace-only strings
-  }
-
-  // Regular expressions for character ranges
-  // English: Basic Latin alphabet (A-Z, a-z)
-  const englishRegex = /[a-zA-Z]/;
-  // Chinese: Common CJK Unified Ideographs. This range covers most common Chinese characters.
-  // For a more comprehensive check, you might need to include other CJK ranges.
-  const chineseRegex = /[\u4E00-\u9FFF]/;
-  // Tamil: Tamil script characters
-  const tamilRegex = /[\u0B80-\u0BFF]/;
-
-  // Test for the presence of characters from each language
-  const hasEnglish = englishRegex.test(text);
-  const hasChinese = chineseRegex.test(text);
-  const hasTamil = tamilRegex.test(text);
-
-  let detectedCount = 0;
-  if (hasEnglish) detectedCount++;
-  if (hasChinese) detectedCount++;
-  if (hasTamil) detectedCount++;
-
-  // If multiple scripts are present, classify as 'Multiple'
-  // You might want to refine this logic based on character counts or percentages
-  // for more nuanced mixed-language detection.
-  if (detectedCount > 1) {
-    // Simple heuristic: if Chinese or Tamil is present, prioritize them over English in mixed contexts
-    // This is a common scenario (e.g., English words in Chinese/Tamil text).
-    // You can adjust this prioritization as needed.
-    if (hasTamil && hasChinese) return DetectedLanguage.Multiple; // Or a specific "Chinese+Tamil"
-    if (hasTamil) return DetectedLanguage.Tamil; // Prioritize if mixed with English
-    if (hasChinese) return DetectedLanguage.Chinese; // Prioritize if mixed with English
-    return DetectedLanguage.Multiple;
-  }
-
-  // Prioritize Tamil and Chinese detection due to their distinct scripts
-  if (hasTamil) {
-    return DetectedLanguage.Tamil;
-  }
-  if (hasChinese) {
-    return DetectedLanguage.Chinese;
-  }
-  if (hasEnglish) {
-    return DetectedLanguage.English;
-  }
-
-  return DetectedLanguage.Unknown; // If none of the specific scripts are found
-}
-
 /**
  * Generate speech from text using ElevenLabs
  * @param text The text to convert to speech
  * @param voice The voice to use (defaults to Adam)
- * @param streamOutput Whether to stream the audio (defaults to true)
  * @returns A ReadableStream of the audio data
  */
 export async function generateSpeech(
-  text: string, 
+  sessionId: string,
+  text: string,
   voice_id: string = DEFAULT_VOICE,
-  streamOutput: boolean = true
-): Promise<ReadableStream<Uint8Array>> {
-
-  // const language = detectLanguage(text);
-
+): Promise<void> {
 
   // remove text within brackets
   text = text.replace(/\(.*?\)/g, '');
@@ -107,29 +34,65 @@ export async function generateSpeech(
     
     console.log(`Using voice_id: ${voice_id}`);
     
-    // Using the textToSpeech API endpoint
-    const audioStream = await elevenlabs.textToSpeech.convertAsStream(voice_id, {
-      text,
-      model_id: DEFAULT_MODEL,
-    });
-    
-    console.log('ElevenLabs audio stream generated successfully');
-    
-    // Convert the async iterable to a ReadableStream
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of audioStream) {
-            controller.enqueue(chunk);
-          }
-          controller.close();
-        } catch (error) {
-          controller.error(error);
-        }
+    const audioStream  = await elevenlabs.textToSpeech.stream(
+      voice_id,
+      {
+        text,
+        modelId: DEFAULT_MODEL,
+        outputFormat: 'pcm_16000',
       }
-    });
-    
-    return readableStream;
+    );
+
+    // Indicate start of PCM audio stream
+    sendDigitalHumanMessage(sessionId, Protocol.DAT_PCM_START);
+
+    // Reset stopStreamRef at the start of a new stream
+    stopStreamRef.current = false;
+
+    try {
+      let leftover = new Uint8Array(0);
+      const reader = audioStream.getReader();
+      while (true) {
+        const { done, value: chunk } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        if (stopStreamRef?.current) {
+          console.log('Streaming interrupted by user.');
+          sendDigitalHumanMessage(sessionId, Protocol.CTL_END_OF_STREAM);
+          reader.cancel(); // Cancel the stream
+          break;
+        }
+
+        const inBuf = new Uint8Array(leftover.length + chunk.byteLength);
+        inBuf.set(leftover, 0);
+        inBuf.set(new Uint8Array(chunk), leftover.length);
+
+        let offset = 0;
+        while (inBuf.byteLength - offset >= 1280) {
+          const slice = inBuf.slice(offset, offset + 1280);
+          sendDigitalHumanBinaryData(sessionId, slice);
+          offset += 1280;
+          await new Promise(r => setTimeout(r, 40)); // Pacing
+        }
+        leftover = inBuf.slice(offset);
+      }
+
+      if (leftover.byteLength > 0 && !stopStreamRef?.current) {
+        const padded = new Uint8Array(1280);
+        padded.set(leftover, 0);
+        sendDigitalHumanBinaryData(sessionId, padded);
+      }
+
+      if (!stopStreamRef?.current) {
+        sendDigitalHumanMessage(sessionId, Protocol.CTL_END_OF_STREAM);
+        console.log('✅ Finished streaming from ElevenLabs.');
+      }
+    } catch (error) {
+      console.error('Error during audio stream processing:', error);
+      throw error;
+    }
   } catch (error) {
     console.error('ElevenLabs TTS error:', error);
     console.error('Error details:', JSON.stringify(error, null, 2));

@@ -1,5 +1,4 @@
 export const trainingInsuranceRejectionEvaluationInstructions = `
-
 ### Scoring rules
 
 1. Evaluate each criterion strictly from the transcript.  

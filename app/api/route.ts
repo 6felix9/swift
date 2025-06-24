@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
-import { generateSpeech } from '@/lib/elevenlabs';
 import { getTranscript } from '@/lib/whisper';
 import { getScenarioDefinitionById,  } from '@/lib/scenarios'; // Added for START_SESSION
 import { Persona, getPersonaById } from '@/lib/personas';
 import { GoogleGenAI } from "@google/genai";
 import { PERSONA_PROMPTS } from "@/lib/prompt/persona";
+import { generateSpeech } from '@/lib/elevenlabs';
+import { generateSpeechMinimax } from "@/lib/minimax";
 
 // Testing Gemini flash 2.5 model for evaluation
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 
 interface Message {
@@ -26,6 +27,7 @@ interface ParsedRequestData {
   allMessages: Message[];
   difficultyProfile?: string | null;
   scenarioId?: string;
+  sessionId?: string; // Add sessionId to the interface
 }
 
 async function parseIncomingRequest(
@@ -34,6 +36,12 @@ async function parseIncomingRequest(
 ): Promise<ParsedRequestData> {
   console.log(`[${requestId}] Parsing incoming request...`);
   const formData = await req.formData();
+
+  // 1.5. `sessionId`
+  const sessionId = (formData.get("sessionId") as string | null) || undefined;
+  if (sessionId) {
+    console.log(`[${requestId}] Received sessionId: ${sessionId}`);
+  }
 
   // 1. `input`
   let input: any = formData.get("input");
@@ -115,6 +123,7 @@ async function parseIncomingRequest(
     allMessages,
     difficultyProfile,
     scenarioId,
+    sessionId, // Include sessionId in the returned object
   };
 }
 
@@ -123,24 +132,17 @@ async function generateMainAiTextResponse(
   roleplayProfile: Persona | null,
   requestId: string,
   difficultyProfile: string,
-  scenarioId?: string,
+  scenarioId: string,
 ): Promise<string> {
   console.log(`[${requestId}] Generating main AI text response with Gemini, scenario: ${scenarioId}. Messages count: ${messages.length}`);
 
-  let systemPromptContent = "";
-  if (roleplayProfile?.id == "LIANG_CHEN") {
-    systemPromptContent = PERSONA_PROMPTS.LIANG_CHEN;
-  } else if (roleplayProfile?.id == "ELEANOR_VANCE") {
-    systemPromptContent = PERSONA_PROMPTS.ELEANOR_VANCE;
-  } else if (roleplayProfile?.id == "ALEX_MILLER") {
-    systemPromptContent = PERSONA_PROMPTS.ALEX_MILLER;
-  } else {
-    systemPromptContent = PERSONA_PROMPTS.LIANG_CHEN; // Default system prompt
-  }
-  
+  let roleplayProfilePrompt = 
+  PERSONA_PROMPTS[roleplayProfile?.id ?? ""] || PERSONA_PROMPTS.LIANG_CHEN;
+  console.log(`[${requestId}] Roleplay profile prompt: ${roleplayProfilePrompt}`.substring(0, 100));
+
   // Now append the profile with the difficulty profile
-  systemPromptContent = `
-  ${systemPromptContent.trim()}
+  let systemPromptContent = `
+  ${roleplayProfilePrompt.trim()}
 
   ## Difficulty Profile:
   ${difficultyProfile.trim()}
@@ -184,7 +186,9 @@ async function generateMainAiTextResponse(
   try {
     console.log(`[${requestId}] Creating Gemini chat session...`);
     chat = ai.chats.create({
-      model: "gemini-2.5-flash-preview-05-20",
+      // model: "gemini-2.5-flash-lite-preview-06-17",
+      model: "gemini-2.5-flash",
+      // model: "gemini-2.5-flash-preview-05-20",
       history: priorMsgs.map(m => ({
         role: m.role === "advisor" ? "user" : "model",
         parts: [{ text: m.content }]
@@ -217,69 +221,6 @@ async function generateMainAiTextResponse(
     console.error(`[${requestId}] Error during Gemini chat interaction:`, err);
     throw new Error(`Failed to get main AI response (Gemini chat): ${err.message || 'Unknown error'}`);
   }
-
-  // // Using Groq for responses
-  // try {
-  //   console.log(`[${requestId}] Preparing Groq chat messages...`);
-  //   const t0 = Date.now();
-    
-  //   // 1️⃣ Define a mini‐type alias for Groq’s roles
-  //   type GroqRole = "system" | "user" | "assistant";
-
-  //   // 2️⃣ Annotate your chat array
-  //   const chat: { role: GroqRole; content: string }[] = [
-  //     { role: "system", content: systemPromptContent }
-  //   ];
-
-  //   // 3️⃣ Push your prior messages, *casting* to the literal types
-  //   chat.push(
-  //     ...messages.map(m => ({
-  //       role: (m.role === "advisor" ? "user" : "assistant") as GroqRole,
-  //       content: m.content
-  //     }))
-  //   );
-    
-  //   console.log(`[${requestId}] Groq chat messages prepared.`);
-
-  //   // Send the chat completion request
-  //   console.log(`[${requestId}] Sending request to Groq...`);
-  //   const completion = await groq.chat.completions.create({
-  //     messages: chat,
-  //     model: "meta-llama/llama-4-scout-17b-16e-instruct",
-  //   });
-
-  //   const latencyMs = Date.now() - t0;
-  //   console.log(`[${requestId}] Groq response latency: ${latencyMs} ms`);
-
-  //   const aiResponse = completion.choices[0]?.message?.content?.trim() || "";
-  //   if (!aiResponse) {
-  //     console.error(`[${requestId}] Groq returned an empty response.`);
-  //     throw new Error("Groq returned empty response");
-  //   }
-
-  //   console.log(`[${requestId}] Groq main response: "${aiResponse.substring(0, 100)}..."`);
-  //   return aiResponse;
-
-  // } catch (err: any) {
-  //   console.error(`[${requestId}] Error during Groq chat interaction:`, err);
-  //   throw new Error(`Failed to get main AI response (Groq): ${err.message || 'Unknown error'}`);
-  // }
-}
-
-async function convertTextToSpeech(text: string, requestId: string, voice: string): Promise<ReadableStream<Uint8Array>> {
-  console.log(`[${requestId}] Converting text to speech using ElevenLabs...`);
-  if (!ELEVENLABS_API_KEY) {
-    console.error(`[${requestId}] ELEVENLABS_API_KEY is not set.`);
-    throw new Error("TTS API key (ElevenLabs) not configured");
-  }
-  try {
-    const audioStream = await generateSpeech(text, voice);
-    console.log(`[${requestId}] ElevenLabs audio stream obtained.`);
-    return audioStream;
-  } catch (error) {
-    console.error(`[${requestId}] Error converting text to speech with ElevenLabs:`, error);
-    throw new Error("Failed to generate audio with ElevenLabs");
-  }
 }
 
 export async function POST(req: Request) {
@@ -295,6 +236,7 @@ export async function POST(req: Request) {
       allMessages,
       difficultyProfile,
       scenarioId,
+      sessionId, // Extract sessionId
     } = await parseIncomingRequest(req, requestId);
 
     let aiTextResponse: string;
@@ -317,6 +259,7 @@ export async function POST(req: Request) {
         );
       }
     } else {
+      // If difficulty profile is not provided, throw error
       if (!difficultyProfile) {
         console.warn(
           `[${requestId}] No difficulty profile provided.`
@@ -326,36 +269,48 @@ export async function POST(req: Request) {
         );
       }
 
+      // Step 2: Generate main AI text response
       aiTextResponse = await generateMainAiTextResponse(
         allMessages,
         roleplayProfile,
         requestId,
         difficultyProfile,
-        scenarioId
+        scenarioId!
       );
     }
 
-    // Step 6: Convert AI Text to Speech
+    // Step 3: Send AI Text to ElevenLabs to generate Speech
     const voiceId =
       roleplayProfile?.elevenLabsVoiceId ||
-      getPersonaById(getScenarioDefinitionById(scenarioId!)!.defaultPersonaId)
+      getPersonaById(getScenarioDefinitionById(scenarioId!)!.personas[0])
         ?.elevenLabsVoiceId ||
       'ZyIwtt7dzBKVYuXxaRw7';
-    const audioStream = await convertTextToSpeech(
+    // Pass sessionId to convertTextToSpeech
+    // Stream audio directly to Digital Human; no stream returned here
+    // Don't wait for speech generation to complete. Stream audio in the background.
+
+    // Using ElevenLabs
+    generateSpeech(
+      sessionId!,
       aiTextResponse,
-      requestId,
       voiceId
     );
 
-    // Step 7: Stream Audio Response
-    console.log(`[${requestId}] Streaming audio response to client.`);
+    // // Using MiniMax
+    // generateSpeechMinimax(
+    //   sessionId!,
+    //   aiTextResponse,
+    //   'English_radiant_girl'
+    // );
+
+    // Step 4: Respond to client (audio already streaming to Digital Human)
+    console.log(`[${requestId}] Responding to client (audio handled separately).`);
     const headers: Record<string, string> = {
       "X-Transcript": encodeURIComponent(transcript),
       "X-Response": encodeURIComponent(aiTextResponse!),
-      "Content-Type": "audio/mpeg",
     };
 
-    return new Response(audioStream, { headers });
+    return NextResponse.json({ success: true }, { headers });
   } catch (error: any) {
     console.error(
       `[${requestId}] CRITICAL ERROR in POST handler:`,
