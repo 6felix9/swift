@@ -3,8 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import { EvaluationResponse, DetailedEvaluationCategory, CriterionEvaluation } from '@/lib/evaluationTypes';
+import { EvaluationResponse } from '@/lib/evaluationTypes';
 import { Difficulty } from '@/lib/difficultyTypes';
+import { GraduationCap, FileText, Download } from 'lucide-react';
+import { Message } from '@/lib/types';
+import { Persona } from '@/lib/personas';
+import { ScenarioDefinition } from '@/lib/scenarios';
+import jsPDF from 'jspdf';
+import { toast } from 'sonner';
 
 interface EvaluationDisplayProps {
   difficulty: Difficulty | null;
@@ -12,6 +18,9 @@ interface EvaluationDisplayProps {
   isLoading: boolean;
   error: string | null;
   onRestartSession: () => void;
+  transcript: Message[];
+  persona: Persona | null;
+  scenario: ScenarioDefinition | undefined;
 }
 
 export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
@@ -20,7 +29,590 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
   isLoading,
   error,
   onRestartSession,
+  transcript,
+  persona,
+  scenario,
 }) => {
+
+  const onDownloadTranscript = () => {
+    if (!transcript || transcript.length === 0) {
+      toast('No transcript data to download.');
+      return;
+    }
+  
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+    let currentY = margin;
+  
+    // Header Section
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(41, 128, 185); // Blue color
+    doc.text('Conversation Transcript', margin, currentY);
+    currentY += 15;
+  
+    // Session Information Section
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(60, 60, 60); // Dark gray
+    doc.text('Session Details', margin, currentY);
+    currentY += 10;
+  
+    // Client Profile Header
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(41, 128, 185); // Blue
+    doc.text('Client Profile', margin, currentY);
+    currentY += 8;
+  
+    // Client Name
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(46, 125, 50); // Green
+    doc.text('Name:', margin, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    doc.text(persona?.name || 'Not specified', margin + 25, currentY);
+    currentY += 8;
+  
+    // Profile Details
+    if (persona?.profileDetails) {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(46, 125, 50);
+      doc.text('Profile:', margin, currentY);
+      currentY += 6;
+  
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.setFontSize(9);
+      
+      // Parse and format profile details nicely
+      const profileLines = persona.profileDetails
+        .split('\n')
+        .filter(line => line.trim()) // Remove empty lines
+        .map(line => line.trim());
+      
+      profileLines.forEach(line => {
+        // Check if we need a new page
+        if (currentY > pageHeight - 40) {
+          doc.addPage();
+          currentY = margin;
+        }
+        
+        // Style key-value pairs differently
+        if (line.includes(':')) {
+          const [key, ...valueParts] = line.split(':');
+          const value = valueParts.join(':').trim();
+          
+          // Key in bold, value in normal
+          doc.setFont('helvetica', 'bold');
+          const keyText = `• ${key.trim()}:`;
+          doc.text(keyText, margin + 5, currentY);
+          
+          const keyWidth = doc.getTextWidth(keyText);
+          doc.setFont('helvetica', 'normal');
+          
+          // Handle long values with word wrapping
+          const remainingWidth = contentWidth - keyWidth - 10;
+          if (doc.getTextWidth(value) > remainingWidth) {
+            const valueLines = doc.splitTextToSize(value, remainingWidth);
+            doc.text(valueLines[0], margin + 5 + keyWidth + 2, currentY);
+            currentY += 5;
+            
+            // Continue with remaining lines if any
+            for (let i = 1; i < valueLines.length; i++) {
+              doc.text(valueLines[i], margin + 5 + keyWidth + 2, currentY);
+              currentY += 5;
+            }
+          } else {
+            doc.text(value, margin + 5 + keyWidth + 2, currentY);
+            currentY += 5;
+          }
+        } else {
+          // Regular line
+          doc.text(`• ${line}`, margin + 5, currentY);
+          currentY += 5;
+        }
+      });
+      
+      currentY += 5; // Extra spacing after profile
+      doc.setFontSize(10); // Reset font size
+    }
+  
+    // Scenario Information
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(41, 128, 185); // Blue
+    doc.text('Scenario Information', margin, currentY);
+    currentY += 8;
+  
+    // Scenario Name
+    if (scenario?.name) {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(46, 125, 50); // Green
+      doc.text('Scenario:', margin, currentY);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text(scenario.name, margin + 30, currentY);
+      currentY += 8;
+    }
+  
+    // Scenario Description
+    if (scenario?.description) {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(46, 125, 50); // Green
+      doc.text('Description:', margin, currentY);
+      currentY += 6;
+  
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      const descriptionLines = doc.splitTextToSize(scenario.description, contentWidth - 10);
+      doc.text(descriptionLines, margin + 5, currentY);
+      currentY += (descriptionLines.length * 5) + 8;
+    }
+  
+    // Generation metadata
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(128, 128, 128); // Gray color
+    doc.text('Generated:', margin, currentY);
+    doc.setFont('helvetica', 'normal');
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    doc.text(currentDate, margin + 30, currentY);
+    currentY += 8;
+  
+    doc.setFont('helvetica', 'bold');
+    doc.text('Messages:', margin, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${transcript.length} total exchanges`, margin + 30, currentY);
+    currentY += 15;
+  
+    // Add a separator line
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, currentY, pageWidth - margin, currentY);
+    currentY += 15;
+  
+    // Process each message
+    transcript.forEach((msg, index) => {
+      // Check if we need a new page
+      if (currentY > pageHeight - 40) {
+        doc.addPage();
+        currentY = margin;
+      }
+  
+      // Speaker name styling
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      
+      // Different colors for different roles
+      if (msg.role.toLowerCase() === 'client') {
+        doc.setTextColor(52, 152, 219); // Blue
+      } else if (msg.role.toLowerCase() === 'advisor') {
+        doc.setTextColor(46, 125, 50); // Green
+      } else {
+        doc.setTextColor(156, 39, 176); // Purple for other roles
+      }
+  
+      const speakerName = `${msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}:`;
+      doc.text(speakerName, margin, currentY);
+      currentY += 8;
+  
+      // Message content styling
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60); // Dark gray for content
+  
+      // Split text to fit within margins with proper word wrapping
+      const lines = doc.splitTextToSize(msg.content, contentWidth - 10);
+      
+      // Check if content fits on current page
+      const contentHeight = lines.length * 5;
+      if (currentY + contentHeight > pageHeight - 20) {
+        doc.addPage();
+        currentY = margin;
+        
+        // Repeat speaker name on new page if message continues
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        if (msg.role.toLowerCase() === 'client') {
+          doc.setTextColor(52, 152, 219);
+        } else if (msg.role.toLowerCase() === 'advisor') {
+          doc.setTextColor(46, 125, 50);
+        } else {
+          doc.setTextColor(156, 39, 176);
+        }
+        doc.text(`${speakerName} (continued)`, margin, currentY);
+        currentY += 8;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 60, 60);
+      }
+  
+      // Add the message content with left margin for better readability
+      doc.text(lines, margin + 5, currentY);
+      currentY += contentHeight;
+  
+      // Add spacing between messages
+      currentY += 8;
+  
+      // Add a subtle separator line between messages (except for the last one)
+      if (index < transcript.length - 1) {
+        doc.setDrawColor(240, 240, 240);
+        doc.line(margin + 5, currentY, pageWidth - margin - 5, currentY);
+        currentY += 8;
+      }
+    });
+  
+    // Footer on each page
+    const totalPages = (doc.internal as any).getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin - 20, pageHeight - 10);
+      doc.text(`${persona?.name || 'Client'} - Conversation Transcript`, margin, pageHeight - 10);
+    }
+  
+    // Generate filename with persona name and timestamp
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+    const sanitizedPersonaName = (persona?.name || 'Unknown')
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .toLowerCase();
+    const filename = `transcript-${sanitizedPersonaName}-${timestamp}.pdf`;
+    
+    doc.save(filename);
+  };
+
+  const onDownloadEvaluation = () => {
+    if (!evaluationData) {
+      toast('No evaluation data to download.');
+      return;
+    }
+  
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+    let currentY = margin;
+  
+    // Helper function to check if we need a new page
+    const checkPageBreak = (requiredSpace = 20) => {
+      if (currentY + requiredSpace > pageHeight - 40) {
+        doc.addPage();
+        currentY = margin;
+        return true;
+      }
+      return false;
+    };
+  
+    // Header Section
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(41, 128, 185); // Blue color
+    doc.text('Performance Evaluation Report', margin, currentY);
+    currentY += 20;
+  
+    // Session Information Section
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(60, 60, 60);
+    doc.text('Session Details', margin, currentY);
+    currentY += 10;
+  
+    // Client Information
+    if (persona) {
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('Client Information', margin, currentY);
+      currentY += 8;
+  
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(46, 125, 50);
+      doc.text('Name:', margin, currentY);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text(persona.name, margin + 25, currentY);
+      currentY += 8;
+    }
+  
+    // Scenario Information
+    if (scenario) {
+      checkPageBreak(30);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('Scenario Information', margin, currentY);
+      currentY += 8;
+  
+      if (scenario.name) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(46, 125, 50);
+        doc.text('Scenario:', margin, currentY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 60, 60);
+        doc.text(scenario.name, margin + 30, currentY);
+        currentY += 8;
+      }
+  
+      if (scenario.description) {
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(46, 125, 50);
+        doc.text('Description:', margin, currentY);
+        currentY += 6;
+  
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 60, 60);
+        const descriptionLines = doc.splitTextToSize(scenario.description, contentWidth - 10);
+        doc.text(descriptionLines, margin + 5, currentY);
+        currentY += (descriptionLines.length * 5) + 5;
+      }
+  
+      if (scenario.scenarioContext) {
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(46, 125, 50);
+        doc.text('Context:', margin, currentY);
+        currentY += 6;
+  
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 60, 60);
+        const contextLines = doc.splitTextToSize(scenario.scenarioContext, contentWidth - 10);
+        doc.text(contextLines, margin + 5, currentY);
+        currentY += (contextLines.length * 5) + 10;
+      }
+    }
+  
+    // Difficulty and generation info
+    checkPageBreak(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(128, 128, 128);
+    doc.text('Difficulty:', margin, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(difficulty ? difficulty.charAt(0).toUpperCase() + difficulty.slice(1) : 'N/A', margin + 30, currentY);
+    currentY += 8;
+  
+    doc.setFont('helvetica', 'bold');
+    doc.text('Generated:', margin, currentY);
+    doc.setFont('helvetica', 'normal');
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    doc.text(currentDate, margin + 30, currentY);
+    currentY += 20;
+  
+    // Add separator line
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, currentY, pageWidth - margin, currentY);
+    currentY += 15;
+  
+    // EVALUATION SUMMARY SECTION
+    checkPageBreak(40);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(41, 128, 185);
+    doc.text('Evaluation Summary', margin, currentY);
+    currentY += 15;
+  
+    // Overall Score
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(46, 125, 50);
+    doc.text('Overall Performance', margin, currentY);
+    currentY += 10;
+  
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(60, 60, 60);
+    const scoreText = `${evaluationData.evaluationSummary.totalScore} / ${evaluationData.evaluationSummary.maxPossibleScore}`;
+    doc.text(scoreText, margin, currentY);
+    
+    // Calculate percentage
+    const percentage = Math.round((evaluationData.evaluationSummary.totalScore / evaluationData.evaluationSummary.maxPossibleScore) * 100);
+    doc.setFontSize(12);
+    doc.setTextColor(128, 128, 128);
+    doc.text(`(${percentage}%)`, margin + doc.getTextWidth(scoreText) + 15, currentY);
+    currentY += 20;
+  
+    // Referral Context Success
+    if (evaluationData.evaluationSummary.referralContextSuccessfullyCreated) {
+      checkPageBreak(25);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(46, 125, 50);
+      doc.text('Referral Context Created:', margin, currentY);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(60, 60, 60);
+      doc.text(evaluationData.evaluationSummary.referralContextSuccessfullyCreated.answer, margin + 60, currentY);
+      currentY += 8;
+  
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      const justificationLines = doc.splitTextToSize(
+        evaluationData.evaluationSummary.referralContextSuccessfullyCreated.justification,
+        contentWidth - 10
+      );
+      doc.text(justificationLines, margin + 5, currentY);
+      currentY += (justificationLines.length * 5) + 10;
+    }
+  
+    // Key Strengths
+    checkPageBreak(30);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(46, 125, 50);
+    doc.text('Key Strengths', margin, currentY);
+    currentY += 8;
+  
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    const strengthsLines = doc.splitTextToSize(evaluationData.evaluationSummary.keyStrengths, contentWidth - 10);
+    doc.text(strengthsLines, margin + 5, currentY);
+    currentY += (strengthsLines.length * 5) + 10;
+  
+    // Areas for Improvement
+    checkPageBreak(30);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(220, 53, 69); // Red color for improvements
+    doc.text('Areas for Improvement', margin, currentY);
+    currentY += 8;
+  
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    const improvementLines = doc.splitTextToSize(evaluationData.evaluationSummary.keyAreasForImprovement, contentWidth - 10);
+    doc.text(improvementLines, margin + 5, currentY);
+    currentY += (improvementLines.length * 5) + 10;
+  
+    // Where You Could Have Said Better
+    if (evaluationData.evaluationSummary.whereYouCouldHaveSaidBetter) {
+      checkPageBreak(30);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 152, 0); // Orange color
+      doc.text('Communication Suggestions', margin, currentY);
+      currentY += 8;
+  
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      const suggestionLines = doc.splitTextToSize(evaluationData.evaluationSummary.whereYouCouldHaveSaidBetter, contentWidth - 10);
+      doc.text(suggestionLines, margin + 5, currentY);
+      currentY += (suggestionLines.length * 5) + 15;
+    }
+  
+    // DETAILED EVALUATION SECTION
+    checkPageBreak(40);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(41, 128, 185);
+    doc.text('Detailed Evaluation', margin, currentY);
+    currentY += 15;
+  
+    // Process each category
+    evaluationData.detailedEvaluation.forEach((category, categoryIndex) => {
+      checkPageBreak(50);
+      
+      // Category header
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(46, 125, 50);
+      doc.text(`${categoryIndex + 1}. ${category.categoryName}`, margin, currentY);
+      
+      // Category subtotal
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(60, 60, 60);
+      doc.text(`Subtotal: ${category.subtotal}`, pageWidth - margin - 40, currentY);
+      currentY += 12;
+  
+      // Red flag check
+      if (category.redFlagCheck.raised && category.redFlagCheck.comment) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(220, 53, 69);
+        doc.setCharSpace(0); // Fix for character spacing issue
+        doc.text('Red Flag:', margin + 5, currentY);
+        currentY += 6; // Move to next line for the comment
+
+        doc.setFont('helvetica', 'normal');
+        const redFlagLines = doc.splitTextToSize(category.redFlagCheck.comment, contentWidth - 30);
+        doc.text(redFlagLines, margin + 10, currentY); // Draw comment on the new line with a smaller indent
+        currentY += (redFlagLines.length * 5) + 8;
+      }
+  
+      // Process criteria
+      category.criteria.forEach((criterion) => {
+        checkPageBreak(25);
+        
+        // Criterion header
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(41, 128, 185);
+        doc.text(`${criterion.criterionId}. ${criterion.criterionText}`, margin + 10, currentY);
+        
+        // Score
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(60, 60, 60);
+        doc.text(`${criterion.score}/5`, pageWidth - margin - 20, currentY);
+        currentY += 8;
+  
+        // Comments
+        if (criterion.commentsAndExamples) {
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(80, 80, 80);
+          const commentLines = doc.splitTextToSize(criterion.commentsAndExamples, contentWidth - 20);
+          doc.text(commentLines, margin + 15, currentY);
+          currentY += (commentLines.length * 4) + 5;
+        }
+        
+        currentY += 3; // Space between criteria
+      });
+      
+      currentY += 8; // Space between categories
+    });
+  
+    // Footer on each page
+    const totalPages = (doc.internal as any).getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin - 20, pageHeight - 10);
+      doc.text(`${persona?.name || 'Client'} - Evaluation Report`, margin, pageHeight - 10);
+    }
+  
+    // Generate filename
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+    const sanitizedPersonaName = (persona?.name || 'Unknown')
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .replace(/\s+/g, '-')
+      .toLowerCase();
+    const filename = `evaluation-${sanitizedPersonaName}-${timestamp}.pdf`;
+    
+    doc.save(filename);
+  };
+
   if (isLoading) {
     return (
       <div className="text-center p-6">
@@ -111,12 +703,32 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
               </div>
             </div>
           </div>
+
+          {/* NEW: Download buttons section integrated into summary card */}
+          <div className="pt-4 border-t border-blue-500/30">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={onDownloadTranscript}
+                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-medium py-2.5 px-4 rounded-lg shadow-md transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
+              >
+                <FileText size={18} />
+                Download Transcript
+              </Button>
+              <Button
+                onClick={onDownloadEvaluation}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white font-medium py-2.5 px-4 rounded-lg shadow-md transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
+              >
+                <GraduationCap size={18} />
+                Download Evaluation
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
       {/* DETAILED EVALUATION */}
       <div className="space-y-4">
-        {evaluationData?.detailedEvaluation.map((cat: DetailedEvaluationCategory, i: number) => (
+        {evaluationData?.detailedEvaluation.map((cat, i) => (
           <Card key={i} className="bg-black/20 border border-blue-500/20 shadow-inner">
             <CardHeader className="px-4 py-3 border-b border-blue-500/30">
               <div className="flex justify-between items-center">
@@ -130,7 +742,7 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
               )}
             </CardHeader>
             <CardContent className="p-4 space-y-3">
-              {cat.criteria.map((cr: CriterionEvaluation, j: number) => (
+              {cat.criteria.map((cr, j) => (
                 <div key={j} className="border-l-2 border-sky-600 pl-3">
                   <div className="flex justify-between items-baseline">
                     <p className="text-sm font-semibold text-white">
@@ -150,12 +762,35 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
         ))}
       </div>
 
-      <Button
-        onClick={onRestartSession}
-        className="w-full bg-gradient-to-r from-blue-500 to-sky-600 hover:from-blue-600 hover:to-sky-700 text-white font-semibold py-3 rounded-lg shadow-md transition-transform hover:scale-105"
-      >
-        Start New Session
-      </Button>
+      {/* Action buttons section */}
+      <div className="space-y-3">
+        <Button
+          onClick={onRestartSession}
+          className="w-full bg-gradient-to-r from-blue-500 to-sky-600 hover:from-blue-600 hover:to-sky-700 text-white font-semibold py-3 rounded-lg shadow-md transition-transform hover:scale-105"
+        >
+          Start New Session
+        </Button>
+        
+        {/* Alternative download placement option - uncommented if you prefer this placement */}
+        {/* 
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button
+            onClick={onDownloadTranscript}
+            className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-medium py-2.5 px-4 rounded-lg shadow-md transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
+          >
+            <FileText size={18} />
+            Download Transcript
+          </Button>
+          <Button
+            onClick={onDownloadCallLog}
+            className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white font-medium py-2.5 px-4 rounded-lg shadow-md transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
+          >
+            <Phone size={18} />
+            Download Call Log
+          </Button>
+        </div>
+        */}
+      </div>
     </motion.div>
   );
-};
+}

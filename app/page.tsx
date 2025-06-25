@@ -529,8 +529,6 @@ export default function Home() {
 
   // Derive selected objects from IDs
   const selectedScenarioDefinition = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
-  // console.log('[Home Component Render] Current selectionStep:', selectionStep);
-  // console.log('[Home Component Render] Current listeningInitiated:', listeningInitiated);
 
   if (!listeningInitiated) {
     return (
@@ -659,6 +657,9 @@ export default function Home() {
                   isLoading={isEvaluating}
                   error={evaluationError}
                   onRestartSession={handleRestartSession}
+                  transcript={messages}
+                  persona={getPersonaById(selectedPersonaId!)} 
+                  scenario={getScenarioDefinitionById(selectedScenarioId!)} // Pass the entire scenario object
                 />
               )}
 
