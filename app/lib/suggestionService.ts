@@ -2,8 +2,15 @@ import { GoogleGenAI } from "@google/genai";
 import { generateText } from "ai";
 import { groq } from '@ai-sdk/groq';
 
-// Using Gemini flash 2.5 model for suggestion generation
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Lazy initialization of Gemini client
+let geminiClient: GoogleGenAI | null = null;
+
+function getGeminiClient(): GoogleGenAI {
+  if (!geminiClient) {
+    geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return geminiClient;
+}
 
 // Using Groq for for suggestion generation
 // const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });

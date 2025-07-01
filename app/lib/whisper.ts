@@ -1,6 +1,14 @@
 import Groq from "groq-sdk";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Lazy initialization of Groq client
+let groqClient: Groq | null = null;
+
+function getGroqClient(): Groq {
+  if (!groqClient) {
+    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  }
+  return groqClient;
+}
 
 export async function getTranscript(input: string | File) {
 	console.log("Received input:", input);
@@ -40,7 +48,7 @@ export async function getTranscript(input: string | File) {
 		let file = input;
 		// Measure latency for the Groq Whisper API call
 		const sttStart = Date.now();
-		const { text } = await groq.audio.transcriptions.create({
+		const { text } = await getGroqClient().audio.transcriptions.create({
 			file,
 			prompt: "English only",
 			model: "distil-whisper-large-v3-en",

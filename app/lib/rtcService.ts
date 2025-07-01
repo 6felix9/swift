@@ -90,7 +90,7 @@ export const initializeAndJoinRoom = async (config: RTCInitializeConfig): Promis
   try {
     console.info(`[RTCService] Attempting to join room: ${rtcRoomId} as user: ${rtcUserId}`);
     await engine.joinRoom(
-      "001684f9f8e5298ce0177f40133OgASw/hng+RcaIP+q2gFAHJvb20xBQB1c2VyMQUAAACD/qtoAQCD/qtoAgCD/qtoAwCD/qtoBACD/qtoIAA0ADQIeXXHpPPFaVUcGGQuhEZUpWx76KKbsoy1r2LAxQ==",
+      rtcToken,
       rtcRoomId,
       { userId: rtcUserId },
       {

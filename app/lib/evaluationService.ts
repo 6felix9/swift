@@ -3,9 +3,23 @@ import { Persona } from "./personas";
 import { EvaluationResponse } from "./evaluationTypes";
 import Groq from "groq-sdk";
 
-// Testing Gemini flash 2.5 model for evaluation
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Lazy initialization of AI clients
+let geminiClient: GoogleGenAI | null = null;
+let groqClient: Groq | null = null;
+
+function getGeminiClient(): GoogleGenAI {
+  if (!geminiClient) {
+    geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return geminiClient;
+}
+
+function getGroqClient(): Groq {
+  if (!groqClient) {
+    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  }
+  return groqClient;
+}
 
 interface Message {
   role: "advisor" | "client" | "system";
@@ -88,7 +102,7 @@ Your response must be only the JSON object, with no additional text, commentary,
 
   // Try with Gemini first
   try {
-    const response = await ai.models.generateContent({
+    const response = await getGeminiClient().models.generateContent({
       // model: "gemini-2.5-flash",
       model: "gemini-2.5-pro",
       contents: fullPrompt,
@@ -101,7 +115,7 @@ Your response must be only the JSON object, with no additional text, commentary,
     console.log("[EvaluationService] Falling back to Groq model");
 
     try {
-      const response = await groq.chat.completions.create({
+      const response = await getGroqClient().chat.completions.create({
         model: "qwen-qwq-32b",
         messages: [{ role: "system", content: fullPrompt }],
         stream: false,

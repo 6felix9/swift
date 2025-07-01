@@ -8,11 +8,23 @@ import { PERSONA_PROMPTS } from "@/lib/prompt/persona";
 import { generateSpeech } from '@/lib/elevenlabs';
 // import { generateSpeechMinimax } from "@/lib/minimax";
 
-// Testing Gemini flash 2.5 model for evaluation
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Lazy initialization of AI clients
+let geminiClient: GoogleGenAI | null = null;
+let groqClient: Groq | null = null;
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+function getGeminiClient(): GoogleGenAI {
+  if (!geminiClient) {
+    geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return geminiClient;
+}
+
+function getGroqClient(): Groq {
+  if (!groqClient) {
+    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  }
+  return groqClient;
+}
 
 interface Message {
   role: "advisor" | "client" | "system";
@@ -185,7 +197,7 @@ async function generateMainAiTextResponse(
 
   try {
     console.log(`[${requestId}] Creating Gemini chat session...`);
-    chat = ai.chats.create({
+    chat = getGeminiClient().chats.create({
       // model: "gemini-2.5-flash-lite-preview-06-17",
       model: "gemini-2.5-flash",
       history: priorMsgs.map(m => ({
@@ -245,7 +257,7 @@ async function generateMainAiTextResponse(
 
       // Send the chat completion request
       console.log(`[${requestId}] Sending request to Groq...`);
-      const completion = await groq.chat.completions.create({
+      const completion = await getGroqClient().chat.completions.create({
         messages: chat,
         model: "meta-llama/llama-4-maverick-17b-128e-instruct",
       });

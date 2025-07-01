@@ -2,10 +2,17 @@ import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import { sendDigitalHumanBinaryData, sendDigitalHumanMessage, Protocol } from '@/lib/digitalHumanService';
 import { streamingStateManager } from '@/lib/streamingState';
 
-// Initialize the ElevenLabs client
-export const elevenlabs = new ElevenLabsClient({
-  apiKey: process.env.ELEVENLABS_API_KEY,
-});
+// Lazy initialization of ElevenLabs client
+let elevenLabsClient: ElevenLabsClient | null = null;
+
+function getElevenLabsClient(): ElevenLabsClient {
+  if (!elevenLabsClient) {
+    elevenLabsClient = new ElevenLabsClient({
+      apiKey: process.env.ELEVENLABS_API_KEY,
+    });
+  }
+  return elevenLabsClient;
+}
 
 // Default voice to use if not specified
 const DEFAULT_VOICE = 'English'; 
@@ -39,7 +46,7 @@ export async function generateSpeech(
     streamingStateManager.initializeSession(sessionId);
     let wasInterrupted = false;
     
-    const audioStream = await elevenlabs.textToSpeech.stream(
+    const audioStream = await getElevenLabsClient().textToSpeech.stream(
       voice_id,
       {
         text,
@@ -136,7 +143,7 @@ export async function generateSpeech(
  */
 export async function getVoices() {
   try {
-    return await elevenlabs.voices.getAll();
+    return await getElevenLabsClient().voices.getAll();
   } catch (error) {
     console.error('[ElevenLabs] Error fetching ElevenLabs voices:', error);
     throw error;
