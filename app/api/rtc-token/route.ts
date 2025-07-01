@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { generateRtcToken } from '@/lib/generateToken';
 
 /**
  * API route to securely provide RTC credentials to the client.
@@ -6,13 +7,14 @@ import { NextResponse } from 'next/server';
  */
 export async function GET() {
   // These variables are only accessed on the server, keeping them secret.
-  const rtcAppId = process.env.RTC_APP_ID;
-  const userRtcToken = process.env.USER_RTC_TOKEN;
-  const rtcRoomId = process.env.RTC_ROOM_ID;
-  const userRtcId = process.env.USER_RTC_ID;
+  const rtcAppId = process.env.RTC_APP_ID!;
+  const rtcAppKey = process.env.RTC_APP_KEY!;
+  const rtcRoomId = process.env.RTC_ROOM_ID!;
+  const rtcUserId = process.env.USER_RTC_ID!;
+  const rtcToken = process.env.USER_RTC_TOKEN!;
 
   // Validate that all required environment variables are set.
-  if (!rtcAppId || !userRtcToken || !rtcRoomId || !userRtcId) {
+  if (!rtcAppId || !rtcAppKey || !rtcRoomId || !rtcUserId || !rtcToken) {
     console.error('[API/rtc-token] Missing one or more required RTC environment variables on the server.');
     return NextResponse.json(
       { error: 'Server configuration error. Please contact an administrator.' },
@@ -24,8 +26,8 @@ export async function GET() {
   // Only return what the client absolutely needs to initialize the RTC engine.
   return NextResponse.json({
     rtcAppId,
-    userRtcToken,
     rtcRoomId,
-    userRtcId,
+    rtcUserId,
+    rtcToken,
   });
 }

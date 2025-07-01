@@ -1,5 +1,3 @@
-import { sendEvent } from "@/lib/statusService";
-
 // --- Type Definitions ---
 export interface InitializationParams {
     live: {
@@ -127,10 +125,8 @@ export function connectDigitalHuman(sessionId: string, params: InitializationPar
               const statusMsg = body as StatusMessage;
               if (statusMsg.type === 'voice_start') {
                 console.log(`[DigitalHumanService] Received voice_start for sessionId ${sessionId}`);
-                sendEvent(sessionId, 'voice_start', {});
               } else if (statusMsg.type === 'voice_end') {
                 console.log(`[DigitalHumanService] Received voice_end for sessionId ${sessionId}`);
-                sendEvent(sessionId, 'voice_end', {});
               } else {
                 console.log(`[DigitalHumanService] Received status message for sessionId ${sessionId}:`, body)
               }
@@ -183,10 +179,6 @@ export function closeDigitalHumanConnection(sessionId: string): void {
   if (instance) {
     console.log(`[DigitalHumanService] Closing WebSocket connection for sessionId ${sessionId} with state ${instance.ws.readyState}.`);
     // Remove all listeners to prevent any further events from the closing socket
-    // instance.ws.onopen = null;
-    // instance.ws.onmessage = null;
-    // instance.ws.onerror = null;
-    // instance.ws.onclose = null;
     if (instance.ws.readyState === WebSocket.OPEN || instance.ws.readyState === WebSocket.CONNECTING) {
       sendDigitalHumanMessage(sessionId, Protocol.CTL_TERMINATE);
       instance.ws.close(1000, 'Client initiated close.');
@@ -225,7 +217,7 @@ export function sendDigitalHumanMessage(sessionId: string, message: string, data
 export function sendDigitalHumanBinaryData(sessionId: string, data: Uint8Array): void {
   const instance = globalThis.digitalHumanMap.get(sessionId);
   if (!instance || instance.ws.readyState !== WebSocket.OPEN) {
-    // console.warn(`[DigitalHumanService] WebSocket for sessionId ${sessionId} not open. Binary data not sent.`);
+    console.warn(`[DigitalHumanService] WebSocket for sessionId ${sessionId} not open. Binary data not sent.`);
     return;
   }
   const headerBytes = new TextEncoder().encode(Protocol.DAT_PCM_START);
@@ -233,7 +225,7 @@ export function sendDigitalHumanBinaryData(sessionId: string, data: Uint8Array):
   merged.set(headerBytes, 0);
   merged.set(new Uint8Array(data), headerBytes.length);
   instance.ws.send(merged.buffer);
-  // console.debug(`[DigitalHumanService] Sent binary data for sessionId ${sessionId}.`);
+  console.debug(`[DigitalHumanService] Sent binary data for sessionId ${sessionId}.`);
 }
 
 /**

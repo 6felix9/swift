@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   connectDigitalHuman,
-  sendDigitalHumanMessage,
   closeDigitalHumanConnection,
+  forceDigitalHumanInterrupt,
 } from '@/lib/digitalHumanService';
-import { generateRtcToken } from "@/lib/generateAvatarToken";
+import { generateRtcToken } from "@/lib/generateToken";
 import { getPersonaById } from '@/lib/personas';
+import { streamingStateManager } from '@/lib/streamingState';
 
 /**
  * Handles POST requests to /api/digital-human.
@@ -71,24 +72,59 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: '`sessionId` query parameter is required.' }, { status: 400 });
   }
 
-  if (action === 'send_test') {
-    const header = searchParams.get('header');
-    const message = searchParams.get('message');
-    if (!header) {
-      return NextResponse.json({ error: '`header` query parameter is required for send_test action.' }, { status: 400 });
-    }
-    try {
-      const body = message ? JSON.parse(message) : undefined;
-      sendDigitalHumanMessage(sessionId, header, body);
-      return NextResponse.json({ status: `Test message with header '${header}' sent to session ${sessionId}.` });
-    } catch (e: any) {
-      return NextResponse.json({ error: 'Invalid JSON in `message` query parameter.' }, { status: 400 });
-    }
-  } else if (action === 'disconnect') {
+  if (action === 'disconnect') {
     closeDigitalHumanConnection(sessionId);
     return NextResponse.json({ status: `Digital Human WebSocket connection for session ${sessionId} closed successfully.` });
   } else {
     return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });
+  }
+}
+
+/**
+ * Handles PATCH requests to /api/digital-human.
+ * Used to interrupt the digital human's current speech.
+ */
+export async function PATCH(req: NextRequest) {
+  try {
+    const { sessionId } = await req.json();
+    
+    if (!sessionId) {
+      return NextResponse.json({ error: 'sessionId is required in the request body' }, { status: 400 });
+    }
+    
+    // Check if connection exists before attempting interrupt
+    const instance = globalThis.digitalHumanMap.get(sessionId);
+    if (!instance) {
+      return NextResponse.json({ 
+        error: `No active WebSocket connection found for sessionId: ${sessionId}` 
+      }, { status: 404 });
+    }
+    
+    if (instance.ws.readyState !== WebSocket.OPEN) {
+      return NextResponse.json({ 
+        error: `WebSocket connection for sessionId ${sessionId} is not open (state: ${instance.ws.readyState})` 
+      }, { status: 400 });
+    }
+    
+    console.log(`[API] Interrupting digital human for sessionId: ${sessionId}`);
+    
+    // Use singleton to trigger interrupt (returns false if already interrupted)
+    const wasNewInterrupt = streamingStateManager.interrupt(sessionId);
+    
+    // Only send WebSocket interrupt if this is a new interrupt to avoid redundant messages
+    if (wasNewInterrupt) {
+      forceDigitalHumanInterrupt(sessionId);
+    }
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: `Interrupt signal sent to digital human for session ${sessionId}` 
+    });
+  } catch (error: any) {
+    console.error(`[API] Error interrupting digital human:`, error);
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Failed to interrupt digital human' 
+    }, { status: 500 });
   }
 }
 

@@ -1,9 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { Persona } from "./personas";
 import { EvaluationResponse } from "./evaluationTypes";
+import Groq from "groq-sdk";
 
 // Testing Gemini flash 2.5 model for evaluation
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 interface Message {
   role: "advisor" | "client" | "system";
@@ -43,6 +45,7 @@ Details: ${roleplayProfile?.profileDetails || "N/A"}
 Analyze the transcript strictly against the evaluation criteria above.  
 Populate every field in the JSON schema above.  
 All numeric fields (score, subtotal, totalScore, maxPossibleScore) must be numbers, **not strings**.  
+Your response must be only the JSON object, with no additional text, commentary, or explanations.
 `;
 
   // Build the full text prompt
@@ -51,23 +54,15 @@ All numeric fields (score, subtotal, totalScore, maxPossibleScore) must be numbe
     .map((msg) => `${msg.role}: ${msg.content}`)
     .join("\n");
 
-  // console.log("[EvaluationService] Transcript:", transcript);
-
   const fullPrompt = `${systemMessage}\n\n${transcript}`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      // model: "gemini-2.5-flash-lite-preview-06-17",
-      // model: "gemini-2.5-flash-preview-05-20",
-      contents: fullPrompt,
-    });
-
-    const raw = response.text;
+  // Helper function to process LLM response
+  const processLLMResponse = (raw: string | undefined | null): EvaluationResponse => {
     if (!raw) {
       console.error("[EvaluationService] No content in LLM response");
       throw new Error("LLM response was empty.");
     }
+    
     console.log(
       "[EvaluationService] Raw LLM response (first 500 chars):",
       raw.substring(0, 500)
@@ -75,9 +70,9 @@ All numeric fields (score, subtotal, totalScore, maxPossibleScore) must be numbe
 
     // Clean any markdown fences
     const cleaned = raw.replace(/^```json\s*|\s*```$/g, "").trim();
+    
     try {
       const evaluation: EvaluationResponse = JSON.parse(cleaned);
-      // For speed testing
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
       console.log(`[EvaluationService] Evaluation completed in ${elapsed}s`);
       console.log("[EvaluationService] Evaluation JSON parsed successfully.");
@@ -85,22 +80,39 @@ All numeric fields (score, subtotal, totalScore, maxPossibleScore) must be numbe
     } catch (parseError) {
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
       console.log(`[EvaluationService] Evaluation failed after ${elapsed}s`);
-      console.error(
-        "[EvaluationService] Error parsing LLM JSON response:",
-        parseError
-      );
-      console.error(
-        "[EvaluationService] Failing LLM response snippet:",
-        raw.substring(0, 1000)
-      );
-      throw new Error(
-        "Failed to parse evaluation JSON from LLM. The response was not valid JSON."
-      );
+      console.error("[EvaluationService] Error parsing LLM JSON response:", parseError);
+      console.error("[EvaluationService] Failing LLM response snippet:", raw.substring(0, 1000));
+      throw new Error("Failed to parse evaluation JSON from LLM. The response was not valid JSON.");
     }
+  };
+
+  // Try with Gemini first
+  try {
+    const response = await ai.models.generateContent({
+      // model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
+      contents: fullPrompt,
+    });
+    
+    return processLLMResponse(response.text);
   } catch (error: any) {
-    console.error("[EvaluationService] Error generating evaluation:", error);
-    throw new Error(
-      `Failed to generate evaluation due to an LLM error: ${error.message}`
-    );
+    // Fall back to Groq if Gemini fails
+    console.error("[EvaluationService] Error generating evaluation with Gemini:", error);
+    console.log("[EvaluationService] Falling back to Groq model");
+
+    try {
+      const response = await groq.chat.completions.create({
+        model: "qwen-qwq-32b",
+        messages: [{ role: "system", content: fullPrompt }],
+        stream: false,
+        reasoning_format: "hidden",
+        response_format: { type: "json_object" },
+      });
+
+      return processLLMResponse(response.choices[0].message.content);
+    } catch (groqError: any) {
+      console.error("[EvaluationService] Error generating evaluation with Groq:", groqError);
+      throw groqError;
+    }
   }
 }

@@ -36,7 +36,7 @@ export const initializeAndJoinRoom = async (config: RTCInitializeConfig): Promis
     throw error; // Re-throw so the UI can handle it
   }
 
-  const { rtcAppId, userRtcToken, rtcRoomId, userRtcId } = rtcCredentials;
+  const { rtcAppId, rtcRoomId, rtcUserId, rtcToken } = rtcCredentials;
 
   // Step 2: Initialize the RTC Engine
   console.info(`[RTCService] Initializing BytePlusRTC engine with App ID: ${rtcAppId}`);
@@ -88,18 +88,18 @@ export const initializeAndJoinRoom = async (config: RTCInitializeConfig): Promis
 
   // Step 3: Join the Room
   try {
-    console.info(`[RTCService] Attempting to join room: ${rtcRoomId} as user: ${userRtcId}`);
+    console.info(`[RTCService] Attempting to join room: ${rtcRoomId} as user: ${rtcUserId}`);
     await engine.joinRoom(
-      userRtcToken,
+      "001684f9f8e5298ce0177f40133OgASw/hng+RcaIP+q2gFAHJvb20xBQB1c2VyMQUAAACD/qtoAQCD/qtoAgCD/qtoAwCD/qtoBACD/qtoIAA0ADQIeXXHpPPFaVUcGGQuhEZUpWx76KKbsoy1r2LAxQ==",
       rtcRoomId,
-      { userId: userRtcId },
+      { userId: rtcUserId },
       {
         isAutoPublish: true,        // Automatically publish local audio/video streams upon joining
         isAutoSubscribeAudio: true, // Automatically subscribe to remote audio streams
         isAutoSubscribeVideo: true, // Automatically subscribe to remote video streams
       }
     );
-    console.info(`[RTCService] Successfully joined room: ${rtcRoomId} with User ID: ${userRtcId}.`);
+    console.info(`[RTCService] Successfully joined room: ${rtcRoomId} with User ID: ${rtcUserId}.`);
   } catch (error) {
     console.error('[RTCService] Failed to join room:', error);
     // Consider destroying the engine if joinRoom fails critically

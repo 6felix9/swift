@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { Persona, personas, getPersonaById } from '@/lib/personas';
 import { ScenarioDefinition, scenarioDefinitions, getScenarioDefinitionById } from '@/lib/scenarios';
 import { PROMPTS } from '@/lib/prompt';
-import { EvaluationResponse } from "./lib/evaluationTypes";
+import { EvaluationResponse } from "@/lib/evaluationTypes";
 import { Difficulty } from '@/lib/difficultyTypes';
 import { initializeAndJoinRoom, leaveAndDestroyRoom } from '@/lib/rtcService';
 
@@ -44,15 +44,17 @@ export default function Home() {
   const [manualListening, setManualListening] = useState(false);
   const [isAvatarConnected, setIsAvatarConnected] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [isRoomJoined, setIsRoomJoined] = useState(false);
+  const [isApiLoading, setIsApiLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  const [isApiLoading, setIsApiLoading] = useState(false);
-  const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false);
-  const pendingEndCall = useRef(false);
+  // Voice-only interaction state management
+  const [interruptTimeoutId, setInterruptTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  // Configurable minimum speech time before sending interrupt (in milliseconds)
+  // This prevents very brief sounds from interrupting the avatar
+  const [minSpeechTimeForInterrupt, setMinSpeechTimeForInterrupt] = useState(200);
 
-  const isPending = isApiLoading || isAvatarSpeaking;
+  const pendingEndCall = useRef(false);
 
   // State for evaluation
   const [evaluationData, setEvaluationData] = useState<EvaluationResponse | null>(null);
@@ -68,7 +70,7 @@ export default function Home() {
   const [personasData, setPersonasData] = useState<Persona[]>([]);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null); 
-  const [difficultyProfile, setDifficultyProfile] = useState<String | null>(null);
+  const [difficultyProfile, setDifficultyProfile] = useState<string | null>(null);
   const [isPreparingSession, setIsPreparingSession] = useState<boolean>(false);
   const [tempID, setTempID] = useState<string | null>(null);
 
@@ -76,110 +78,164 @@ export default function Home() {
   const [selectionStep, setSelectionStep] = useState<'selectScenario' | 'selectPersona' | 'selectDifficulty' | 'summary' | 'evaluationResults' | null>('selectScenario'); // Added 'evaluationResults' and null
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
+  // Note: Auto-end call functionality removed since we no longer track avatar speaking state
+  // The end call is now purely manual via the End Call button
+
   useEffect(() => {
     // Load scenario definitions and personas from the imported data
     setScenarioDefinitionsData(scenarioDefinitions);
     setPersonasData(personas);
   }, []);
 
-  // Effect to listen for digital human status events via SSE
-  useEffect(() => {
-    console.log('[StatusListener] Digital human status listener initialized');
-    if (!sessionId) return;
-
-    const es = new EventSource(`/api/digital-human-status?sessionId=${sessionId}`);
-    es.addEventListener('voice_start', () => {
-      console.log('[StatusListener] Digital human voice started');
-      setIsAvatarSpeaking(true);
-    });
-    es.addEventListener('voice_end', () => {
-      console.log('[StatusListener] Digital human voice ended');
-      setIsAvatarSpeaking(false);
-    });
-    es.onerror = () => {
-      // Don't close here, let it retry
-      console.error('[StatusListener] EventSource error. It will attempt to reconnect.');
-    };
-    return () => es.close();
-  }, [sessionId]);
-
-  // Effect to end the call after the avatar finishes speaking
-  useEffect(() => {
-    if (!isAvatarSpeaking && pendingEndCall.current) {
-      console.log('[handleEndCall] Avatar finished speaking, proceeding with end call.');
-      // Use a timeout to ensure any final state updates are processed
-      setTimeout(() => handleEndCall(), 500);
+  const handleSubmit = useCallback(async (data: string | Blob, sid?: string) => {
+    // If isPending, do not process the request.
+    if (isApiLoading) {
+      return;
     }
-  }, [isAvatarSpeaking]);
+    // Ending phrases
+    const END_REGEX = /\b(alright,\s*see you next time|great chatting—see you next time|that covers everything—talk soon|thanks\.?\s*have a good day!?)\b/i;
+    
+    setSuggestions([]); // Clear previous suggestions
 
-  // Define vad first before using it in submit
-  const vad = useMicVAD({
-    // IMPORTANT: vad object must be stable for useEffect dependency arrays.
-    // If useMicVAD doesn't guarantee a stable object, consider wrapping its direct usages in useCallback or using refs.
-    onVADMisfire: () => {
-      console.log("[VAD] Misfire - no speech detected within timeout");
-      if (listeningInitiated && !manualListening) setIsListening(false);
-    },
-    model:"v5",
-    startOnLoad: false, // Explicitly call vad.load()
-    onSpeechStart: () => {
-      if (!manualListening && listeningInitiated) { // Ensure listening was initiated
-        setIsListening(true);
+    setIsApiLoading(true);
+
+    // For Blob inputs, ensure it's an audio file
+    if (data instanceof Blob && !data.type.startsWith('audio/')) {
+      console.error('Invalid audio type:', data.type);
+      toast.error('We can only process voice messages. Please try again.');
+      return;
+    }
+
+    try {
+      // 1️⃣ Send to /api → audio + text
+      const submittedAt = Date.now();
+      const formData = new FormData();
+      formData.append("input", data);
+
+      // Get sessionId
+      const effectiveSessionId = sid ?? sessionId;
+      if (effectiveSessionId) {
+        formData.append("sessionId", effectiveSessionId);
+      } else {
+        toast.error("Session ID not found. Please try again.");
+        return;
       }
-    },
-    onSpeechEnd: async (audio) => {
-      player.stop();
-      const wav = utils.encodeWAV(audio);
-      // Create a File object instead of Blob to ensure proper handling
-      const audioFile = new File([wav], 'voice-message.wav', { type: 'audio/wav' });
-      console.log('Sending audio file:', {
-        type: audioFile.type,
-        size: audioFile.size,
-        name: audioFile.name
+
+      // Get selected persona and scenario
+      const selectedPersona = personas.find(p => p.id === selectedPersonaId) || undefined;
+      const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId) || undefined;
+
+      if (selectedPersona) {
+        formData.append("roleplayProfile", JSON.stringify(selectedPersona));
+      }
+      if (selectedScenario) {
+        formData.append("scenario", JSON.stringify(selectedScenario));
+      }
+      if (difficultyProfile) {
+        formData.append("difficultyProfile", JSON.stringify(difficultyProfile));
+      }
+      
+      formData.append("message", JSON.stringify(messages.slice(-10).map(m => ({ role: m.role, content: m.content }))));
+
+      const response = await fetch("/api", {
+        method: "POST",
+        body: formData,
       });
-      handleSubmit(audioFile);
-      if (!manualListening) {
-        setIsListening(false);
-      }
-      const isFirefox = navigator.userAgent.includes("Firefox");
-      if (isFirefox && listeningInitiated) vad.pause(); // Pause only if initiated
-    },
-    // workletURL: "/vad.worklet.bundle.min.js", // Ensure this file is in /public
-    // modelURL: "/silero_vad_v5.onnx",     // Ensure this file is in /public
-    positiveSpeechThreshold: 0.6,
-    minSpeechFrames: 4,
-    ortConfig(ort) {
-      const isSafari = /^((?!chrome|android).)*safari/i.test(
-        navigator.userAgent
-      );
+      if (!response.ok) throw new Error(await response.text() || "Main AI call failed");
 
-      ort.env.wasm = {
-        wasmPaths: {
-          "ort-wasm-simd-threaded.wasm":
-            "/ort-wasm-simd-threaded.wasm",
-          "ort-wasm-simd.wasm": "/ort-wasm-simd.wasm",
-          "ort-wasm.wasm": "/ort-wasm.wasm",
-          "ort-wasm-threaded.wasm": "/ort-wasm-threaded.wasm",
-        },
-        numThreads: isSafari ? 1 : 4,
-      };
-    },
-  });
+      // 2️⃣ Parse audio + transcript + text
+      const latency = Date.now() - submittedAt;
+      const transcript = decodeURIComponent(response.headers.get("X-Transcript") || "");
+      const text       = decodeURIComponent(response.headers.get("X-Response")   || "");
 
-  // Effect to monitor VAD status changes - Defined AFTER vad initialization
-  useEffect(() => {
-    if (vad) { // Ensure vad is initialized
-      console.log("[VAD Status Monitor] Status:", vad, "Loading:", vad.loading, "Errored:", vad.errored, "Listening:", vad.listening);
-      if (vad.errored) {
-        console.error("[VAD Status Monitor] VAD Errored:", vad.errored);
+      // 3️⃣ Immediately render the new turn
+      if (data === "START") {
+        setMessages([{ role: "client", content: text }]);
+      } else {
+        setMessages(msgs => [
+          ...msgs,
+          { role: "advisor", content: transcript },
+          { role: "client",  content: text, latency },
+        ]);
       }
-      if (vad.listening) {
-          console.log("[VAD Status Monitor] VAD model loaded successfully.");
+
+      // 3.5️⃣ Detect if AI's reply contains an end-session phrase
+      const isEnding = END_REGEX.test(text);
+      if (isEnding) {
+        console.log('[handleSubmit] Ending phrase detected, will auto-end when stream finishes'); 
+        pendingEndCall.current = true;
+        setTimeout(() => {
+          handleEndCall();
+        }, 5000);
       }
+
+      // Clear input field
+      setInput("");
+
+      // 4️⃣ Fire-and-forget the suggestions fetch
+      (async () => {
+        try {
+          const hist = [
+            ...(data === "START" ? [] : messages.slice(-10)),  
+            { role: "client", content: text }
+          ];
+          const sugRes = await fetch("/api/suggestion", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              conversationHistory: hist,
+              aiLastResponse: text,
+              requestId: crypto.randomUUID().slice(0,8),
+            }),
+          });
+          if (!sugRes.ok) throw new Error(await sugRes.text());
+          const { suggestions } = (await sugRes.json()) as { suggestions: string[] };
+          setSuggestions(Array.isArray(suggestions) ? suggestions : []);
+        } catch (e) {
+          console.error("Failed to load suggestions:", e);
+          setSuggestions([]);
+        }
+      })();
+
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to send message");
+    } finally {
+      setIsApiLoading(false);
     }
-  }, [vad, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
+  }, [
+    messages,
+    selectedPersonaId, selectedScenarioId,
+    difficultyProfile, scenarioDefinitionsData,
+    isApiLoading, sessionId
+  ]);
 
-  const handleEndCall = async () => {
+  /**
+   * Disconnects from the Digital Human avatar using the client-side service.
+   */
+  const handleDisconnectAvatar = useCallback(async () => {
+    if (!isAvatarConnected || !sessionId) return;
+    try {
+      const response = await fetch(`/api/digital-human?action=disconnect&sessionId=${sessionId}`);
+      const result = await response.json();
+      if (response.ok) {
+        toast.success('Digital Human disconnected: ' + result.status);
+        setIsAvatarConnected(false);
+        setSessionId(null); // Clear sessionId on disconnect
+      } else {
+        toast.error('Failed to disconnect: ' + result.status);
+      }
+    } catch (error: any) {
+      toast.error('Error disconnecting: ' + error.message);
+    }
+  }, [isAvatarConnected, sessionId]);
+
+  const handleLeaveRoom = useCallback(async () => {
+    await leaveAndDestroyRoom();
+    console.log('[Page] Left and destroyed RTC room.');
+  }, []);
+
+  const handleEndCall = useCallback(async () => {
     /* 🚦 GUARD  */
     if (endCalledRef.current) return;     // already running once
     endCalledRef.current = true;          // mark as entered
@@ -268,7 +324,177 @@ export default function Home() {
     } finally {
       setIsEvaluating(false);
     }
-  };
+  }, [
+    endCalledRef,
+    player,
+    selectionStep,
+    handleDisconnectAvatar,
+    handleLeaveRoom,
+    setIsListening,
+    setListeningInitiated,
+    setSelectionStep,
+    setIsEvaluating,
+    setEvaluationError,
+    setEvaluationData,
+    messages,
+    selectedPersonaId,
+    personasData,
+    selectedScenarioId,
+    scenarioDefinitionsData
+  ]);
+
+  /**
+   * Voice Activity Detection (VAD) Configuration
+   * 
+   * This configures real-time speech detection with smart interrupt handling:
+   * 
+   * 1. **Speech Detection**: Detects when user starts speaking
+   * 2. **Smart Interrupts**: Automatically interrupts avatar after minimum speech time
+   * 3. **Brief Sound Protection**: Cancels interrupts if speech is too short
+   * 4. **Audio Processing**: Converts speech to audio files for API submission
+   * 
+   * Key Features:
+   * - `minSpeechTimeForInterrupt` (200ms): Prevents brief sounds from interrupting
+   * - Configurable threshold for fine-tuning interrupt sensitivity
+   * - Comprehensive logging for debugging interrupt behavior
+   * - Firefox compatibility workarounds
+   */
+  const vad = useMicVAD({
+    // VAD model configuration
+    model: "v5", // Silero VAD v5 model for accurate speech detection
+    startOnLoad: false, // Manually control when VAD starts
+    
+    // Speech detection thresholds
+    positiveSpeechThreshold: 0.6, // Confidence threshold for speech detection
+    minSpeechFrames: 4, // Minimum consecutive frames for speech confirmation
+    
+    // Event handlers
+    onVADMisfire: () => {
+      console.log("[VAD] Misfire - no speech detected within timeout");
+      if (listeningInitiated && !manualListening) setIsListening(false);
+    },
+    
+    onSpeechStart: async () => {
+      // Add debugging to check if onSpeechStart is firing at all
+      console.log('[VAD DEBUG] onSpeechStart triggered', {
+        manualListening,
+        listeningInitiated,
+        sessionId: sessionId ? 'exists' : 'null'
+      });
+      
+      if (!manualListening && listeningInitiated) { // Ensure listening was initiated
+        setIsListening(true);
+        console.log('[VAD DEBUG] Listening state set to true');
+        
+        // Smart interrupt mechanism: Always prepare to send interrupt when speech detected
+        // This ensures any current avatar speech/animation is stopped for new user input
+        if (sessionId) {
+          console.log(`[VAD] Speech detected, preparing to interrupt avatar in ${minSpeechTimeForInterrupt}ms`);
+          
+          // Clear any existing timeout to reset the interrupt timer
+          if (interruptTimeoutId) {
+            clearTimeout(interruptTimeoutId);
+            console.log('[VAD] Cleared previous interrupt timeout');
+          }
+          
+          // Set timeout to send interrupt after minimum speech time
+          // This prevents very brief sounds (coughs, clicks, etc.) from interrupting the avatar
+          const timeoutId = setTimeout(async () => {
+            try {
+              console.log('[VAD] Minimum speech time reached, sending interrupt signal to avatar');
+              
+              // Send interrupt using PATCH endpoint
+              await fetch('/api/digital-human', {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sessionId }),
+              });
+              
+              console.log('[VAD] Avatar interrupt signal sent successfully via client service');
+            } catch (error) {
+              console.error('[VAD] Error sending interrupt signal:', error);
+            } finally {
+              setInterruptTimeoutId(null);
+            }
+          }, minSpeechTimeForInterrupt);
+          
+          setInterruptTimeoutId(timeoutId);
+          console.log(`[VAD] Interrupt timer set for ${minSpeechTimeForInterrupt}ms`);
+        } else {
+          console.warn('[VAD] No sessionId available, cannot send interrupt');
+        }
+      }
+    },
+    onSpeechEnd: async (audio) => {
+      // Anti-brief-sound protection: Cancel interrupt if speech ended quickly
+      // This prevents accidental interruptions from very short sounds
+      if (interruptTimeoutId) {
+        console.log(`[VAD] Speech ended before ${minSpeechTimeForInterrupt}ms threshold, cancelling interrupt`);
+        clearTimeout(interruptTimeoutId);
+        setInterruptTimeoutId(null);
+      }
+      
+      // Process the speech audio for submission to the API
+      player.stop();
+      const wav = utils.encodeWAV(audio);
+      // Create a File object instead of Blob to ensure proper handling
+      const audioFile = new File([wav], 'voice-message.wav', { type: 'audio/wav' });
+      console.log('[VAD] Processing speech audio:', {
+        type: audioFile.type,
+        size: audioFile.size,
+        name: audioFile.name,
+        duration: `${(audio.length / 16000).toFixed(2)}s` // Assuming 16kHz sample rate
+      });
+      
+      // Submit the audio for processing
+      handleSubmit(audioFile);
+      
+      // Update listening state
+      if (!manualListening) {
+        setIsListening(false);
+      }
+      
+      // Firefox-specific VAD pause workaround
+      const isFirefox = navigator.userAgent.includes("Firefox");
+      if (isFirefox && listeningInitiated) {
+        console.log('[VAD] Firefox detected, pausing VAD after speech end');
+        vad.pause(); // Pause only if initiated
+      }
+    },
+    
+    // ONNX Runtime configuration for WebAssembly model execution
+    ortConfig(ort) {
+      const isSafari = /^((?!chrome|android).)*safari/i.test(
+        navigator.userAgent
+      );
+
+      ort.env.wasm = {
+        wasmPaths: {
+          "ort-wasm-simd-threaded.wasm":
+            "/ort-wasm-simd-threaded.wasm",
+          "ort-wasm-simd.wasm": "/ort-wasm-simd.wasm",
+          "ort-wasm.wasm": "/ort-wasm.wasm",
+          "ort-wasm-threaded.wasm": "/ort-wasm-threaded.wasm",
+        },
+        numThreads: isSafari ? 1 : 4,
+      };
+    },
+  });
+
+  // Effect to monitor VAD status changes - Defined AFTER vad initialization
+  useEffect(() => {
+    if (vad) { // Ensure vad is initialized
+      console.log("[VAD Status Monitor] Status:", vad, "Loading:", vad.loading, "Errored:", vad.errored, "Listening:", vad.listening);
+      if (vad.errored) {
+        console.error("[VAD Status Monitor] VAD Errored:", vad.errored);
+      }
+      if (vad.listening) {
+          console.log("[VAD Status Monitor] VAD model loaded successfully.");
+      }
+    }
+  }, [vad, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
 
   const handleRestartSession = () => {
     setMessages([]);
@@ -283,130 +509,14 @@ export default function Home() {
     setSelectedDifficulty(null);
     setDifficultyProfile(null);
     endCalledRef.current = false;
-    pendingEndCall.current = false;
     setSelectionStep('selectScenario');
     setIsPreparingSession(false);
-    setIsRoomJoined(false);
     setIsAvatarConnected(false);
     setSessionId(null);
     setTempID(null);
     toast.info("Session Reset. Please select a new scenario.");
   };
-
-  // Ending phrases
-  const END_REGEX = /\b(alright,\s*see you next time|great chatting—see you next time|that covers everything—talk soon|thanks\.?\s*have a good day!?)\b/i;
-
-  const handleSubmit = useCallback(async (data: string | Blob, sid?: string) => {
-    if (isPending) return; // Prevent multiple submissions
-    setSuggestions([]); // Clear previous suggestions
-
-    // For Blob inputs, ensure it's an audio file
-    if (data instanceof Blob && !data.type.startsWith('audio/')) {
-      console.error('Invalid audio type:', data.type);
-      toast.error('We can only process voice messages. Please try again.');
-      return;
-    }
-
-    setIsApiLoading(true);
-    try {
-      // 1️⃣ Send to /api → audio + text
-      const submittedAt = Date.now();
-      const formData = new FormData();
-      formData.append("input", data);
-
-      // Get sessionId
-      const effectiveSessionId = sid ?? sessionId;
-      if (effectiveSessionId) {
-        formData.append("sessionId", effectiveSessionId);
-      } else {
-        toast.error("Session ID not found. Please try again.");
-        return;
-      }
-
-      // Get selected persona and scenario
-      const selectedPersona = personas.find(p => p.id === selectedPersonaId) || undefined;
-      const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId) || undefined;
-
-      if (selectedPersona) {
-        formData.append("roleplayProfile", JSON.stringify(selectedPersona));
-      }
-      if (selectedScenario) {
-        formData.append("scenario", JSON.stringify(selectedScenario));
-      }
-      if (difficultyProfile) {
-        formData.append("difficultyProfile", JSON.stringify(difficultyProfile))
-      };
-      
-      formData.append("message", JSON.stringify(messages.slice(-10).map(m => ({ role: m.role, content: m.content }))));
-
-      const response = await fetch("/api", {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) throw new Error(await response.text() || "Main AI call failed");
-
-      // 2️⃣ Parse audio + transcript + text
-      const latency = Date.now() - submittedAt;
-      const transcript = decodeURIComponent(response.headers.get("X-Transcript") || "");
-      const text       = decodeURIComponent(response.headers.get("X-Response")   || "");
-
-      // 3️⃣ Immediately render the new turn
-      if (data === "START") {
-        setMessages([{ role: "client", content: text }]);
-      } else {
-        setMessages(msgs => [
-          ...msgs,
-          { role: "advisor", content: transcript },
-          { role: "client",  content: text, latency },
-        ]);
-      }
-
-      // // // 3.5️⃣ Detect if AI’s reply contains an end-session phrase
-      const isEnding = END_REGEX.test(text);
-      if (isEnding) {
-        pendingEndCall.current = true;
-      }
-
-      // Clear input field
-      setInput("");
-
-      // 4️⃣ Fire-and-forget the suggestions fetch
-      (async () => {
-        try {
-          const hist = [
-            ...(data === "START" ? [] : messages.slice(-10)),  
-            { role: "client", content: text }
-          ];
-          const sugRes = await fetch("/api/suggestion", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              conversationHistory: hist,
-              aiLastResponse: text,
-              requestId: crypto.randomUUID().slice(0,8),
-            }),
-          });
-          if (!sugRes.ok) throw new Error(await sugRes.text());
-          const { suggestions } = (await sugRes.json()) as { suggestions: string[] };
-          setSuggestions(Array.isArray(suggestions) ? suggestions : []);
-        } catch (e) {
-          console.error("Failed to load suggestions:", e);
-          setSuggestions([]);
-        }
-      })();
-
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || "Failed to send message");
-    } finally {
-      setIsApiLoading(false);
-    }
-  }, [
-    isPending, messages, player, vad,
-    selectedPersonaId, selectedScenarioId,
-    difficultyProfile, scenarioDefinitionsData
-  ]);
-
+    
   const handleDifficultyProfileGeneration = useCallback(
     async (
       difficulty: Difficulty | null,
@@ -433,6 +543,9 @@ export default function Home() {
     [setDifficultyProfile]
   );
 
+  /**
+   * Connects to a Digital Human avatar using the server-side service.
+   */
   const handleConnectAvatar = async (selectedPersonaId: string): Promise<string> => {
     if (isAvatarConnected && sessionId) {
       console.log('[Page] Avatar already connected.');
@@ -465,41 +578,17 @@ export default function Home() {
     }
   };
 
-  const handleDisconnectAvatar = async () => {
-    if (!isAvatarConnected || !sessionId) return;
-    try {
-      const response = await fetch(`/api/digital-human?action=disconnect&sessionId=${sessionId}`);
-      const result = await response.json();
-      if (response.ok) {
-        toast.success('Digital Human disconnected: ' + result.status);
-        setIsAvatarConnected(false);
-        setSessionId(null); // Clear sessionId on disconnect
-      } else {
-        toast.error('Failed to disconnect: ' + result.status);
-      }
-    } catch (error: any) {
-      toast.error('Error disconnecting: ' + error.message);
-    }
-  };
-
-  const handleJoinRoom = async () => {
+  const handleJoinRoom = useCallback(async () => {
     try {
       console.log('[Page] User attempting join room');
       await initializeAndJoinRoom({ videoContainerId: 'video-container' });
-      setIsRoomJoined(true);
       console.log('[Page] Initialized and joined RTC room.');
     } catch (error) {
       console.error('[Page] Failed to join RTC room:', error);
       // Re-throw the error to be caught by Promise.all
       throw error;
     }
-  };
-
-  const handleLeaveRoom = async () => {
-    await leaveAndDestroyRoom();
-    setIsRoomJoined(false);
-    console.log('[Page] Left and destroyed RTC room.');
-  };
+  }, []);
 
   useEffect(() => {
     endCallRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -611,7 +700,7 @@ export default function Home() {
                     console.log("[Debug] Attempting to start session. Current VAD object:", vad);
                     // Set states first to ensure video container is rendered
                     setListeningInitiated(true);
-                    setManualListening(true);
+                    setManualListening(false);
                     setSelectionStep(null);
                     // Wait for state updates and DOM render
                     setTimeout(async () => {
@@ -628,7 +717,7 @@ export default function Home() {
                         console.error("[onStartSession] Error connecting avatar or joining RTC room:", err);
                         toast.error("Failed to start session. Please check your connection and try again.");
                       }
-                    }, 200); // Small delay to ensure state updates and re-render
+                    }, 500); // Small delay to ensure state updates and re-render
                   }}
                   onChangeDifficulty={() => {
                     setSelectionStep('selectDifficulty')
@@ -757,12 +846,12 @@ export default function Home() {
 
         {/* Bottom Controls Section */}
         <div className="flex flex-col items-center justify-center w-full max-w-3xl mx-auto mt-8">
-          {isListening && (
+          {/* {isListening && (
             <div className="mb-4 text-sm font-medium animate-pulse" style={{ color: brandColors.secondary }}>
               Listening...
             </div>
-          )}
-          
+          )} */}
+                    
           {suggestions && suggestions.length > 0 && (
             <div className="mt-4 mb-2 w-full max-w-3xl mx-auto flex flex-wrap justify-center gap-2 px-4">
               {suggestions.map((suggestion, index) => (
@@ -771,10 +860,10 @@ export default function Home() {
                   variant="outline"
                   size="sm"
                   className="bg-[#00385C]/80 border-sky-500/60 text-sky-200 hover:bg-sky-700/70 hover:text-sky-100 transition-all duration-200 px-3 py-1.5 text-xs rounded-lg shadow-md hover:shadow-lg focus:ring-2 focus:ring-sky-400/50"
-                  onClick={() => {
-                    setInput(suggestion); // Set input field with suggestion
-                    handleSubmit(suggestion); // Submit the suggestion
-                  }}
+                  // onClick={() => {
+                  //   setInput(suggestion); // Set input field with suggestion
+                  //   handleSubmit(suggestion); // Submit the suggestion
+                  // }}
                 >
                   {suggestion}
                 </Button>
@@ -782,7 +871,7 @@ export default function Home() {
             </div>
           )}
 
-          <form
+          {/* <form
             className="flex items-center w-full max-w-3xl mx-4 gap-3"
             onSubmit={(e) => {
               e.preventDefault();
@@ -808,7 +897,7 @@ export default function Home() {
                 <EnterIcon/>
               )}
             </Button>
-          </form>
+          </form> */}
           
           {/* End Call Button - Moved below the form */}
           <div className="w-full max-w-3xl mx-4 mt-4">
@@ -912,34 +1001,4 @@ export default function Home() {
       </div>
     </div>
   );
-
-  // return (
-  //   <>
-  //     <div style={{ padding: '20px', textAlign: 'center' }}>
-  //       <h1 style={{ color: 'white', marginBottom: '20px' }}>Digital Human WebSocket Test</h1>
-  //       <div className="flex justify-center items-center space-x-4">
-  //         {!isAvatarConnected ? (
-  //           <Button onClick={() => handleConnectAvatar(selectedPersonaId!)} className="bg-green-500 hover:bg-green-600 text-white">
-  //             Connect to Digital Human
-  //           </Button>
-  //         ) : (
-  //           <Button onClick={handleDisconnectAvatar} className="bg-red-500 hover:bg-red-600 text-white">
-  //             Disconnect from Digital Human
-  //           </Button>
-  //         )}
-  //         <Button
-  //             onClick={isRoomJoined ? handleLeaveRoom : handleJoinRoom}
-  //             className={`${isRoomJoined ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
-  //           >
-  //             {isRoomJoined ? 'Leave Room' : 'Join Room'}
-  //           </Button>
-  //       </div>
-  //       <p style={{ color: 'white', marginTop: '10px' }}>
-  //         Connection Status: {isAvatarConnected ? 'Connected' : 'Disconnected'}
-  //       </p>
-
-  //       <div id="video-container" className="w-80 h-100 bg-black rounded-xl shadow-lg mt-6 mx-auto" />
-  //     </div>
-  //   </>
-  // );
 }

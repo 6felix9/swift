@@ -6,7 +6,7 @@ import { Persona, getPersonaById } from '@/lib/personas';
 import { GoogleGenAI } from "@google/genai";
 import { PERSONA_PROMPTS } from "@/lib/prompt/persona";
 import { generateSpeech } from '@/lib/elevenlabs';
-import { generateSpeechMinimax } from "@/lib/minimax";
+// import { generateSpeechMinimax } from "@/lib/minimax";
 
 // Testing Gemini flash 2.5 model for evaluation
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -188,7 +188,6 @@ async function generateMainAiTextResponse(
     chat = ai.chats.create({
       // model: "gemini-2.5-flash-lite-preview-06-17",
       model: "gemini-2.5-flash",
-      // model: "gemini-2.5-flash-preview-05-20",
       history: priorMsgs.map(m => ({
         role: m.role === "advisor" ? "user" : "model",
         parts: [{ text: m.content }]
@@ -219,7 +218,54 @@ async function generateMainAiTextResponse(
 
   } catch (err: any) {
     console.error(`[${requestId}] Error during Gemini chat interaction:`, err);
-    throw new Error(`Failed to get main AI response (Gemini chat): ${err.message || 'Unknown error'}`);
+    console.log(`[${requestId}] Falling back to Groq for AI response generation...`);
+    
+    // Fallback to Groq if Gemini fails
+    try {
+      console.log(`[${requestId}] Preparing Groq chat messages...`);
+      const groqT0 = Date.now();
+      
+      // 1️⃣ Define a mini‐type alias for Groq's roles
+      type GroqRole = "system" | "user" | "assistant";
+
+      // 2️⃣ Annotate your chat array
+      const chat: { role: GroqRole; content: string }[] = [
+        { role: "system", content: systemPromptContent }
+      ];
+
+      // 3️⃣ Push your prior messages, *casting* to the literal types
+      chat.push(
+        ...messages.map(m => ({
+          role: (m.role === "advisor" ? "user" : "assistant") as GroqRole,
+          content: m.content
+        }))
+      );
+      
+      console.log(`[${requestId}] Groq chat messages prepared.`);
+
+      // Send the chat completion request
+      console.log(`[${requestId}] Sending request to Groq...`);
+      const completion = await groq.chat.completions.create({
+        messages: chat,
+        model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+      });
+
+      const groqLatencyMs = Date.now() - groqT0;
+      console.log(`[${requestId}] Groq response latency: ${groqLatencyMs} ms`);
+
+      const aiResponse = completion.choices[0]?.message?.content?.trim() || "";
+      if (!aiResponse) {
+        console.error(`[${requestId}] Groq returned an empty response.`);
+        throw new Error("Groq returned empty response");
+      }
+
+      console.log(`[${requestId}] Groq fallback main response: "${aiResponse.substring(0, 100)}..."`);
+      return aiResponse;
+
+    } catch (groqErr: any) {
+      console.error(`[${requestId}] Error during Groq fallback:`, groqErr);
+      throw new Error(`Failed to get main AI response from both Gemini and Groq. Gemini: ${err.message || 'Unknown error'}. Groq: ${groqErr.message || 'Unknown error'}`);
+    }
   }
 }
 

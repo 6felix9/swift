@@ -61,21 +61,4 @@ export const ScenarioSelection: React.FC<ScenarioSelectionProps> = ({
       </div>
     </>
   );
-
-  // Testing Avatar 
-  
-  // return(
-  //   <>
-  //     <DigitalHumanLive 
-  //       appId="your_appid"
-  //       accessToken="your_token"
-  //       liveId="my_live_demo"
-  //       rtcAppId="bytertc_appid"
-  //       rtcRoomId="room1"
-  //       rtcUid="demo123"
-  //       rtcToken="secure_rtc_token"
-  //     />
-  //   </>
-  // )
-
 };
