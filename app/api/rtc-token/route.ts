@@ -11,7 +11,7 @@ export async function GET() {
   const rtcAppKey = process.env.RTC_APP_KEY!;
   const rtcRoomId = process.env.RTC_ROOM_ID!;
   const rtcUserId = process.env.USER_RTC_ID!;
-  const rtcToken = process.env.USER_RTC_TOKEN!;
+  const rtcToken = generateRtcToken(rtcAppId, rtcAppKey, rtcRoomId, rtcUserId, Math.floor(Date.now() / 1000) + 3600 ) || process.env.USER_RTC_TOKEN!;
 
   // Validate that all required environment variables are set.
   if (!rtcAppId || !rtcAppKey || !rtcRoomId || !rtcUserId || !rtcToken) {

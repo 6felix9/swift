@@ -26,6 +26,9 @@ export async function POST(req: NextRequest) {
     avatarRole = process.env.AVATAR_ROLE!; 
   }
 
+  // Generate Avatar RTC Token
+  const avatarRtcToken = generateRtcToken(process.env.RTC_APP_ID!, process.env.RTC_APP_KEY!, process.env.RTC_ROOM_ID!, process.env.AVATAR_RTC_USER_ID!, Math.floor(Date.now() / 1000) + 3600 ) || process.env.AVATAR_RTC_TOKEN!;
+
   const params = {
     live: { live_id: `keyreply-live-${Date.now()}` }, 
     auth: { 
@@ -45,7 +48,7 @@ export async function POST(req: NextRequest) {
       rtc_app_id: process.env.RTC_APP_ID!,
       rtc_room_id: process.env.RTC_ROOM_ID!,
       rtc_uid: process.env.AVATAR_RTC_USER_ID!,
-      rtc_token: process.env.AVATAR_RTC_TOKEN!
+      rtc_token: avatarRtcToken,
     }
   };
 
