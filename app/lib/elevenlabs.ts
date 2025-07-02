@@ -42,6 +42,19 @@ export async function generateSpeech(
     
     console.log(`Using voice_id: ${voice_id}`);
 
+    // Check if there's already an active stream and stop it immediately
+    if (streamingStateManager.getIsStreaming(sessionId)) {
+      console.log(`[ElevenLabs] Existing stream detected for session ${sessionId} - stopping it immediately`);
+      await streamingStateManager.forceStopCurrentStream(sessionId);
+      
+      // Send interrupt signal to clean up any ongoing WebSocket communication
+      sendDigitalHumanMessage(sessionId, Protocol.CTL_INTERRUPT);
+      sendDigitalHumanMessage(sessionId, Protocol.CTL_END_OF_STREAM);
+      
+      // Brief pause to allow cleanup
+      await new Promise(r => setTimeout(r, 100));
+    }
+
     // Initialize session state
     streamingStateManager.initializeSession(sessionId);
     let wasInterrupted = false;
@@ -64,6 +77,9 @@ export async function generateSpeech(
 
     let leftover = new Uint8Array(0);
     const reader = audioStream.getReader();
+    
+    // Store the reader in the streaming state manager for potential interruption
+    streamingStateManager.setActiveStreamReader(sessionId, reader);
     
     while (true) {
       // Check for interrupt request
@@ -132,6 +148,9 @@ export async function generateSpeech(
     console.error('[ElevenLabs] Error details:', JSON.stringify(error, null, 2));
     console.error('[ElevenLabs] ElevenLabs error:', error.message ?? String(error));
   } finally {
+    // Clear the active reader reference
+    streamingStateManager.setActiveStreamReader(sessionId, null);
+    
     // Reset all flags on exit
     streamingStateManager.resetSession(sessionId);
   }

@@ -7,6 +7,7 @@ interface StreamingSessionState {
   stopStream: boolean;
   isInterrupting: boolean;
   isStreaming: boolean;
+  activeStreamReader: ReadableStreamDefaultReader<Uint8Array> | null;
 }
 
 class StreamingStateManager {
@@ -29,7 +30,8 @@ class StreamingStateManager {
     this.sessionStates.set(sessionId, {
       stopStream: false,
       isInterrupting: false,
-      isStreaming: false
+      isStreaming: false,
+      activeStreamReader: null
     });
   }
 
@@ -108,6 +110,43 @@ class StreamingStateManager {
   }
 
   /**
+   * Set active stream reader for a session
+   */
+  public setActiveStreamReader(sessionId: string, reader: ReadableStreamDefaultReader<Uint8Array> | null): void {
+    const state = this.getSessionState(sessionId);
+    state.activeStreamReader = reader;
+  }
+
+  /**
+   * Get active stream reader for a session
+   */
+  public getActiveStreamReader(sessionId: string): ReadableStreamDefaultReader<Uint8Array> | null {
+    return this.getSessionState(sessionId).activeStreamReader;
+  }
+
+  /**
+   * Force stop current stream by canceling the active reader
+   */
+  public async forceStopCurrentStream(sessionId: string): Promise<void> {
+    const state = this.getSessionState(sessionId);
+    
+    if (state.activeStreamReader) {
+      console.log(`[StreamingState] Force stopping current stream for session ${sessionId}`);
+      try {
+        await state.activeStreamReader.cancel();
+        console.log(`[StreamingState] Successfully canceled stream reader for session ${sessionId}`);
+      } catch (error) {
+        console.warn(`[StreamingState] Error canceling stream reader for session ${sessionId}:`, error);
+      }
+      state.activeStreamReader = null;
+    }
+    
+    // Set interrupt flags to ensure cleanup
+    state.stopStream = true;
+    state.isInterrupting = true;
+  }
+
+  /**
    * Reset all flags for a session (typically called when streaming ends)
    */
   public resetSession(sessionId: string): void {
@@ -115,6 +154,7 @@ class StreamingStateManager {
     state.stopStream = false;
     state.isInterrupting = false;
     state.isStreaming = false;
+    state.activeStreamReader = null;
   }
 
   /**

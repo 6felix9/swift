@@ -45,6 +45,7 @@ export default function Home() {
   const [isAvatarConnected, setIsAvatarConnected] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(false);
+  // const apiLoadingEndTimeRef = useRef<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -202,6 +203,8 @@ export default function Home() {
       toast.error(err.message || "Failed to send message");
     } finally {
       setIsApiLoading(false);
+      // apiLoadingEndTimeRef.current = Date.now();
+      // console.log("[API] Streaming finished and session cleared.");
     }
   }, [
     messages,
@@ -375,6 +378,14 @@ export default function Home() {
     },
     
     onSpeechStart: async () => {
+      // if (isApiLoading) {
+      //   console.log("[VAD] API is loading, ignoring speech start.");
+      //   return;
+      // }
+      // if (apiLoadingEndTimeRef.current && Date.now() - apiLoadingEndTimeRef.current < 50) {
+      //   console.log("[VAD] Ignoring speech: in cooldown period after API call.");
+      //   return;
+      // }
       // Add debugging to check if onSpeechStart is firing at all
       console.log('[VAD DEBUG] onSpeechStart triggered', {
         manualListening,
