@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Message } from "@/lib/types";
 import { brandColors } from "@/lib/constants";
 import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
-import { PhoneOff } from 'lucide-react'; // CheckCircle2 moved to ScenarioSelection
+import { PhoneOff, Mic, MicOff } from 'lucide-react'; // CheckCircle2 moved to ScenarioSelection
 import { ScenarioSelection } from '@/components/ui/ScenarioSelection';
 import { PersonaSelection } from '@/components/ui/PersonaSelection';
 import { DifficultySelection } from "@/components/ui/DifficultySelection";
@@ -64,6 +64,9 @@ export default function Home() {
 
   // State to track if user has initiated listening
   const [listeningInitiated, setListeningInitiated] = useState<boolean>(false);
+  
+  // State for mute/unmute functionality
+  const [isMuted, setIsMuted] = useState<boolean>(false);
 
   // State for new Scenario-based training
   const [scenarioDefinitionsData, setScenarioDefinitionsData] = useState<ScenarioDefinition[]>([]);
@@ -346,6 +349,7 @@ export default function Home() {
     scenarioDefinitionsData
   ]);
 
+
   /**
    * Voice Activity Detection (VAD) Configuration
    * 
@@ -378,6 +382,12 @@ export default function Home() {
     },
     
     onSpeechStart: async () => {
+      // Check if user is muted first
+      if (isMuted) {
+        console.log('[VAD] User is muted, ignoring speech start');
+        return;
+      }
+      
       // if (isApiLoading) {
       //   console.log("[VAD] API is loading, ignoring speech start.");
       //   return;
@@ -390,7 +400,8 @@ export default function Home() {
       console.log('[VAD DEBUG] onSpeechStart triggered', {
         manualListening,
         listeningInitiated,
-        sessionId: sessionId ? 'exists' : 'null'
+        sessionId: sessionId ? 'exists' : 'null',
+        isMuted
       });
       
       if (!manualListening && listeningInitiated) { // Ensure listening was initiated
@@ -439,6 +450,12 @@ export default function Home() {
       }
     },
     onSpeechEnd: async (audio) => {
+      // Check if user is muted first
+      if (isMuted) {
+        console.log('[VAD] User is muted, ignoring speech end');
+        return;
+      }
+      
       // Anti-brief-sound protection: Cancel interrupt if speech ended quickly
       // This prevents accidental interruptions from very short sounds
       if (interruptTimeoutId) {
@@ -507,6 +524,32 @@ export default function Home() {
     }
   }, [vad, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
 
+  /**
+   * Handles mute/unmute functionality for the VAD system
+   * Toggles between muted and unmuted states by pausing/starting VAD
+   */
+  const handleMuteToggle = useCallback(() => {
+    if (!vad || vad.loading || vad.errored) {
+      console.warn('[Mute Toggle] VAD not available or in error state');
+      return;
+    }
+
+    if (isMuted) {
+      // Unmute: Start VAD
+      console.log('[Mute Toggle] Unmuting - starting VAD');
+      vad.start();
+      setIsMuted(false);
+      setManualListening(false);
+    } else {
+      // Mute: Pause VAD
+      console.log('[Mute Toggle] Muting - pausing VAD');
+      vad.pause();
+      setIsMuted(true);
+      setManualListening(true);
+      setIsListening(false);
+    }
+  }, [vad, isMuted, setIsMuted, setManualListening, setIsListening]);
+
   const handleRestartSession = () => {
     setMessages([]);
     setInput("");
@@ -515,6 +558,7 @@ export default function Home() {
     setIsEvaluating(false);
     setListeningInitiated(false);
     setManualListening(false);
+    setIsMuted(false); // Reset mute state
     setSelectedScenarioId(null);
     setSelectedPersonaId(null);
     setSelectedDifficulty(null);
@@ -803,7 +847,7 @@ export default function Home() {
         {/* Main Content Area - Avatar Left, Messages Right */}
         <div className="flex w-full max-w-6xl mx-auto px-4 gap-8 flex-1">
           {/* Left Side - Avatar Video */}
-          <div className="w-1/2 flex flex-col items-center">
+          <div className="w-1/2 flex flex-col items-center relative">
             {sessionId ? (
               <div id="video-container" ref={videoContainerRef} className="h-150 max-w-md aspect-video bg-black rounded-xl shadow-lg" />
             ) : (
@@ -811,6 +855,29 @@ export default function Home() {
                 Connecting to Avatar...
               </div>
             )}
+            
+            {/* Mute/Unmute Button - Positioned as overlay */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+              <Button
+                onClick={handleMuteToggle}
+                disabled={!vad || !!vad.loading || !!vad.errored}
+                className={clsx(
+                  "p-2 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl border-2",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                  isMuted 
+                    ? "bg-red-500 hover:bg-red-600 border-red-400 text-white hover:border-red-300" 
+                    : "bg-[#00A9E7] hover:bg-[#0098D1] border-[#00A9E7] text-white hover:border-[#0098D1]"
+                )}
+                aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
+                title={isMuted ? "Click to unmute" : "Click to mute"}
+              >
+                {isMuted ? (
+                  <MicOff size={20} />
+                ) : (
+                  <Mic size={20} />
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Right Side - Scrollable Messages */}
@@ -862,8 +929,19 @@ export default function Home() {
               Listening...
             </div>
           )} */}
+
+          {/* Mute Status Indicator */}
+          {isMuted && (
+            <div className="text-red-400 text-sm font-medium">
+              You are muted
+            </div>
+          )}
                     
-          {suggestions && suggestions.length > 0 && (
+          {isApiLoading ? (
+            <div className="mt-4 mb-2 w-full max-w-3xl mx-auto flex justify-center px-4">
+              <LoadingIcon />
+            </div>
+          ) : suggestions && suggestions.length > 0 ? (
             <div className="mt-4 mb-2 w-full max-w-3xl mx-auto flex flex-wrap justify-center gap-2 px-4">
               {suggestions.map((suggestion, index) => (
                 <Button
@@ -880,7 +958,8 @@ export default function Home() {
                 </Button>
               ))}
             </div>
-          )}
+          ) : null}
+
 
           {/* <form
             className="flex items-center w-full max-w-3xl mx-4 gap-3"

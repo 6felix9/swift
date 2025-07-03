@@ -116,10 +116,9 @@ Your response must be only the JSON object, with no additional text, commentary,
 
     try {
       const response = await getGroqClient().chat.completions.create({
-        model: "qwen-qwq-32b",
+        model: "meta-llama/llama-4-maverick-17b-128e-instruct",
         messages: [{ role: "system", content: fullPrompt }],
         stream: false,
-        reasoning_format: "hidden",
         response_format: { type: "json_object" },
       });
 
