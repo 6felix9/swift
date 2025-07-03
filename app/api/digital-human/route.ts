@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   try {
     const sessionId = crypto.randomUUID();
     await connectDigitalHuman(sessionId, params);
-    return NextResponse.json({ message: 'Digital Human connection initiated.', sessionId });
+    return NextResponse.json({ message: 'Digital Human session connected.', sessionId });
   } catch (error: any) {
     // Ensure error message is a string for safe JSON serialization
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to connect to Digital Human.' }, { status: 500 });
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
 
   if (action === 'disconnect') {
     closeDigitalHumanConnection(sessionId);
-    return NextResponse.json({ status: `Digital Human WebSocket connection for session ${sessionId} closed successfully.` });
+    return NextResponse.json({ status: `Digital Human session disconnected.` });
   } else {
     return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });
   }
@@ -121,7 +121,7 @@ export async function PATCH(req: NextRequest) {
     
     return NextResponse.json({ 
       success: true, 
-      message: `Interrupt signal sent to digital human for session ${sessionId}` 
+      message: `Interrupt signal sent to digital human` 
     });
   } catch (error: any) {
     console.error(`[API] Error interrupting digital human:`, error);
