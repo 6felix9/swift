@@ -21,6 +21,13 @@ const nextConfig = {
 			},
 		];
 	},
+	webpack: (config, { isServer }) => {
+		// Only run on server during build
+		if (isServer) {
+			copyFiles();
+		}
+		return config;
+	},
 };
 
 export default nextConfig;
@@ -53,5 +60,3 @@ async function copyFiles() {
 		),
 	]);
 }
-
-copyFiles();

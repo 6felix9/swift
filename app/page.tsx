@@ -611,6 +611,35 @@ export default function Home() {
     }
   }, [vad, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
 
+  // Effect to verify ONNX files are accessible at runtime
+  useEffect(() => {
+    const checkFiles = async () => {
+      const filesToCheck = [
+        '/vad.worklet.bundle.min.js',
+        '/silero_vad_v5.onnx',
+        '/ort-wasm-simd-threaded.wasm',
+        '/ort-wasm-simd.wasm',
+        '/ort-wasm.wasm',
+        '/ort-wasm-threaded.wasm'
+      ];
+      
+      for (const file of filesToCheck) {
+        try {
+          const response = await fetch(file, { method: 'HEAD' });
+          if (response.ok) {
+            console.log(`[VAD File Check] ✓ ${file} is accessible`);
+          } else {
+            console.error(`[VAD File Check] ✗ ${file} returned ${response.status}`);
+          }
+        } catch (error) {
+          console.error(`[VAD File Check] ✗ ${file} failed to load:`, error);
+        }
+      }
+    };
+    
+    checkFiles();
+  }, []); // Run once on mount
+
   /**
    * Handles mute/unmute functionality for the VAD system
    * Toggles between muted and unmuted states by pausing/starting VAD
