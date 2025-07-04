@@ -17,7 +17,10 @@ export const scenarioDefinitions: ScenarioDefinition[] = [
     description: 'Practice seeking referrals during a routine annual review meeting.',
     userRole: 'Financial Advisor',
     scenarioContext: `You are in a scheduled annual review meeting with your client, reviewing portfolio performance and discussing future goals.`,
-    personas: ['LIANG_CHEN', 'CHLOE_ZHANG', 'SARAH_LEE'],
+    personas: [
+      // 'LIANG_CHEN', 
+      'CHLOE_ZHANG', 
+      'SARAH_LEE'],
     personaOpeningLine: "Alright, thanks for setting this up. So, what did you want to cover today?",
     evaluationPromptKey: 'trainingReferralEvaluationInstructions'
   },
