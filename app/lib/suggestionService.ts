@@ -19,7 +19,7 @@ function getGroqClient(): Groq {
   return groqClient;
 }
 
-interface Message {
+export interface Message {
   role: "advisor" | "client" | "system";
   content: string;
 }
