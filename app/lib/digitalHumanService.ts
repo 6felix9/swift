@@ -251,3 +251,13 @@ export function getDigitalHumanConnectionPromise(sessionId: string): Promise<Web
   const instance = globalThis.digitalHumanMap.get(sessionId);
   return instance ? instance.connectionPromise : null;
 }
+
+/**
+ * Validates if a session is still active and the WebSocket connection is open.
+ * @param sessionId The session ID to validate
+ * @returns true if the session exists and the WebSocket is open, false otherwise
+ */
+export function validateDigitalHumanSession(sessionId: string): boolean {
+  const instance = globalThis.digitalHumanMap.get(sessionId);
+  return instance ? instance.ws.readyState === WebSocket.OPEN : false;
+}

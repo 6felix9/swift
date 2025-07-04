@@ -135,11 +135,47 @@ class AccessToken {
 }
 
 export function generateRtcToken(appID: string, appKey: string, roomID: string, userID: string, expireTimestamp: number): string {
-  const token = new AccessToken(appID, appKey, roomID, userID);
-  
-  token.addPrivilege(Privilege.PrivSubscribeStream, expireTimestamp);
-  token.addPrivilege(Privilege.PrivPublishStream, expireTimestamp);
-  token.expireTime(expireTimestamp);
-  
-  return token.serialize();
+  console.log('[generateRtcToken] Starting token generation with params:', {
+    appID: appID ? `${appID.substring(0, 8)}...` : 'MISSING',
+    appKey: appKey ? `${appKey.substring(0, 8)}...` : 'MISSING',
+    roomID,
+    userID,
+    expireTimestamp,
+    expireTime: new Date(expireTimestamp * 1000).toISOString()
+  });
+
+  try {
+    // Validate input parameters
+    if (!appID || !appKey || !roomID || !userID) {
+      const missingParams = [];
+      if (!appID) missingParams.push('appID');
+      if (!appKey) missingParams.push('appKey');
+      if (!roomID) missingParams.push('roomID');
+      if (!userID) missingParams.push('userID');
+      
+      console.error('[generateRtcToken] Missing required parameters:', missingParams);
+      return '';
+    }
+
+    if (expireTimestamp <= Math.floor(Date.now() / 1000)) {
+      console.error('[generateRtcToken] Invalid expireTimestamp - must be in the future');
+      return '';
+    }
+
+    const token = new AccessToken(appID, appKey, roomID, userID);
+    console.log('[generateRtcToken] AccessToken created successfully');
+    
+    token.addPrivilege(Privilege.PrivSubscribeStream, expireTimestamp);
+    token.addPrivilege(Privilege.PrivPublishStream, expireTimestamp);
+    token.expireTime(expireTimestamp);
+    console.log('[generateRtcToken] Privileges added successfully');
+    
+    const serializedToken = token.serialize();
+    console.log('[generateRtcToken] Token serialized successfully, length:', serializedToken.length);
+    
+    return serializedToken;
+  } catch (error) {
+    console.error('[generateRtcToken] Token generation failed with error:', error);
+    return '';
+  }
 }

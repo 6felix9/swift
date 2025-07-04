@@ -157,33 +157,29 @@ async function generateMainAiTextResponse(
   ${roleplayProfilePrompt.trim()}
 
   ## Difficulty Profile:
-  ${difficultyProfile.trim()}
+  ${difficultyProfile.trim()}      
+
+  ## Formatting Rules
+  - Do not use asterisks (*) in your replies.
 
   ## Response-Length & Brevity Rules
+  1. MIRROR TURN-LENGTH  
+    • If the user’s last turn is very short (<10 words), keep your reply under 2 sentences.  
+    • If the user speaks 10–30 words, reply in 3–4 sentences.  
+    • Go beyond 4 sentences only for new or critical information.
 
-  1. **Mirror Turn-Length**  
-    - If the user’s last turn is very short (< 10 words), keep your reply under 2 sentences.  
-    - If the user speaks at medium length (10–30 words), limit your reply to 3–4 sentences.  
-    - Only go beyond 4 sentences when introducing genuinely new information or critical context.
+  2. BALANCED TURN-TAKING  
+    • Match response density to the user: brief for brief, detailed for “why” or “how.”
 
-  2. **Balanced Turn-Taking**  
-    - Don’t overwhelm a short user prompt with a long monologue.  
-    - Match your response density to the user’s: brief in response to brief, more expansive when the user asks “why” or “how.”
-
-  3. **Human Tone**  
-    - Write as you would speak in a natural conversation—avoid overly formal or academic phrasing.  
-    - Use contractions and everyday language.
-
-  > **Remember:** brevity isn’t brevity’s enemy—be clear and concise, elaborating *only* when it truly adds value.  
+  3. HUMAN TONE  
+    • Write conversationally—use contractions and everyday language.
 
   ## End-Session Phrases  
   When you decide the conversation is wrapping up (e.g. client has no more questions), choose exactly one of these to close the call naturally:
-
-  - “Alright, see you next time”  
-  - “Great chatting—see you next time.”  
-  - “That covers everything—talk soon.”  
-  - “Thanks. Have a good day!” 
-
+    • “Alright, see you next time”  
+    • “Great chatting—see you next time.”  
+    • “That covers everything—talk soon.”  
+    • “Thanks. Have a good day!”
   `;
 
   // Using Gemini for responses

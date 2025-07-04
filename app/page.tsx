@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Message } from "@/lib/types";
 import { brandColors } from "@/lib/constants";
 import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
-import { PhoneOff, Mic, MicOff } from 'lucide-react'; // CheckCircle2 moved to ScenarioSelection
+import { PhoneOff, Mic, MicOff, MessageSquare, MessageSquareOff, User, Target, CheckCircle, Info } from 'lucide-react'; // CheckCircle2 moved to ScenarioSelection
 import { ScenarioSelection } from '@/components/ui/ScenarioSelection';
 import { PersonaSelection } from '@/components/ui/PersonaSelection';
 import { DifficultySelection } from "@/components/ui/DifficultySelection";
@@ -68,6 +68,10 @@ export default function Home() {
   // State for mute/unmute functionality
   const [isMuted, setIsMuted] = useState<boolean>(false);
 
+  // Add this state variable at the top of your component
+  const [isMessagesPanelVisible, setIsMessagesPanelVisible] = useState(true);
+  const [isAnimating, setIsAnimating] = useState(false);
+
   // State for new Scenario-based training
   const [scenarioDefinitionsData, setScenarioDefinitionsData] = useState<ScenarioDefinition[]>([]);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
@@ -82,14 +86,58 @@ export default function Home() {
   const [selectionStep, setSelectionStep] = useState<'selectScenario' | 'selectPersona' | 'selectDifficulty' | 'summary' | 'evaluationResults' | null>('selectScenario'); // Added 'evaluationResults' and null
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  // Note: Auto-end call functionality removed since we no longer track avatar speaking state
-  // The end call is now purely manual via the End Call button
+  const toggleMessagesPanel = () => {
+    setIsMessagesPanelVisible(!isMessagesPanelVisible);
+  };
 
   useEffect(() => {
     // Load scenario definitions and personas from the imported data
     setScenarioDefinitionsData(scenarioDefinitions);
     setPersonasData(personas);
   }, []);
+
+  // Phase 2: Session recovery on page load
+  useEffect(() => {
+    const recoverSession = async () => {
+      try {
+        const storedSessionId = sessionStorage.getItem('swift_ai_session_id');
+        const storedConnectedState = sessionStorage.getItem('swift_ai_avatar_connected');
+        
+        if (storedSessionId && storedConnectedState === 'true') {
+          console.log('[SessionRecovery] Found stored session:', storedSessionId);
+          
+          // Validate if session is still active on server
+          const response = await fetch(`/api/digital-human?action=validate&sessionId=${storedSessionId}`);
+          
+          if (response.ok) {
+            const result = await response.json();
+            if (result.valid) {
+              console.log('[SessionRecovery] Session is still valid, restoring state');
+              setSessionId(storedSessionId);
+              setIsAvatarConnected(true);
+              toast.success('Session recovered successfully');
+            } else {
+              console.log('[SessionRecovery] Session is no longer valid, clearing storage');
+              sessionStorage.removeItem('swift_ai_session_id');
+              sessionStorage.removeItem('swift_ai_avatar_connected');
+            }
+          } else {
+            console.log('[SessionRecovery] Session validation failed, clearing storage');
+            sessionStorage.removeItem('swift_ai_session_id');
+            sessionStorage.removeItem('swift_ai_avatar_connected');
+          }
+        }
+      } catch (error) {
+        console.error('[SessionRecovery] Error during session recovery:', error);
+        // Clear potentially corrupted session data
+        sessionStorage.removeItem('swift_ai_session_id');
+        sessionStorage.removeItem('swift_ai_avatar_connected');
+      }
+    };
+
+    recoverSession();
+  }, []);
+
 
   const handleSubmit = useCallback(async (data: string | Blob, sid?: string) => {
     // If isPending, do not process the request.
@@ -228,6 +276,15 @@ export default function Home() {
         toast.success('Digital Human disconnected: ' + result.status);
         setIsAvatarConnected(false);
         setSessionId(null); // Clear sessionId on disconnect
+        
+        // Clear sessionStorage on successful disconnect
+        try {
+          sessionStorage.removeItem('swift_ai_session_id');
+          sessionStorage.removeItem('swift_ai_avatar_connected');
+          console.log('[SessionStorage] Cleared session data');
+        } catch (error) {
+          console.warn('[SessionStorage] Failed to clear session:', error);
+        }
       } else {
         toast.error('Failed to disconnect: ' + result.status);
       }
@@ -235,6 +292,36 @@ export default function Home() {
       toast.error('Error disconnecting: ' + error.message);
     }
   }, [isAvatarConnected, sessionId]);
+
+  // Phase 1: Cleanup on page unload/refresh
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      // Clean up WebSocket connection if it exists
+      if (isAvatarConnected && sessionId) {
+        console.log('[Cleanup] Page unloading, disconnecting avatar');
+        try {
+          // Use sendBeacon for reliable cleanup during page unload
+          const disconnectUrl = `/api/digital-human?action=disconnect&sessionId=${sessionId}`;
+          navigator.sendBeacon(disconnectUrl, '');
+        } catch (error) {
+          console.error('[Cleanup] Error during page unload cleanup:', error);
+        }
+      }
+    };
+
+    // Add event listener for page unload
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Cleanup function for component unmount
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Additional cleanup on component unmount
+      if (isAvatarConnected && sessionId) {
+        console.log('[Cleanup] Component unmounting, disconnecting avatar');
+        handleDisconnectAvatar();
+      }
+    };
+  }, [isAvatarConnected, sessionId, handleDisconnectAvatar]);
 
   const handleLeaveRoom = useCallback(async () => {
     await leaveAndDestroyRoom();
@@ -619,11 +706,30 @@ export default function Home() {
         toast.success('Digital Human connection initiated: ' + result.message);
         setIsAvatarConnected(true);
         setSessionId(result.sessionId);
+        
+        // Phase 2: Store session in sessionStorage for persistence
+        try {
+          sessionStorage.setItem('swift_ai_session_id', result.sessionId);
+          sessionStorage.setItem('swift_ai_avatar_connected', 'true');
+          console.log('[SessionStorage] Stored session ID:', result.sessionId);
+        } catch (error) {
+          console.warn('[SessionStorage] Failed to store session:', error);
+        }
+        
         return result.sessionId;
       } else {
         toast.error('Failed to connect: ' + result.error);
         setIsAvatarConnected(false);
         setSessionId(null);
+        
+        // Clear sessionStorage on error
+        try {
+          sessionStorage.removeItem('swift_ai_session_id');
+          sessionStorage.removeItem('swift_ai_avatar_connected');
+        } catch (error) {
+          console.warn('[SessionStorage] Failed to clear session:', error);
+        }
+        
         throw new Error(result.error || 'Failed to connect to Digital Human');
       }
     } catch (error: any) {
@@ -826,7 +932,7 @@ export default function Home() {
       </div>
     );
   }
-  
+
   return (
     <div style={mainContainerStyle} className="flex flex-col items-center">
       {/* Content for listeningInitiated, wrapped to ensure it's on top */}
@@ -845,9 +951,15 @@ export default function Home() {
         </motion.div>
 
         {/* Main Content Area - Avatar Left, Messages Right */}
-        <div className="flex w-full max-w-6xl mx-auto px-4 gap-8 flex-1">
+        <div className={clsx(
+          "flex w-full max-w-6xl mx-auto px-4 flex-1 transition-all duration-300 relative",
+          (isMessagesPanelVisible || isAnimating) ? "gap-8" : "justify-center"
+        )}>
           {/* Left Side - Avatar Video */}
-          <div className="w-1/2 flex flex-col items-center relative">
+          <div className={clsx(
+            "flex flex-col items-center relative transition-all duration-300",
+            (isMessagesPanelVisible || isAnimating) ? "w-1/2" : "w-full max-w-md"
+          )}>
             {sessionId ? (
               <div id="video-container" ref={videoContainerRef} className="h-150 max-w-md aspect-video bg-black rounded-xl shadow-lg" />
             ) : (
@@ -880,56 +992,89 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right Side - Scrollable Messages */}
-          <div className="w-1/2 flex flex-col">
-            <div className="h-150 overflow-y-auto pr-2 flex flex-col" ref={messagesContainerRef}>
-              <div className="flex-1"></div>
-              <div className="space-y-4">
-                <AnimatePresence>
-                  {messages.map((message, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <Card 
-                      className={clsx(
-                        "backdrop-blur-md shadow-lg transition-all duration-300 hover:shadow-xl",
-                        message.role === "client" 
-                          ? "bg-[#1D3B86]/60 border border-[#1D3B86]/60 hover:bg-[#1D3B86]/70" 
-                          : "bg-[#00A9E7]/40 border border-[#00A9E7]/40 hover:bg-[#00A9E7]/50"
-                      )}>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium text-white">
-                            {message.role === "client" ? "Customer" : "You"}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="whitespace-pre-wrap" style={{
-                    color: '#FFFFFF',
-                    lineHeight: '1.6',
-                    fontSize: '1rem'
-                  }}>{message.content}</p>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
+          {/* Messages Toggle Button - Always positioned at top-right of main content area */}
+          <div className="absolute top-0 right-0 z-10">
+            <Button
+              onClick={toggleMessagesPanel}
+              className={clsx(
+                "p-2 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl border-2",
+                "bg-[#00A9E7] hover:bg-[#0098D1] border-[#00A9E7] text-white hover:border-[#0098D1]"
+              )}
+              aria-label={isMessagesPanelVisible ? "Hide messages" : "Show messages"}
+              title={isMessagesPanelVisible ? "Hide messages" : "Show messages"}
+            >
+              {isMessagesPanelVisible ? (
+                <MessageSquareOff size={20} />
+              ) : (
+                <MessageSquare size={20} />
+              )}
+            </Button>
           </div>
+
+          {/* Right Side - Scrollable Messages */}
+          <AnimatePresence onExitComplete={() => setIsAnimating(false)}>
+            {isMessagesPanelVisible && (
+              <motion.div
+                key="messages-panel"
+                initial={{ opacity: 0, x: 100, width: 0 }}
+                animate={{ opacity: 1, x: 0, width: "50%" }}
+                exit={{ opacity: 1, x: 0, width: "50%" }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="flex flex-col relative overflow-hidden"
+                onAnimationStart={() => setIsAnimating(true)}
+                onAnimationComplete={() => {
+                  // Only set animating to false on enter completion
+                  // Exit completion is handled by AnimatePresence onExitComplete
+                  if (isMessagesPanelVisible) {
+                    setIsAnimating(false);
+                  }
+                }}
+              >
+                <div className="h-150 overflow-y-auto pr-2 flex flex-col" ref={messagesContainerRef}>
+                  <div className="flex-1"></div>
+                  <div className="space-y-4">
+                    <AnimatePresence>
+                      {messages.map((message, i) => (
+                        <motion.div
+                          key={i}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <Card 
+                          className={clsx(
+                            "backdrop-blur-md shadow-lg transition-all duration-300 hover:shadow-xl",
+                            message.role === "client" 
+                              ? "bg-[#1D3B86]/60 border border-[#1D3B86]/60 hover:bg-[#1D3B86]/70" 
+                              : "bg-[#00A9E7]/40 border border-[#00A9E7]/40 hover:bg-[#00A9E7]/50"
+                          )}>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm font-medium text-white">
+                                {message.role === "client" ? "Customer" : "You"}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="whitespace-pre-wrap" style={{
+                        color: '#FFFFFF',
+                        lineHeight: '1.6',
+                        fontSize: '1rem'
+                      }}>{message.content}</p>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                    <div ref={messagesEndRef} />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
         </div>
 
         {/* Bottom Controls Section */}
         <div className="flex flex-col items-center justify-center w-full max-w-3xl mx-auto mt-8">
-          {/* {isListening && (
-            <div className="mb-4 text-sm font-medium animate-pulse" style={{ color: brandColors.secondary }}>
-              Listening...
-            </div>
-          )} */}
-
           {/* Mute Status Indicator */}
           {isMuted && (
             <div className="text-red-400 text-sm font-medium">
@@ -949,45 +1094,16 @@ export default function Home() {
                   variant="outline"
                   size="sm"
                   className="bg-[#00385C]/80 border-sky-500/60 text-sky-200 hover:bg-sky-700/70 hover:text-sky-100 transition-all duration-200 px-3 py-1.5 text-xs rounded-lg shadow-md hover:shadow-lg focus:ring-2 focus:ring-sky-400/50"
-                  // onClick={() => {
-                  //   setInput(suggestion); // Set input field with suggestion
-                  //   handleSubmit(suggestion); // Submit the suggestion
-                  // }}
+                  onClick={() => {
+                    // setInput(suggestion); // Set input field with suggestion
+                    handleSubmit(suggestion); // Submit the suggestion
+                  }}
                 >
                   {suggestion}
                 </Button>
               ))}
             </div>
           ) : null}
-
-
-          {/* <form
-            className="flex items-center w-full max-w-3xl mx-4 gap-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSubmit(input);
-            }}
-          >
-            <Input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              ref={inputRef}
-              disabled={isPending}
-              className="flex-1 bg-[#001F35]/50 border border-white/20 rounded-xl focus:ring-2 focus:ring-[#FFB800]/50 transition-all duration-300 text-white placeholder:text-white/70"
-            />
-            <Button
-              type="submit"
-              disabled={isPending || !input.trim()}
-              className="bg-[#00A9E7] hover:bg-[#0098D1] text-white transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:hover:bg-[#FFB800] p-2 rounded-xl aspect-square flex items-center justify-center"
-            >
-              {isPending ? (
-                <LoadingIcon/>
-              ) : (
-                <EnterIcon/>
-              )}
-            </Button>
-          </form> */}
           
           {/* End Call Button - Moved below the form */}
           <div className="w-full max-w-3xl mx-4 mt-4">
@@ -1042,49 +1158,67 @@ export default function Home() {
 
         {/* Active Session Display (Scenario and Patient) */}
         {listeningInitiated ? (
-          <div className="mb-6 flex flex-col items-center">
-            {/* Selected Scenario Display */}
-            {selectedScenarioId && (
-              <div className="w-full mb-4">
-                <h2 className="text-2xl font-semibold text-center mb-4 text-white">Active Scenario</h2>
-                <Card 
-                  className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border-2 border-[#FFB800]/70 shadow-[0_0_15px_rgba(255,184,0,0.3)] mb-4"
-                >
-                  <CardHeader className="p-4 pb-2">
-                    <CardTitle className="text-lg font-medium text-[#FFB800]">
-                      {scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.name}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <p className="text-sm text-gray-300">{scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.description}</p>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+          <div className="mb-8 flex flex-col items-center w-full max-w-7xl mx-auto px-6">
+            {/* Clean Title Section */}
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-semibold text-white mb-2">Active Training Session</h2>
+              <div className="w-16 h-0.5 bg-[#FFB800] mx-auto"></div>
+            </div>
+            
+            {/* Cards Container */}
+            <div className="w-full flex flex-row gap-6 justify-between">
+              {/* Scenario Card */}
+              {selectedScenarioId && (
+                <div className="w-1/2">
+                  <Card className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border-2 border-[#FFB800]/70 shadow-[0_0_15px_rgba(255,184,0,0.3)] min-h-[180px]">
+                    <CardHeader className="p-5 pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[#FFB800]/15 rounded-md">
+                          <Target className="w-4 h-4 text-[#FFB800]" />
+                        </div>
+                        <CardTitle className="text-lg font-medium text-[#FFB800]">
+                          Training Scenario
+                        </CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-5 pt-0">
+                      <h3 className="text-base font-medium text-white mb-3">
+                        {scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.name}
+                      </h3>
+                      <p className="text-sm text-gray-300 leading-relaxed">
+                        {scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
-            {/* Display Persona Details for Training Scenario */}
-            {selectedScenarioId && scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.personas[0] && (
-              <div className="w-full mb-4">
-                <Card
-                  className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border-2 border-yellow-400/70 shadow-[0_0_15px_rgba(255,223,0,0.3)]"
-                >
-                  <CardHeader className="p-4 pb-2">
-                    <CardTitle className="text-lg font-medium text-yellow-400">
-                      Role-Play Persona: {selectedPersonaId ? getPersonaById(selectedPersonaId)?.name : ""}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <p className="text-sm text-gray-300 whitespace-pre-line">
-                      {selectedPersonaId ? getPersonaById(selectedPersonaId)?.name : ""}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-2">
-                      (Note: You are the Financial Advisor. Interact with the AI as if it is {selectedPersonaId ? getPersonaById(selectedPersonaId)?.name : ""}.)
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
+              {/* Persona Card */}
+              {selectedScenarioId && scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.personas !== undefined && (
+                <div className="w-1/2">
+                  <Card className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border-2 border-[#FFB800]/70 shadow-[0_0_15px_rgba(255,184,0,0.3)] min-h-[180px]">
+                    <CardHeader className="p-5 pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[#FFB800]/15 rounded-md">
+                          <User className="w-4 h-4 text-[#FFB800]" />
+                        </div>
+                        <CardTitle className="text-lg font-medium text-[#FFB800]">
+                          Role-Play Persona: {selectedPersonaId ? getPersonaById(selectedPersonaId)?.name : ""}
+                        </CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-5 pt-0">
+                      <p className="text-sm text-gray-300 mb-4">
+                        {selectedPersonaId ? getPersonaById(selectedPersonaId)?.name : ""}
+                      </p>
+                      <p className="text-sm text-gray-300 leading-relaxed">
+                        <span className="text-[#FFB800] font-medium">Note:</span> You are the Financial Advisor. Interact with the AI as if it is {selectedPersonaId ? getPersonaById(selectedPersonaId)?.name : ""}.
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
 

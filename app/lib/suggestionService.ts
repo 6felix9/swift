@@ -21,89 +21,153 @@ export interface Message {
 }
 
 export async function generateNextTurnSuggestions(
-  conversationHistory: Message[],
+  messages: Message[],
   aiLastResponse: string,
   requestId: string
 ): Promise<string[]> {
-  console.log(`[${requestId}] Generating next turn suggestions Groq...`);
+  console.log(`[${requestId}] Generating next turn suggestions...`);
 
-  const historyString = conversationHistory
-    .map(m => `${m.role}: ${m.content}`)
-    .join('\n');
+  // Build conversation history string
+  const historyString = messages
+    .filter((msg) => msg.role === "advisor" || msg.role === "client")
+    .map((msg) => `${msg.role === "advisor" ? "Advisor" : "Client"}: ${msg.content}`)
+    .join("\n\n");
 
+  // Create the suggestion prompt
   const suggestionPrompt = `
-You are an AI assistant coaching a Financial Advisor. Based on the transcript below, output **only** a raw JSON array of exactly two strings—no markdown, no fences, no commentary, no tags, nothing else.
+SYSTEM: Referral-Coach v3
 
-**Output Format**  
-- Exactly one line: [“suggestion1”,”suggestion2”]  
-- Double quotes around each suggestion  
-- Comma separated, no trailing comma  
-- ≤15 words per suggestion  
+Goal  
+Advance the client’s agenda (answer their request) first; if natural, guide toward a warm referral.
 
-**Example**  
-["Would you like to schedule a follow-up next week?","Can I send you today’s meeting summary?"]
+Quality gate (all must be true)  
+A. Provide at least one concrete answer to the client’s direct question.  
+B. Do not pressure; tone stays appreciative and low-key.
 
-Conversation History (Advisor → Client):
+Bonus points (hit ≥1)  
+1. Reference shared history or recent success the client praised.  
+2. Name who might benefit or why the friend would care.  
+3. Offer an easy step (email draft, joint call, calendar link).
+
+Output format
+Return one line containing a raw JSON array with exactly two strings.  
+• ≤ 18 words each.  
+• If you include a referral bridge it must follow after the concrete answer.  
+• No markdown, commentary, or asterisks.  
+• Avoid empty “let’s schedule” lines with no value or referral context.
+
+Conversation History (Advisor → Client):  
 ${historyString}
 
-Client’s Last Response:
+Client’s Last Response:  
 ${aiLastResponse}
 
-Now generate exactly two next-step suggestions as a JSON array.
+---  
+Craft two diverse options that pass the quality gate, then output the JSON array on one line, nothing else.
 `;
 
-// For benchmarking latency
-const t0 = Date.now();
+  
+
+  // For benchmarking latency
+  const t0 = Date.now();
 
   try {
-    // // Call Gemini Flash 2.5
-    // const response = await ai.models.generateContent({
-    //   // model: "gemini-2.5-flash-preview-05-20",
-    //   model: "gemini-2.5-flash-preview-05-20",
-    //   contents: suggestionPrompt
-    // });
-
-    // Call Groq
-    const { text } = await generateText({
-        model: groq('meta-llama/llama-4-maverick-17b-128e-instruct'),
-        prompt: suggestionPrompt,
-    });
-    const response = { text };
+    let rawText = "";
+    let modelUsed = "";
+    
+    // Try Gemini Flash 2.5 first
+    try {
+      console.log(`[${requestId}] Attempting to generate suggestions with Gemini Flash`);
+      const geminiResponse = await getGeminiClient().models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: suggestionPrompt
+      });
+      
+      rawText = geminiResponse.text?.trim() ?? "";
+      modelUsed = "Gemini Flash";
+      console.log(`[${requestId}] Successfully received response from Gemini Flash`);
+      
+      // Try to parse the response - if it fails, we'll fall back to next model
+      JSON.parse(rawText);
+      
+    } catch (geminiError: any) {
+      // Gemini Flash failed or returned invalid JSON, try Gemini Flash Lite Preview
+      console.log(`[${requestId}] Gemini Flash failed or returned invalid JSON: ${geminiError.message}`);
+      console.log(`[${requestId}] Falling back to Gemini Flash Lite Preview...`);
+      
+      try {
+        // Call Gemini Flash Lite Preview as first fallback
+        const geminiLiteResponse = await getGeminiClient().models.generateContent({
+          model: "gemini-2.5-flash-lite-preview-06-17",
+          contents: suggestionPrompt
+        });
+        
+        rawText = geminiLiteResponse.text?.trim() ?? "";
+        modelUsed = "Gemini Flash Lite";
+        console.log(`[${requestId}] Successfully received response from Gemini Flash Lite`);
+        
+        // Try to parse the response - if it fails, we'll fall back to Groq
+        JSON.parse(rawText);
+        
+      } catch (geminiLiteError: any) {
+        // Gemini Flash Lite Preview failed or returned invalid JSON, try Groq
+        console.log(`[${requestId}] Gemini Flash Lite failed or returned invalid JSON: ${geminiLiteError.message}`);
+        console.log(`[${requestId}] Falling back to Groq...`);
+        
+        try {
+          // Call Groq as final fallback
+          const groqResponse = await generateText({
+            model: groq('meta-llama/llama-4-maverick-17b-128e-instruct'),
+            prompt: suggestionPrompt,
+          });
+          
+          rawText = groqResponse.text?.trim() ?? "";
+          modelUsed = "Groq";
+          console.log(`[${requestId}] Successfully received response from Groq`);
+        } catch (groqError: any) {
+          console.error(`[${requestId}] All models failed. Groq error: ${groqError.message}`);
+          throw new Error(`All models failed: Gemini Flash → Gemini Flash Lite → Groq`);
+        }
+      }
+    }
 
     // Log latency
     const latencyMs = Date.now() - t0;
     console.log(`[${requestId}] Suggestion response latency: ${latencyMs} ms`);
+    console.log(`[${requestId}] Raw suggestions from model (${modelUsed}): ${rawText}`);
 
-    const rawSuggestions = response.text?.trim() ?? "";
-    console.log(`[${requestId}] Raw suggestions from model: ${rawSuggestions}`);
-
-    // Try JSON parse first
+    // Process the response - try JSON first, then fallback to text extraction
     try {
-      const suggestionsArray = JSON.parse(rawSuggestions);
+      const suggestionsArray = JSON.parse(rawText);
       if (Array.isArray(suggestionsArray) &&
           suggestionsArray.length === 2 &&
           suggestionsArray.every(s => typeof s === 'string')) {
         console.log(`[${requestId}] Parsed suggestions:`, suggestionsArray);
         return suggestionsArray;
+      } else {
+        console.warn(`[${requestId}] JSON parsed but format is incorrect, trying text extraction`);
+        throw new Error("Invalid JSON format");
       }
-    } catch (e) {
-      console.warn(`[${requestId}] JSON parse failed, falling back to line split`);
+    } catch (parseError) {
+      // If JSON parse fails, try to extract from text
+      console.log(`[${requestId}] JSON parse failed, trying to extract from text`);
+      
+      // Try to extract suggestions from text
+      const lines = rawText.split('\n')
+        .map((line: string) => line.replace(/^\d+\.\s*/, '').trim()) // Remove numbering if present
+        .filter((line: string) => line.length > 0);
+      
+      if (lines.length >= 2) {
+        const suggestions = lines.slice(0, 2);
+        console.log(`[${requestId}] Extracted suggestions from text:`, suggestions);
+        return suggestions;
+      }
+      
+      console.warn(`[${requestId}] Could not extract suggestions from text, returning empty array`);
+      return [];
     }
-
-    // Fallback: extract first two non-empty lines
-    const lines = rawSuggestions
-      .split('\n')
-      .map(line => line.replace(/^\d+\.\s*/, '').trim())
-      .filter(line => line.length > 0);
-
-    if (lines.length >= 2) {
-      return [lines[0], lines[1]];
-    }
-
-    console.warn(`[${requestId}] Could not parse suggestions, returning empty array.`);
-    return [];
-  } catch (error) {
-    console.error(`[${requestId}] Error generating next turn suggestions with Groq:`, error);
+  } catch (error: any) {
+    console.error(`[${requestId}] Error generating suggestions:`, error);
     return [];
   }
 }

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { EvaluationResponse } from '@/lib/evaluationTypes';
 import { Difficulty } from '@/lib/difficultyTypes';
-import { GraduationCap, FileText, Download } from 'lucide-react';
+import { GraduationCap, FileText } from 'lucide-react';
 import { Message } from '@/lib/types';
 import { Persona } from '@/lib/personas';
 import { ScenarioDefinition } from '@/lib/scenarios';
@@ -704,24 +704,14 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
             </div>
           </div>
 
-          {/* NEW: Download buttons section integrated into summary card */}
+          {/* Restart session button integrated into summary card */}
           <div className="pt-4 border-t border-blue-500/30">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                onClick={onDownloadTranscript}
-                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-medium py-2.5 px-4 rounded-lg shadow-md transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
-              >
-                <FileText size={18} />
-                Download Transcript
-              </Button>
-              <Button
-                onClick={onDownloadEvaluation}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white font-medium py-2.5 px-4 rounded-lg shadow-md transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
-              >
-                <GraduationCap size={18} />
-                Download Evaluation
-              </Button>
-            </div>
+            <Button
+              onClick={onRestartSession}
+              className="w-full bg-gradient-to-r from-blue-500 to-sky-600 hover:from-blue-600 hover:to-sky-700 text-white font-semibold py-3 rounded-lg shadow-md transition-transform hover:scale-105"
+            >
+              Start New Session
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -741,18 +731,18 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
                 </p>
               )}
             </CardHeader>
-            <CardContent className="p-4 space-y-3">
+            <CardContent className="p-5 space-y-4">
               {cat.criteria.map((cr, j) => (
-                <div key={j} className="border-l-2 border-sky-600 pl-3">
-                  <div className="flex justify-between items-baseline">
+                <div key={j} className="border-l-2 border-sky-600 pl-4 py-2">
+                  <div className="flex justify-between items-baseline mb-1">
                     <p className="text-sm font-semibold text-white">
                       {cr.criterionId}. {cr.criterionText}
                     </p>
-                    <span className="text-sm text-blue-400">
+                    <span className="text-sm text-blue-400 font-medium">
                       {cr.score}/5
                     </span>
                   </div>
-                  <div className="mt-1 text-xs text-gray-300 prose prose-xs prose-invert max-w-none">
+                  <div className="mt-2 text-sm text-gray-300 prose prose-sm prose-invert max-w-none leading-relaxed">
                     <ReactMarkdown>{cr.commentsAndExamples}</ReactMarkdown>
                   </div>
                 </div>
@@ -762,17 +752,8 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
         ))}
       </div>
 
-      {/* Action buttons section */}
+      {/* Download buttons section */}
       <div className="space-y-3">
-        <Button
-          onClick={onRestartSession}
-          className="w-full bg-gradient-to-r from-blue-500 to-sky-600 hover:from-blue-600 hover:to-sky-700 text-white font-semibold py-3 rounded-lg shadow-md transition-transform hover:scale-105"
-        >
-          Start New Session
-        </Button>
-        
-        {/* Alternative download placement option - uncommented if you prefer this placement */}
-        {/* 
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
             onClick={onDownloadTranscript}
@@ -782,14 +763,13 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
             Download Transcript
           </Button>
           <Button
-            onClick={onDownloadCallLog}
+            onClick={onDownloadEvaluation}
             className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white font-medium py-2.5 px-4 rounded-lg shadow-md transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
           >
-            <Phone size={18} />
-            Download Call Log
+            <GraduationCap size={18} />
+            Download Evaluation
           </Button>
         </div>
-        */}
       </div>
     </motion.div>
   );

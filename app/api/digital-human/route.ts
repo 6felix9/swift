@@ -3,6 +3,7 @@ import {
   connectDigitalHuman,
   closeDigitalHumanConnection,
   forceDigitalHumanInterrupt,
+  validateDigitalHumanSession,
 } from '@/lib/digitalHumanService';
 import { generateRtcToken } from "@/lib/generateToken";
 import { getPersonaById } from '@/lib/personas';
@@ -13,11 +14,27 @@ import { streamingStateManager } from '@/lib/streamingState';
  * Initiates a WebSocket connection to the Digital Human backend.
  */
 export async function POST(req: NextRequest) {
-  // Ignore any body from the client, use server-side values only
-  // const avatarRtcToken = generateRtcToken(process.env.RTC_APP_ID!, process.env.RTC_APP_KEY!, process.env.RTC_ROOM_ID!, process.env.AVATAR_RTC_USER_ID!, 3600);
+  const { searchParams } = new URL(req.url);
+  const action = searchParams.get('action');
+  const sessionId = searchParams.get('sessionId');
+
+  // Handle cleanup requests from sendBeacon (page unload)
+  if (action === 'disconnect' && sessionId) {
+    console.log(`[API] Cleanup request via sendBeacon for sessionId: ${sessionId}`);
+    closeDigitalHumanConnection(sessionId);
+    return NextResponse.json({ status: 'Digital Human session disconnected via cleanup.' });
+  }
+
+  // Handle normal session creation requests
+  let requestBody;
+  try {
+    requestBody = await req.json();
+  } catch (error) {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
 
   // Parse personaId from JSON body
-  const { personaId } = await req.json();
+  const { personaId } = requestBody;
   const persona = getPersonaById(personaId as string);
   
   // Use 'let' for avatarRole as it might be reassigned
@@ -71,6 +88,7 @@ export async function GET(req: NextRequest) {
   const action = searchParams.get('action');
   const sessionId = searchParams.get('sessionId');
 
+
   if (!sessionId) {
     return NextResponse.json({ error: '`sessionId` query parameter is required.' }, { status: 400 });
   }
@@ -78,6 +96,15 @@ export async function GET(req: NextRequest) {
   if (action === 'disconnect') {
     closeDigitalHumanConnection(sessionId);
     return NextResponse.json({ status: `Digital Human session disconnected.` });
+  } else if (action === 'validate') {
+    // Phase 2: Session validation endpoint
+    const isValid = validateDigitalHumanSession(sessionId);
+    
+    return NextResponse.json({ 
+      valid: isValid,
+      sessionId: sessionId,
+      status: isValid ? 'active' : 'inactive'
+    });
   } else {
     return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });
   }
