@@ -139,6 +139,49 @@ async function parseIncomingRequest(
   };
 }
 
+function isValidResponse(rawResponse: string): boolean {
+  if (!rawResponse || typeof rawResponse !== 'string') {
+    return false;
+  }
+
+  const trimmed = rawResponse.trim();
+  
+  // Must have some content
+  if (trimmed.length === 0) {
+    return false;
+  }
+
+  // Should not contain markdown artifacts
+  if (trimmed.includes('```') || trimmed.includes('markdown') || trimmed.includes('Markdown')) {
+    return false;
+  }
+
+  // Should not be just technical artifacts
+  if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+    return false;
+  }
+
+  return true;
+}
+
+function processMainResponse(rawText: string | undefined | null, requestId: string): string {
+  if (!rawText) {
+    console.warn(`[${requestId}] FINAL VALIDATION: No content in main response`);
+    return "";
+  }
+
+  const cleaned = rawText.trim();
+  
+  // Simple validation and cleanup
+  if (cleaned.length === 0) {
+    console.warn(`[${requestId}] FINAL VALIDATION: Empty response after cleanup`);
+    return "";
+  }
+
+  console.log(`[${requestId}] FINAL VALIDATION: Valid response with ${cleaned.split(/\s+/).length} words`);
+  return cleaned;
+}
+
 async function generateMainAiTextResponse(
   messages: Message[],
   roleplayProfile: Persona | null,
@@ -146,7 +189,7 @@ async function generateMainAiTextResponse(
   difficultyProfile: string,
   scenarioId: string,
 ): Promise<string> {
-  console.log(`[${requestId}] Generating main AI text response with Gemini, scenario: ${scenarioId}. Messages count: ${messages.length}`);
+  console.log(`[${requestId}] Generating main AI text response, scenario: ${scenarioId}. Messages count: ${messages.length}`);
 
   let roleplayProfilePrompt = 
   PERSONA_PROMPTS[roleplayProfile?.id ?? ""] || PERSONA_PROMPTS.LIANG_CHEN;
@@ -164,117 +207,191 @@ async function generateMainAiTextResponse(
 
   ## Response-Length & Brevity Rules
   1. MIRROR TURN-LENGTH  
-    • If the user’s last turn is very short (<10 words), keep your reply under 2 sentences.  
+    • If the user's last turn is very short (<10 words), keep your reply under 2 sentences.  
     • If the user speaks 10–30 words, reply in 3–4 sentences.  
     • Go beyond 4 sentences only for new or critical information.
 
   2. BALANCED TURN-TAKING  
-    • Match response density to the user: brief for brief, detailed for “why” or “how.”
+    • Match response density to the user: brief for brief, detailed for "why" or "how."
 
   3. HUMAN TONE  
     • Write conversationally—use contractions and everyday language.
 
   ## End-Session Phrases  
   When you decide the conversation is wrapping up (e.g. client has no more questions), choose exactly one of these to close the call naturally:
-    • “Alright, see you next time”  
-    • “Great chatting—see you next time.”  
-    • “That covers everything—talk soon.”  
-    • “Thanks. Have a good day!”
+    • "Alright, see you next time"  
+    • "Great chatting—see you next time."  
+    • "That covers everything—talk soon."  
+    • "Thanks. Have a good day!"
   `;
 
-  // Using Gemini for responses
-  // 1. Separate out the last message
+  try {
+    const rawResponse = await tryAIProviders(systemPromptContent, messages, requestId);
+    return processMainResponse(rawResponse, requestId);
+  } catch (error: any) {
+    console.error(`[${requestId}] Error generating main AI response:`, error);
+    throw new Error(`Failed to get main AI response: ${error.message || 'Unknown error'}`);
+  }
+}
+
+async function callGeminiFlash(
+  systemPromptContent: string,
+  messages: Message[],
+  requestId: string
+): Promise<string> {
+  console.log(`[${requestId}] Attempting response generation with Gemini 2.5 Flash`);
+  const t0 = Date.now();
+  
   const lastMsgObj = messages[messages.length - 1];
   const priorMsgs = messages.slice(0, -1);
-
-  // 2. Create the chat with the earlier history, mapping roles
-  const t0 = Date.now();
-  let chat; // Declare chat outside the try block for broader scope
-
-  try {
-    console.log(`[${requestId}] Creating Gemini chat session...`);
-    chat = getGeminiClient().chats.create({
-      // model: "gemini-2.5-flash-lite-preview-06-17",
-      model: "gemini-2.5-flash",
-      history: priorMsgs.map(m => ({
-        role: m.role === "advisor" ? "user" : "model",
-        parts: [{ text: m.content }]
-      })),
-      config: {
-        systemInstruction: systemPromptContent
-      }
-    });
-    console.log(`[${requestId}] Gemini chat session created.`);
-
-    // 3. Send the very last message as the user’s new turn, mapping its role
-    console.log(`[${requestId}] Sending last message to Gemini chat...`);
-    const resp = await chat.sendMessage({
-      message: lastMsgObj.content
-    });
-
-    const latencyMs = Date.now() - t0;
-    console.log(`[${requestId}] Gemini chat response latency: ${latencyMs} ms`);
-
-    const aiResponse = resp.text?.trim() || "";
-    if (!aiResponse) {
-      console.error(`[${requestId}] Gemini returned an empty response for chat.sendMessage.`);
-      throw new Error("Gemini chat returned empty response");
+  
+  const chat = getGeminiClient().chats.create({
+    model: "gemini-2.5-flash",
+    history: priorMsgs.map(m => ({
+      role: m.role === "advisor" ? "user" : "model",
+      parts: [{ text: m.content }]
+    })),
+    config: {
+      systemInstruction: systemPromptContent
     }
+  });
+  
+  console.log(`[${requestId}] Gemini Flash chat session created`);
+  
+  const resp = await chat.sendMessage({
+    message: lastMsgObj.content
+  });
+  
+  const latencyMs = Date.now() - t0;
+  console.log(`[${requestId}] Gemini Flash response latency: ${latencyMs} ms`);
+  
+  const aiResponse = resp.text?.trim() || "";
+  if (!aiResponse) {
+    throw new Error("Gemini Flash returned empty response");
+  }
+  
+  console.log(`[${requestId}] Gemini Flash response: "${aiResponse.substring(0, 100)}..."`);
+  return aiResponse;
+}
 
-    console.log(`[${requestId}] Gemini chat main response: "${aiResponse.substring(0, 100)}..."`);
-    return aiResponse;
+async function callGeminiFlashLite(
+  systemPromptContent: string,
+  messages: Message[],
+  requestId: string
+): Promise<string> {
+  console.log(`[${requestId}] Attempting response generation with Gemini 2.5 Flash Lite`);
+  const t0 = Date.now();
+  
+  const lastMsgObj = messages[messages.length - 1];
+  const priorMsgs = messages.slice(0, -1);
+  
+  const chat = getGeminiClient().chats.create({
+    model: "gemini-2.5-flash-lite-preview-06-17",
+    history: priorMsgs.map(m => ({
+      role: m.role === "advisor" ? "user" : "model",
+      parts: [{ text: m.content }]
+    })),
+    config: {
+      systemInstruction: systemPromptContent
+    }
+  });
+  
+  console.log(`[${requestId}] Gemini Flash Lite chat session created`);
+  
+  const resp = await chat.sendMessage({
+    message: lastMsgObj.content
+  });
+  
+  const latencyMs = Date.now() - t0;
+  console.log(`[${requestId}] Gemini Flash Lite response latency: ${latencyMs} ms`);
+  
+  const aiResponse = resp.text?.trim() || "";
+  if (!aiResponse) {
+    throw new Error("Gemini Flash Lite returned empty response");
+  }
+  
+  console.log(`[${requestId}] Gemini Flash Lite response: "${aiResponse.substring(0, 100)}..."`);
+  return aiResponse;
+}
 
-  } catch (err: any) {
-    console.error(`[${requestId}] Error during Gemini chat interaction:`, err);
-    console.log(`[${requestId}] Falling back to Groq for AI response generation...`);
-    
-    // Fallback to Groq if Gemini fails
+async function callGroq(
+  systemPromptContent: string,
+  messages: Message[],
+  requestId: string
+): Promise<string> {
+  console.log(`[${requestId}] Attempting response generation with Groq`);
+  const t0 = Date.now();
+  
+  // Define a mini‐type alias for Groq's roles
+  type GroqRole = "system" | "user" | "assistant";
+  
+  // Annotate the chat array
+  const chat: { role: GroqRole; content: string }[] = [
+    { role: "system", content: systemPromptContent }
+  ];
+  
+  // Push all messages, casting to the literal types
+  chat.push(
+    ...messages.map(m => ({
+      role: (m.role === "advisor" ? "user" : "assistant") as GroqRole,
+      content: m.content
+    }))
+  );
+  
+  console.log(`[${requestId}] Groq chat messages prepared`);
+  
+  const completion = await getGroqClient().chat.completions.create({
+    messages: chat,
+    model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+  });
+  
+  const latencyMs = Date.now() - t0;
+  console.log(`[${requestId}] Groq response latency: ${latencyMs} ms`);
+  
+  const aiResponse = completion.choices[0]?.message?.content?.trim() || "";
+  if (!aiResponse) {
+    throw new Error("Groq returned empty response");
+  }
+  
+  console.log(`[${requestId}] Groq response: "${aiResponse.substring(0, 100)}..."`);
+  return aiResponse;
+}
+
+async function tryAIProviders(
+  systemPromptContent: string,
+  messages: Message[],
+  requestId: string
+): Promise<string> {
+  const providers = [
+    { name: "Gemini 2.5 Flash", fn: () => callGeminiFlash(systemPromptContent, messages, requestId) },
+    { name: "Gemini 2.5 Flash Lite", fn: () => callGeminiFlashLite(systemPromptContent, messages, requestId) },
+    { name: "Groq", fn: () => callGroq(systemPromptContent, messages, requestId) }
+  ];
+
+  const errors: string[] = [];
+
+  for (const provider of providers) {
     try {
-      console.log(`[${requestId}] Preparing Groq chat messages...`);
-      const groqT0 = Date.now();
+      console.log(`[${requestId}] Trying ${provider.name} for main response generation`);
+      const rawResponse = await provider.fn();
       
-      // 1️⃣ Define a mini‐type alias for Groq's roles
-      type GroqRole = "system" | "user" | "assistant";
-
-      // 2️⃣ Annotate your chat array
-      const chat: { role: GroqRole; content: string }[] = [
-        { role: "system", content: systemPromptContent }
-      ];
-
-      // 3️⃣ Push your prior messages, *casting* to the literal types
-      chat.push(
-        ...messages.map(m => ({
-          role: (m.role === "advisor" ? "user" : "assistant") as GroqRole,
-          content: m.content
-        }))
-      );
-      
-      console.log(`[${requestId}] Groq chat messages prepared.`);
-
-      // Send the chat completion request
-      console.log(`[${requestId}] Sending request to Groq...`);
-      const completion = await getGroqClient().chat.completions.create({
-        messages: chat,
-        model: "meta-llama/llama-4-maverick-17b-128e-instruct",
-      });
-
-      const groqLatencyMs = Date.now() - groqT0;
-      console.log(`[${requestId}] Groq response latency: ${groqLatencyMs} ms`);
-
-      const aiResponse = completion.choices[0]?.message?.content?.trim() || "";
-      if (!aiResponse) {
-        console.error(`[${requestId}] Groq returned an empty response.`);
-        throw new Error("Groq returned empty response");
+      // Validate response before accepting it
+      if (isValidResponse(rawResponse)) {
+        console.log(`[${requestId}] ${provider.name} returned valid response`);
+        return rawResponse;
+      } else {
+        console.warn(`[${requestId}] ${provider.name} returned invalid response, trying next provider`);
+        errors.push(`${provider.name}: Invalid response format`);
+        continue; // Try next provider
       }
-
-      console.log(`[${requestId}] Groq fallback main response: "${aiResponse.substring(0, 100)}..."`);
-      return aiResponse;
-
-    } catch (groqErr: any) {
-      console.error(`[${requestId}] Error during Groq fallback:`, groqErr);
-      throw new Error(`Failed to get main AI response from both Gemini and Groq. Gemini: ${err.message || 'Unknown error'}. Groq: ${groqErr.message || 'Unknown error'}`);
+    } catch (error: any) {
+      console.error(`[${requestId}] ${provider.name} failed:`, error.message);
+      errors.push(`${provider.name}: ${error.message}`);
+      continue; // Try next provider
     }
   }
+
+  throw new Error(`Main response generation failed with all models: ${errors.join(" → ")}`);
 }
 
 export async function POST(req: Request) {

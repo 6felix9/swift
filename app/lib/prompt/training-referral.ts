@@ -8,6 +8,12 @@ export const trainingReferralEvaluationInstructions = `
 5. totalScore = sum of subtotals, maxPossibleScore = 85.  
 6. Output only the completed JSON object.
 
+### Referral success definition  
+A referral context is **successfully created** when the client:  
+1. Explicitly agrees to introduce or share contact, **or**  
+2. Invites the advisor to reach out (“Send him my way and I’ll loop you two”).  
+Any polite deferral (“I’ll think about it”) is **not** a success.
+
 {
   "evaluationSummary": {
     "totalScore": 0,
