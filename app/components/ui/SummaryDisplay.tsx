@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScenarioDefinition } from '@/lib/scenarios';
 import { Persona } from '@/lib/personas';
 import { toast } from 'sonner'; // Assuming toast is used for error notifications
+import { difficulties } from '@/components/ui/DifficultySelection';
 
 interface SummaryDisplayProps {
   selectedScenario: ScenarioDefinition | undefined;
@@ -44,39 +45,44 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
 
   return (
     <>
-      {/* Selected Scenario Display */}
-      <Card className="mb-3 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
-        <CardHeader className="p-4 pb-2">
-          <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Scenario</p>
-          <CardTitle className="text-lg font-medium text-[#FFD700]">
-            {selectedScenario.name}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <p className="text-sm text-gray-300 mb-1">{selectedScenario.description}</p>
-          <p className="text-xs text-gray-400">Your Role: {selectedScenario.userRole}</p>
-        </CardContent>
-      </Card>
+      <div className="flex gap-3">
+        {/* Selected Scenario Display */}
+        <Card className="flex-1/2 mb-3 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
+          <CardHeader className="p-4 pb-2">
+            <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Scenario</p>
+            <CardTitle className="text-lg font-medium text-[#FFD700]">
+              {selectedScenario.name}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <p className="text-sm text-gray-300 mb-1">{selectedScenario.description}</p>
+            <p className="text-xs text-gray-400">Your Role: {selectedScenario.userRole}</p>
+          </CardContent>
+        </Card>
 
-      {/* Selected Difficulty Display */}
-      <Card className="mb-3 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
-        <CardHeader className="p-4 pb-2">
-          <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Difficulty</p>
-          <CardTitle className="text-lg font-medium text-[#FFD700]">
-            {selectedDifficulty && (() => {
-              // Capitalize first letter
-              const label = selectedDifficulty[0].toUpperCase() + selectedDifficulty.slice(1);
-              // 1 star for easy, 2 for medium, 3 for hard
-              const count = selectedDifficulty === 'easy'
-                ? 1
-                : selectedDifficulty === 'medium'
-                  ? 2
-                  : 3;
-              return `${label} ${'⭐'.repeat(count)}`;
-            })()}
-          </CardTitle>
-        </CardHeader>
-      </Card>
+        {/* Selected Difficulty Display */}
+        <Card className="flex-1/2 mb-3 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
+          <CardHeader className="p-4 pb-2">
+            <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Difficulty</p>
+            <CardTitle className="text-lg font-medium text-[#FFD700]">
+              {selectedDifficulty && (() => {
+                // Capitalize first letter
+                const label = selectedDifficulty[0].toUpperCase() + selectedDifficulty.slice(1);
+                // 1 star for easy, 2 for medium, 3 for hard
+                const count = selectedDifficulty === 'easy'
+                  ? 1
+                  : selectedDifficulty === 'medium'
+                    ? 2
+                    : 3;
+                return `${label} ${'⭐'.repeat(count)}`;
+              })()}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <p className="text-sm text-gray-300 mb-1">{difficulties.find(difficulty => difficulty.id === selectedDifficulty)?.description}</p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Selected Persona Display */}
       <Card className="mb-6 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">

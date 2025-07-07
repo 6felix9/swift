@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Message } from "@/lib/types";
 import { brandColors } from "@/lib/constants";
 import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
-import { PhoneOff, Mic, MicOff, MessageSquare, MessageSquareOff, User, Target, CheckCircle, Info } from 'lucide-react'; // CheckCircle2 moved to ScenarioSelection
+import { PhoneOff, Mic, MicOff, MessageSquare, MessageSquareOff, User, Target, CheckCircle, Info, Eye, EyeOff } from 'lucide-react'; // CheckCircle2 moved to ScenarioSelection
 import { ScenarioSelection } from '@/components/ui/ScenarioSelection';
 import { PersonaSelection } from '@/components/ui/PersonaSelection';
 import { DifficultySelection } from "@/components/ui/DifficultySelection";
@@ -71,6 +71,7 @@ export default function Home() {
   // Add this state variable at the top of your component
   const [isMessagesPanelVisible, setIsMessagesPanelVisible] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isSuggestionsPanelVisible, setIsSuggestionsPanelVisible] = useState(true);
 
   // State for new Scenario-based training
   const [scenarioDefinitionsData, setScenarioDefinitionsData] = useState<ScenarioDefinition[]>([]);
@@ -88,6 +89,10 @@ export default function Home() {
 
   const toggleMessagesPanel = () => {
     setIsMessagesPanelVisible(!isMessagesPanelVisible);
+  };
+
+  const toggleSuggestionsPanel = () => {
+    setIsSuggestionsPanelVisible(!isSuggestionsPanelVisible);
   };
 
   useEffect(() => {
@@ -717,6 +722,66 @@ export default function Home() {
   /**
    * Connects to a Digital Human avatar using the server-side service.
    */
+  /**
+   * Validates WebSocket connection stability after initial handshake
+   * Checks connection status multiple times over 2-3 seconds to ensure stability
+   */
+  const validateConnectionStability = useCallback(async (sessionId: string): Promise<boolean> => {
+    const maxAttempts = 6; // 3 seconds of monitoring (6 attempts * 500ms)
+    const pollInterval = 500; // Check every 500ms
+    let consecutiveSuccesses = 0;
+    const requiredSuccesses = 3; // Need 3 consecutive successes for stability
+    
+    console.log('[ConnectionValidation] Starting stability validation for session:', sessionId);
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const response = await fetch(`/api/digital-human?action=validate&sessionId=${sessionId}`);
+        const result = await response.json();
+        
+        console.log(`[ConnectionValidation] Attempt ${attempt + 1}/${maxAttempts}:`, result);
+        
+        if (result.valid && result.status === 'active') {
+          consecutiveSuccesses++;
+          console.log(`[ConnectionValidation] Success ${consecutiveSuccesses}/${requiredSuccesses}`);
+          
+          // If we have enough consecutive successes, connection is stable
+          if (consecutiveSuccesses >= requiredSuccesses) {
+            console.log('[ConnectionValidation] Connection validated as stable');
+            return true;
+          }
+        } else {
+          consecutiveSuccesses = 0; // Reset on failure
+          console.log(`[ConnectionValidation] Connection not stable: ${result.status}`);
+          
+          // If we're past the initial attempts and still failing, give up
+          if (attempt >= 2) {
+            throw new Error(`Connection unstable: ${result.status || 'Unknown error'}`);
+          }
+        }
+        
+        // Wait before next check (except on last attempt)
+        if (attempt < maxAttempts - 1) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+        }
+      } catch (error: any) {
+        consecutiveSuccesses = 0;
+        console.error(`[ConnectionValidation] Error on attempt ${attempt + 1}:`, error);
+        
+        // If this is the last attempt or we've had multiple failures, give up
+        if (attempt === maxAttempts - 1 || attempt >= 2) {
+          throw new Error(error.message || 'Connection validation failed');
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+      }
+    }
+    
+    console.log('[ConnectionValidation] Validation incomplete - not enough consecutive successes');
+    return false;
+  }, []);
+
   const handleConnectAvatar = async (selectedPersonaId: string): Promise<string> => {
     if (isAvatarConnected && sessionId) {
       console.log('[Page] Avatar already connected.');
@@ -781,7 +846,9 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    endCallRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (isSuggestionsPanelVisible) {
+      endCallRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
   }, [suggestions]);
 
   useEffect(() => {
@@ -860,11 +927,40 @@ export default function Home() {
                     try {
                       await handleDifficultyProfileGeneration(selectedDifficulty, selectedScenarioId);
                       const id = await handleConnectAvatar(selectedPersonaId);
+                      
+                      // Validate connection stability after initial handshake
+                      console.log('[onNextToSummary] Validating connection stability...');
+                      toast.info('Validating connection stability...');
+                      
+                      const isStable = await validateConnectionStability(id);
+                      if (!isStable) {
+                        throw new Error('Connection validation failed - avatar may be busy or disconnected');
+                      }
+                      
                       setTempID(id);
-                      console.log('[onNextToSummary] Session preparation complete.');
+                      console.log('[onNextToSummary] Session preparation complete with validated connection.');
+                      toast.success('Connection validated successfully!');
                     } catch (error) {
                       console.error('[onNextToSummary] Session preparation failed:', error);
-                      toast.error('Failed to prepare the session. Please check your connection and try again.');
+                      
+                      // Clear connection state on validation failure
+                      setIsAvatarConnected(false);
+                      setSessionId(null);
+                      try {
+                        sessionStorage.removeItem('swift_ai_session_id');
+                        sessionStorage.removeItem('swift_ai_avatar_connected');
+                      } catch (storageError) {
+                        console.warn('[SessionStorage] Failed to clear session on validation failure:', storageError);
+                      }
+                      
+                      // Provide specific error message for connection issues
+                      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+                      if (errorMessage.includes('Connection validation failed') || errorMessage.includes('unstable')) {
+                        toast.error('Avatar connection failed. The avatar may be busy with another user. Please try again in a moment.');
+                      } else {
+                        toast.error('Failed to prepare the session. Please check your connection and try again.');
+                      }
+                      
                       setSelectionStep('selectDifficulty');
                     } finally {
                       setIsPreparingSession(false);
@@ -1103,21 +1199,45 @@ export default function Home() {
         </div>
 
         {/* Bottom Controls Section */}
-        <div className="flex flex-col items-center justify-center w-full max-w-3xl mx-auto mt-8">
-          {/* Mute Status Indicator */}
-          {isMuted && (
-            <div className="text-red-400 text-sm font-medium">
-              You are muted
+        <div className="w-full max-w-3xl mx-auto mt-4 relative">
+          {/* Top row with mute indicator and toggle button */}
+          <div className="flex items-center justify-between w-full mb-2">
+            {/* Left side - Empty space */}
+            <div className="flex-1"></div>
+            
+            {/* Center - Mute Status Indicator */}
+            <div className="flex-1 flex justify-center">
+              {isMuted && (
+                <div className="text-red-400 text-sm font-medium">
+                  You are muted
+                </div>
+              )}
             </div>
-          )}
+            
+            {/* Right side - Suggestions Panel Toggle Button */}
+            <div className="flex-1 flex justify-end">
+              <Button
+                onClick={toggleSuggestionsPanel}
+                className="p-2 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl border-2 bg-[#00A9E7] hover:bg-[#0098D1] border-[#00A9E7] text-white hover:border-[#0098D1]"
+                aria-label={isSuggestionsPanelVisible ? "Hide suggestions" : "Show suggestions"}
+                title={isSuggestionsPanelVisible ? "Hide suggestions" : "Show suggestions"}
+              >
+                {isSuggestionsPanelVisible ? (
+                  <EyeOff size={20} />
+                ) : (
+                  <Eye size={20} />
+                )}
+              </Button>
+            </div>
+          </div>
                     
           {isApiLoading ? (
             <div className="mt-4 mb-2 w-full max-w-3xl mx-auto flex justify-center px-4">
               <LoadingIcon />
             </div>
           ) : suggestions && suggestions.length > 0 ? (
-            <div className="mt-4 mb-2 w-full max-w-3xl mx-auto flex flex-wrap justify-center gap-2 px-4">
-              {suggestions.map((suggestion, index) => (
+            <div className="mt-4 mb-2 w-full max-w-3xl mx-auto flex flex-wrap justify-center gap-2 px-4 relative">
+              {isSuggestionsPanelVisible && suggestions.map((suggestion, index) => (
                 <Button
                   key={index}
                   variant="outline"
@@ -1135,7 +1255,7 @@ export default function Home() {
           ) : null}
           
           {/* End Call Button - Moved below the form */}
-          <div className="w-full max-w-3xl mx-4 mt-4">
+          <div className="w-full max-w-3xl mx-auto mt-4">
             <Button
               ref={endCallRef}
               type="button"
@@ -1148,7 +1268,7 @@ export default function Home() {
             </Button>
           </div>
 
-          <div className="pt-6 text-center max-w-xl text-balance min-h-16 mx-4" style={{ color: '#FFFFFF', fontSize: '0.95rem' }}>
+          <div className="pt-6 text-center max-w-xl text-balance min-h-16 mx-auto px-4" style={{ color: '#FFFFFF', fontSize: '0.95rem' }}>
             {messages.length === 0 && listeningInitiated && (
               <AnimatePresence>
                 {vad.loading ? (

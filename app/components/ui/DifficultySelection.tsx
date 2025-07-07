@@ -17,21 +17,21 @@ interface DifficultySelectionProps {
   onNextToSummary: () => void;
 }
 
-const difficulties: { id: Difficulty; title: string; description: string }[] = [
+export const difficulties: { id: Difficulty; title: string; description: string }[] = [
   {
     id: 'easy',
     title: 'Easy ⭐',
-    description: `The client enjoys a long-standing, high-trust relationship, communicates openly, experiences low financial stress, makes decisive solo decisions, tolerates minor missteps, and follows through promptly.`
+    description: `Guarded but open. Moderate-high trust that can grow with a clear, data-driven win. Allows one minor slip; ask only after demonstrating tangible value.`
   },
   {
     id: 'medium',
     title: 'Medium ⭐⭐',
-    description: `The client has a multi-year, respectful relationship, values detail-oriented communication, manages variable income, consults their spouse on decisions, requires concrete examples, and allows limited validation.`
+    description: `Cautious and analytical. Trust on probation—zero tolerance for mis-steps. Requires rigorous evidence, case studies, and low-pressure timing before any referral talk.`
   },
   {
     id: 'hard',
     title: 'Hard ⭐⭐⭐',
-    description: `The client’s relationship is new with low trust from past disappointments, communicates privately and skeptically, faces high financial stress, relies on consensus-driven slow decisions, demands detailed data, and insists on formal validation.`
+    description: `Ultra-guarded, deeply skeptical. Trust starts low and collapses at the first mistake. Formal audits, multi-gatekeeper approvals, and near-impossible referral access.`
   }
 ];
 
