@@ -1,8 +1,4 @@
 import { generateDifficultyProfile } from "@/lib/difficultyService";
-import { GoogleGenAI } from "@google/genai";
-
-// Testing Gemini flash 2.5 model for evaluation
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID().substring(0, 8);
