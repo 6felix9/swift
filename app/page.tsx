@@ -56,6 +56,8 @@ export default function Home() {
   const [minSpeechTimeForInterrupt, setMinSpeechTimeForInterrupt] = useState(200);
 
   const pendingEndCall = useRef(false);
+  const handleEndCallRef = useRef<(() => void) | null>(null);
+  const vadRef = useRef<any>(null);
 
   // State for evaluation
   const [evaluationData, setEvaluationData] = useState<EvaluationResponse | null>(null);
@@ -222,7 +224,7 @@ export default function Home() {
         console.log('[handleSubmit] Ending phrase detected, will auto-end when stream finishes'); 
         pendingEndCall.current = true;
         setTimeout(() => {
-          handleEndCall();
+          handleEndCallRef.current?.();
         }, 5000);
       }
 
@@ -340,9 +342,9 @@ export default function Home() {
 
     player.stop(); // Stop any currently playing audio
     console.log("[handleEndCall] Ending call. Current selectionStep:", selectionStep);
-    if (vad && typeof vad.pause === 'function') {
+    if (vadRef.current && typeof vadRef.current.pause === 'function') {
       console.log("[Debug] Ending call. Stopping VAD for evaluation.");
-      vad.pause();
+      vadRef.current.pause();
     }
 
     // Disconnect avatar and leave room
@@ -441,6 +443,10 @@ export default function Home() {
     scenarioDefinitionsData
   ]);
 
+  // Update the ref whenever handleEndCall changes
+  useEffect(() => {
+    handleEndCallRef.current = handleEndCall;
+  }, [handleEndCall]);
 
   /**
    * Voice Activity Detection (VAD) Configuration
@@ -615,6 +621,11 @@ export default function Home() {
       }
     }
   }, [vad, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
+
+  // Update the ref whenever vad changes
+  useEffect(() => {
+    vadRef.current = vad;
+  }, [vad]);
 
   // Effect to verify ONNX files are accessible at runtime
   useEffect(() => {
@@ -849,7 +860,7 @@ export default function Home() {
     if (isSuggestionsPanelVisible) {
       endCallRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     }
-  }, [suggestions]);
+  }, [suggestions, isSuggestionsPanelVisible]);
 
   useEffect(() => {
     if (messagesContainerRef.current) {
