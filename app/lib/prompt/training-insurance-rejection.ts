@@ -14,8 +14,8 @@ export const trainingInsuranceRejectionEvaluationInstructions = `
     "keyStrengths": "",
     "keyAreasForImprovement": "",
     "referralContextSuccessfullyCreated": {
-      "answer": "",
-      "justification": ""
+      "answer": "Not applicable",
+      "justification": "Not applicable"
     }
   },
   "detailedEvaluation": [

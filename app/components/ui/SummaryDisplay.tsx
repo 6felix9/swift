@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScenarioDefinition } from '@/lib/scenarios';
 import { Persona } from '@/lib/personas';
 import { toast } from 'sonner'; // Assuming toast is used for error notifications
-import { difficulties } from '@/components/ui/DifficultySelection';
+import { getDifficultyDescriptions } from '@/lib/scenarioConfig';
 
 interface SummaryDisplayProps {
   selectedScenario: ScenarioDefinition | undefined;
@@ -79,7 +79,7 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <p className="text-sm text-gray-300 mb-1">{difficulties.find(difficulty => difficulty.id === selectedDifficulty)?.description}</p>
+            <p className="text-sm text-gray-300 mb-1">{getDifficultyDescriptions(selectedScenario.id).find(difficulty => difficulty.id === selectedDifficulty)?.description}</p>
           </CardContent>
         </Card>
       </div>

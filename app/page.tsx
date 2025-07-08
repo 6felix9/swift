@@ -245,6 +245,7 @@ export default function Home() {
               conversationHistory: hist,
               aiLastResponse: text,
               requestId: crypto.randomUUID().slice(0,8),
+              scenarioId: selectedScenario?.id,
             }),
           });
           if (!sugRes.ok) throw new Error(await sugRes.text());

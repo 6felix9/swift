@@ -6,6 +6,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { ScenarioDefinition } from '@/lib/scenarios';
 import { Persona } from '@/lib/personas';
 import { Difficulty } from '@/lib/difficultyTypes';
+import { getDifficultyDescriptions } from '@/lib/scenarioConfig';
 
 interface DifficultySelectionProps {
   selectedScenario: ScenarioDefinition | undefined;
@@ -17,23 +18,8 @@ interface DifficultySelectionProps {
   onNextToSummary: () => void;
 }
 
-export const difficulties: { id: Difficulty; title: string; description: string }[] = [
-  {
-    id: 'easy',
-    title: 'Easy ⭐',
-    description: `Guarded but open. Moderate-high trust that can grow with a clear, data-driven win. Allows one minor slip; ask only after demonstrating tangible value.`
-  },
-  {
-    id: 'medium',
-    title: 'Medium ⭐⭐',
-    description: `Cautious and analytical. Trust on probation—zero tolerance for mis-steps. Requires rigorous evidence, case studies, and low-pressure timing before any referral talk.`
-  },
-  {
-    id: 'hard',
-    title: 'Hard ⭐⭐⭐',
-    description: `Ultra-guarded, deeply skeptical. Trust starts low and collapses at the first mistake. Formal audits, multi-gatekeeper approvals, and near-impossible referral access.`
-  }
-];
+// Legacy export for backward compatibility - now dynamically generated
+export const difficulties: { id: Difficulty; title: string; description: string }[] = [];
 
 export const DifficultySelection: React.FC<DifficultySelectionProps> = ({
   selectedScenario,
@@ -49,6 +35,9 @@ export const DifficultySelection: React.FC<DifficultySelectionProps> = ({
       Error: Scenario or persona is missing. Please go back.
     </p>;
   }
+
+  // Get scenario-specific difficulty descriptions
+  const scenarioDifficulties = getDifficultyDescriptions(selectedScenario.id);
 
   return (
     <>
@@ -69,7 +58,7 @@ export const DifficultySelection: React.FC<DifficultySelectionProps> = ({
           How challenging should the customer be to convince?
         </p>
         <div className="space-y-3">
-          {difficulties.map((diff) => (
+          {scenarioDifficulties.map((diff) => (
             <Card
               key={diff.id}
               className={clsx(

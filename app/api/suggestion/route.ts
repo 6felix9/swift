@@ -8,6 +8,7 @@ export interface SuggestionRequest {
   conversationHistory: Message[];
   aiLastResponse: string;
   requestId: string;
+  scenarioId?: string;
 }
 
 export interface SuggestionResponse {
@@ -16,7 +17,7 @@ export interface SuggestionResponse {
 
 export async function POST(request: Request) {
   try {
-    const { conversationHistory, aiLastResponse, requestId } =
+    const { conversationHistory, aiLastResponse, requestId, scenarioId } =
       (await request.json()) as SuggestionRequest;
 
     if (
@@ -33,7 +34,8 @@ export async function POST(request: Request) {
     const suggestions = await generateNextTurnSuggestions(
       conversationHistory,
       aiLastResponse,
-      requestId
+      requestId,
+      scenarioId
     );
 
     return NextResponse.json<SuggestionResponse>({ suggestions });
