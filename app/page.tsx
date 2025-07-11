@@ -449,44 +449,64 @@ export default function Home() {
     handleEndCallRef.current = handleEndCall;
   }, [handleEndCall]);
 
-  /**
-   * Voice Activity Detection (VAD) Configuration
-   * 
-   * This configures real-time speech detection with smart interrupt handling:
-   * 
-   * 1. **Speech Detection**: Detects when user starts speaking
-   * 2. **Smart Interrupts**: Automatically interrupts avatar after minimum speech time
-   * 3. **Brief Sound Protection**: Cancels interrupts if speech is too short
-   * 4. **Audio Processing**: Converts speech to audio files for API submission
-   * 
-   * Key Features:
-   * - `minSpeechTimeForInterrupt` (200ms): Prevents brief sounds from interrupting
-   * - Configurable threshold for fine-tuning interrupt sensitivity
-   * - Comprehensive logging for debugging interrupt behavior
-   * - Firefox compatibility workarounds
-   */
-  const vad = useMicVAD({
-    // VAD model configuration
-    model: "v5", // Silero VAD v5 model for accurate speech detection
-    startOnLoad: false, // Manually control when VAD starts
+/**
+ * Voice Activity Detection (VAD) Configuration
+ * 
+ * This configures real-time speech detection with smart interrupt handling:
+ * 
+ * 1. **Speech Detection**: Detects when user starts speaking
+ * 2. **Smart Interrupts**: Automatically interrupts avatar after minimum speech time
+ * 3. **Brief Sound Protection**: Cancels interrupts if speech is too short
+ * 4. **Audio Processing**: Converts speech to audio files for API submission
+ * 
+ * Key Features:
+ * - `minSpeechTimeForInterrupt` (200ms): Prevents brief sounds from interrupting
+ * - `redemptionFrames` (31): Waits 1 second of silence before ending speech
+ * - Configurable threshold for fine-tuning interrupt sensitivity
+ * - Comprehensive logging for debugging interrupt behavior
+ * - Firefox compatibility workarounds
+ */
+const vad = useMicVAD({
+  // VAD model configuration
+  model: "v5", // Silero VAD v5 model for accurate speech detection
+  startOnLoad: false, // Manually control when VAD starts
+  
+  // Speech detection thresholds
+  positiveSpeechThreshold: 0.6, // Confidence threshold for speech detection
+  minSpeechFrames: 4, // Minimum consecutive frames for speech confirmation
+  
+  // Pause detection configuration
+  redemptionFrames: 31, // Wait ~1 second (31 frames * 32ms) of silence before ending speech
+  negativeSpeechThreshold: 0.35, // Threshold for detecting silence (default)
+  
+  // Frame configuration for v5 model
+  frameSamples: 512, // Frame size for Silero v5 model
+  
+  // Event handlers
+  onVADMisfire: () => {
+    console.log("[VAD] Misfire - no speech detected within timeout");
+    if (listeningInitiated && !manualListening) setIsListening(false);
+  },
+  
+  onSpeechStart: async () => {
+    // Check if user is muted first
+    if (isMuted) {
+      console.log('[VAD] User is muted, ignoring speech start');
+      return;
+    }
     
-    // Speech detection thresholds
-    positiveSpeechThreshold: 0.6, // Confidence threshold for speech detection
-    minSpeechFrames: 4, // Minimum consecutive frames for speech confirmation
+    console.log('[VAD DEBUG] onSpeechStart triggered', {
+      manualListening,
+      listeningInitiated,
+      sessionId: sessionId ? 'exists' : 'null',
+      isMuted
+    });
     
-    // Event handlers
-    onVADMisfire: () => {
-      console.log("[VAD] Misfire - no speech detected within timeout");
-      if (listeningInitiated && !manualListening) setIsListening(false);
-    },
-    
-    onSpeechStart: async () => {
-      // Check if user is muted first
-      if (isMuted) {
-        console.log('[VAD] User is muted, ignoring speech start');
-        return;
-      }
+    if (!manualListening && listeningInitiated) { // Ensure listening was initiated
+      setIsListening(true);
+      console.log('[VAD DEBUG] Listening state set to true');
       
+<<<<<<< HEAD
       // if (isApiLoading) {
       //   console.log("[VAD] API is loading, ignoring speech start.");
       //   return;
@@ -506,109 +526,113 @@ export default function Home() {
       if (!manualListening && listeningInitiated) { // Ensure listening was initiated
         setIsListening(true);
         console.log('[VAD DEBUG] Listening state set to true');
+=======
+      // Smart interrupt mechanism: Always prepare to send interrupt when speech detected
+      // This ensures any current avatar speech/animation is stopped for new user input
+      if (sessionId) {
+        console.log(`[VAD] Speech detected, preparing to interrupt avatar in ${minSpeechTimeForInterrupt}ms`);
+>>>>>>> 418e9ac (VAD increased pause time)
         
-        // Smart interrupt mechanism: Always prepare to send interrupt when speech detected
-        // This ensures any current avatar speech/animation is stopped for new user input
-        if (sessionId) {
-          console.log(`[VAD] Speech detected, preparing to interrupt avatar in ${minSpeechTimeForInterrupt}ms`);
-          
-          // Clear any existing timeout to reset the interrupt timer
-          if (interruptTimeoutId) {
-            clearTimeout(interruptTimeoutId);
-            console.log('[VAD] Cleared previous interrupt timeout');
-          }
-          
-          // Set timeout to send interrupt after minimum speech time
-          // This prevents very brief sounds (coughs, clicks, etc.) from interrupting the avatar
-          const timeoutId = setTimeout(async () => {
-            try {
-              console.log('[VAD] Minimum speech time reached, sending interrupt signal to avatar');
-              
-              // Send interrupt using PATCH endpoint
-              await fetch('/api/digital-human', {
-                method: 'PATCH',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ sessionId }),
-              });
-              
-              console.log('[VAD] Avatar interrupt signal sent successfully via client service');
-            } catch (error) {
-              console.error('[VAD] Error sending interrupt signal:', error);
-            } finally {
-              setInterruptTimeoutId(null);
-            }
-          }, minSpeechTimeForInterrupt);
-          
-          setInterruptTimeoutId(timeoutId);
-          console.log(`[VAD] Interrupt timer set for ${minSpeechTimeForInterrupt}ms`);
-        } else {
-          console.warn('[VAD] No sessionId available, cannot send interrupt');
+        // Clear any existing timeout to reset the interrupt timer
+        if (interruptTimeoutId) {
+          clearTimeout(interruptTimeoutId);
+          console.log('[VAD] Cleared previous interrupt timeout');
         }
+        
+        // Set timeout to send interrupt after minimum speech time
+        // This prevents very brief sounds (coughs, clicks, etc.) from interrupting the avatar
+        const timeoutId = setTimeout(async () => {
+          try {
+            console.log('[VAD] Minimum speech time reached, sending interrupt signal to avatar');
+            
+            // Send interrupt using PATCH endpoint
+            await fetch('/api/digital-human', {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ sessionId }),
+            });
+            
+            console.log('[VAD] Avatar interrupt signal sent successfully via client service');
+          } catch (error) {
+            console.error('[VAD] Error sending interrupt signal:', error);
+          } finally {
+            setInterruptTimeoutId(null);
+          }
+        }, minSpeechTimeForInterrupt);
+        
+        setInterruptTimeoutId(timeoutId);
+        console.log(`[VAD] Interrupt timer set for ${minSpeechTimeForInterrupt}ms`);
+      } else {
+        console.warn('[VAD] No sessionId available, cannot send interrupt');
       }
-    },
-    onSpeechEnd: async (audio) => {
-      // Check if user is muted first
-      if (isMuted) {
-        console.log('[VAD] User is muted, ignoring speech end');
-        return;
-      }
-      
-      // Anti-brief-sound protection: Cancel interrupt if speech ended quickly
-      // This prevents accidental interruptions from very short sounds
-      if (interruptTimeoutId) {
-        console.log(`[VAD] Speech ended before ${minSpeechTimeForInterrupt}ms threshold, cancelling interrupt`);
-        clearTimeout(interruptTimeoutId);
-        setInterruptTimeoutId(null);
-      }
-      
-      // Process the speech audio for submission to the API
-      player.stop();
-      const wav = utils.encodeWAV(audio);
-      // Create a File object instead of Blob to ensure proper handling
-      const audioFile = new File([wav], 'voice-message.wav', { type: 'audio/wav' });
-      console.log('[VAD] Processing speech audio:', {
-        type: audioFile.type,
-        size: audioFile.size,
-        name: audioFile.name,
-        duration: `${(audio.length / 16000).toFixed(2)}s` // Assuming 16kHz sample rate
-      });
-      
-      // Submit the audio for processing
-      handleSubmit(audioFile);
-      
-      // Update listening state
-      if (!manualListening) {
-        setIsListening(false);
-      }
-      
-      // Firefox-specific VAD pause workaround
-      const isFirefox = navigator.userAgent.includes("Firefox");
-      if (isFirefox && listeningInitiated) {
-        console.log('[VAD] Firefox detected, pausing VAD after speech end');
-        vad.pause(); // Pause only if initiated
-      }
-    },
+    }
+  },
+  
+  onSpeechEnd: async (audio) => {
+    // Check if user is muted first
+    if (isMuted) {
+      console.log('[VAD] User is muted, ignoring speech end');
+      return;
+    }
     
-    // ONNX Runtime configuration for WebAssembly model execution
-    ortConfig(ort) {
-      const isSafari = /^((?!chrome|android).)*safari/i.test(
-        navigator.userAgent
-      );
+    console.log('[VAD] Speech ended after 1 second pause detected');
+    
+    // Anti-brief-sound protection: Cancel interrupt if speech ended quickly
+    // This prevents accidental interruptions from very short sounds
+    if (interruptTimeoutId) {
+      console.log(`[VAD] Speech ended before ${minSpeechTimeForInterrupt}ms threshold, cancelling interrupt`);
+      clearTimeout(interruptTimeoutId);
+      setInterruptTimeoutId(null);
+    }
+    
+    // Process the speech audio for submission to the API
+    player.stop();
+    const wav = utils.encodeWAV(audio);
+    // Create a File object instead of Blob to ensure proper handling
+    const audioFile = new File([wav], 'voice-message.wav', { type: 'audio/wav' });
+    console.log('[VAD] Processing speech audio:', {
+      type: audioFile.type,
+      size: audioFile.size,
+      name: audioFile.name,
+      duration: `${(audio.length / 16000).toFixed(2)}s` // Assuming 16kHz sample rate
+    });
+    
+    // Submit the audio for processing
+    handleSubmit(audioFile);
+    
+    // Update listening state
+    if (!manualListening) {
+      setIsListening(false);
+    }
+    
+    // Firefox-specific VAD pause workaround
+    const isFirefox = navigator.userAgent.includes("Firefox");
+    if (isFirefox && listeningInitiated) {
+      console.log('[VAD] Firefox detected, pausing VAD after speech end');
+      vad.pause(); // Pause only if initiated
+    }
+  },
+  
+  // ONNX Runtime configuration for WebAssembly model execution
+  ortConfig(ort) {
+    const isSafari = /^((?!chrome|android).)*safari/i.test(
+      navigator.userAgent
+    );
 
-      ort.env.wasm = {
-        wasmPaths: {
-          "ort-wasm-simd-threaded.wasm":
-            "/ort-wasm-simd-threaded.wasm",
-          "ort-wasm-simd.wasm": "/ort-wasm-simd.wasm",
-          "ort-wasm.wasm": "/ort-wasm.wasm",
-          "ort-wasm-threaded.wasm": "/ort-wasm-threaded.wasm",
-        },
-        numThreads: isSafari ? 1 : 4,
-      };
-    },
-  });
+    ort.env.wasm = {
+      wasmPaths: {
+        "ort-wasm-simd-threaded.wasm":
+          "/ort-wasm-simd-threaded.wasm",
+        "ort-wasm-simd.wasm": "/ort-wasm-simd.wasm",
+        "ort-wasm.wasm": "/ort-wasm.wasm",
+        "ort-wasm-threaded.wasm": "/ort-wasm-threaded.wasm",
+      },
+      numThreads: isSafari ? 1 : 4,
+    };
+  },
+});
 
   // Effect to monitor VAD status changes - Defined AFTER vad initialization
   useEffect(() => {
