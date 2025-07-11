@@ -44,7 +44,7 @@ export const referralDifficultyProfileInstructions = `
 
   (situationalContext)
     referralTriggers:
-      easy   ["Passive—friend hints at needing advice"]
+      easy ["Active—client just praised advisor","Friend already asked about advisor"]
       medium ["Dormant—no obvious trigger"]
       hard   ["None—network stable & private"]
     primaryMotivations:
@@ -54,41 +54,41 @@ export const referralDifficultyProfileInstructions = `
 
   (coreVariables)
     baselineTrust:
-      easy   ["Moderate–High","Fairly trusting","Comfortably positive","High but verifying"]
-      medium ["Moderate–Low","Cautiously low","Guarded","Tentative confidence"]
-      hard   ["Low","Minimal","Near-zero"]
-    slipTolerance:           easy 1 | medium 0.5 | hard 0.1
-    trustDecayRate:          easy 0.35–0.55 | medium 0.55–0.85 | hard 0.95–1.05
+      easy   ["Moderate–High", "Fairly trusting"]
+      medium ["Moderate–Low", "Cautiously low"]
+      hard   ["Low"]
+    slipTolerance:           easy 2 | medium 1 | hard 0
+    trustDecayRate:          easy 0.40–0.50 | medium 0.60–0.80 | hard 0.95–1.00
     requiredSpecificityOfValue:
-      easy   ["Concrete example","Clear scenario","Simple success story","Plain-language illustration"]
-      medium ["Data + case study","Quantified comparison","ROI chart","Evidence-backed summary"]
-      hard   ["Verified metrics + timeline","Third-party-validated dataset","Audited performance report","Published white-paper"]
+      easy   ["Concrete example", "Clear scenario"]
+      medium ["Data + case study", "Quantified comparison"]
+      hard   ["Verified metrics + timeline", "Third-party-validated dataset"]
     privacySensitivity:
-      easy   ["Normal","Standard concern"]
-      medium ["High","Heightened awareness","Prefers discretion"]
-      hard   ["Very high","Strict","Ultra-private"]
+      easy   ["Normal"]
+      medium ["High", "Standard"]
+      hard   ["Very high", "Strict"]
     decisionComplexity:
-      easy   ["Spouse check","Partner sign-off","Quick family nod"]
-      medium ["Spouse + advisor review","Dual-advisor approval","Family vet + accountant"]
-      hard   ["Full committee review","Multi-gatekeeper signoff","Board-level consensus"]
+      easy   ["Spouse check", "Partner sign-off"]
+      medium ["Spouse + advisor review", "Dual-advisor approval"]
+      hard   ["Full committee review"]
     outsideValidation:
-      easy   ["Optional testimonial","Informal endorsement"]
-      medium ["Named past client","Published review","LinkedIn recommendation"]
-      hard   ["Third-party audit","Independent certification","Regulatory verification"]
-    referralThresholdScore:  easy 16–17 | medium 18–19 | hard 20–22
+      easy   ["Optional testimonial"]
+      medium ["Named past client"]
+      hard   ["Third-party audit", "Abrupt disengagement"]
+    referralThresholdScore:  easy 13–16 | medium 17–19 | hard ≥20
     responseStyleToPressure:
-      easy   ["Polite hesitation","Gentle pause"]
-      medium ["Cold deferral","Reserved postponement"]
-      hard   ["Immediate withdrawal","Abrupt disengagement"]
-    positiveSignalRequirement: easy 2 | medium 3 | hard 4
+      easy   ["Polite hesitation"]
+      medium ["Cold deferral"]
+      hard   ["Immediate withdrawal"]
+    positiveSignalRequirement: easy 1 | medium 3 | hard 4
     networkAccessOpenness:
-      easy   ["1 name after proof","Limited intro upon validation"]
-      medium ["Will 'think about it'","Tentative consideration"]
-      hard   ["No introductions promised","Access denied"]
+      easy   ["1 name after proof"]
+      medium ["Will 'think about it'"]
+      hard   ["No introductions promised"]
     followThroughRigidity:
-      easy   ["Joint call preferred","Co-ordinated email acceptable","Light touch follow-up"]
-      medium ["Formal deck required","Proposal document needed","Written brief requested"]
-      hard   ["Detailed dossier before intro","Comprehensive report mandatory","Legal review first"]
+      easy   ["Joint call preferred", "Co-ordinated email acceptable"]
+      medium ["Formal deck required", "Proposal document needed"]
+      hard   ["Detailed dossier before intro"]
 
   ──────────────── JSON TEMPLATE (key order) ────────────────
   {

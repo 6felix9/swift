@@ -49,7 +49,7 @@ Net Worth: Savings and investments (~$150K), renting an apartment.
 Primary Goals: Saving for a down payment on a first home, maximizing long-term investment growth, building a robust emergency fund, understanding retirement planning options.
 `,
     elevenLabsVoiceId: 'wrxvN1LZJIfL3HHvffqe',
-    avatarRole: '1733f6c6-3cfa-4183-be39-808f2bbfe9b2'
+    avatarRole: '20241014-people-bbox'
   },
   {
     id: 'SARAH_LEE', 

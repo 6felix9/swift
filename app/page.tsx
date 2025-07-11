@@ -234,16 +234,25 @@ export default function Home() {
       // 4️⃣ Fire-and-forget the suggestions fetch
       (async () => {
         try {
-          const hist = [
-            ...(data === "START" ? [] : messages.slice(-10)),  
-            { role: "client", content: text }
-          ];
+          let hist;
+          const currentMessages = messages.slice(-10);
+          
+          if (data === "START") {
+            hist = [{ role: "client", content: text }];
+          } else {
+            hist = [
+              ...currentMessages,
+              { role: "advisor", content: transcript },
+              { role: "client", content: text }
+            ];
+          }
+          
+          const history = hist.map(m => ({ role: m.role, content: m.content }));
           const sugRes = await fetch("/api/suggestion", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              conversationHistory: hist,
-              aiLastResponse: text,
+              conversationHistory: history,
               requestId: crypto.randomUUID().slice(0,8),
               scenarioId: selectedScenario?.id,
             }),
