@@ -506,32 +506,10 @@ const vad = useMicVAD({
       setIsListening(true);
       console.log('[VAD DEBUG] Listening state set to true');
       
-<<<<<<< HEAD
-      // if (isApiLoading) {
-      //   console.log("[VAD] API is loading, ignoring speech start.");
-      //   return;
-      // }
-      // if (apiLoadingEndTimeRef.current && Date.now() - apiLoadingEndTimeRef.current < 50) {
-      //   console.log("[VAD] Ignoring speech: in cooldown period after API call.");
-      //   return;
-      // }
-      // Add debugging to check if onSpeechStart is firing at all
-      console.log('[VAD DEBUG] onSpeechStart triggered', {
-        manualListening,
-        listeningInitiated,
-        sessionId: sessionId ? 'exists' : 'null',
-        isMuted
-      });
-      
-      if (!manualListening && listeningInitiated) { // Ensure listening was initiated
-        setIsListening(true);
-        console.log('[VAD DEBUG] Listening state set to true');
-=======
       // Smart interrupt mechanism: Always prepare to send interrupt when speech detected
       // This ensures any current avatar speech/animation is stopped for new user input
       if (sessionId) {
         console.log(`[VAD] Speech detected, preparing to interrupt avatar in ${minSpeechTimeForInterrupt}ms`);
->>>>>>> 418e9ac (VAD increased pause time)
         
         // Clear any existing timeout to reset the interrupt timer
         if (interruptTimeoutId) {
