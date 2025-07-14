@@ -223,9 +223,15 @@ export default function Home() {
       if (isEnding) {
         console.log('[handleSubmit] Ending phrase detected, will auto-end when stream finishes'); 
         pendingEndCall.current = true;
+        
+        // Calculate dynamic timeout based on message length for proper speech timing
+        const wordCount = text.trim().split(/\s+/).length;
+        const estimatedSpeechTime = Math.max(3000, (wordCount / 2.5) * 1000 + 2000); // ~2.5 words/sec + 2sec buffer, min 3sec
+        console.log(`[handleSubmit] Message length: ${wordCount} words, estimated speech time: ${estimatedSpeechTime}ms`);
+        
         setTimeout(() => {
           handleEndCallRef.current?.();
-        }, 5000);
+        }, estimatedSpeechTime);
       }
 
       // Clear input field

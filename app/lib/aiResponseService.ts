@@ -265,11 +265,13 @@ export async function generateMainAiTextResponse(
     • Write conversationally—use contractions and everyday language.
 
   ## End-Session Phrases  
-  When you decide the conversation is wrapping up (e.g. client has no more questions), choose exactly one of these to close the call naturally:
+  When you decide the conversation is wrapping up (e.g. client has no more questions), respond with ONLY one of these phrases as your complete response:
     • "Alright, see you next time"  
     • "Great chatting—see you next time."  
     • "That covers everything—talk soon."  
     • "Thanks. Have a good day!"
+  
+  CRITICAL: Use the goodbye phrase as your ENTIRE response. Do NOT add any additional content, questions, or explanations before or after the goodbye phrase. The goodbye phrase should be the complete and final message.
   `;
 
   try {

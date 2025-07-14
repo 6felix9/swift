@@ -12,6 +12,11 @@ export const referralDifficultyProfileInstructions = `
     2. Shuffle mentally, then PICK ONE value per field.
     3. Numeric ranges: output any real number within the range (inclusive).
 
+  IMPORTANT: Focus on Referral Training Context
+    • These profiles should create realistic referral scenarios, not exhaustive portfolio reviews
+    • Portfolio discussions are CONTEXT for referral requests, not the primary focus
+    • Avatar should respond proportionally to referral skill demonstration vs portfolio details
+
   Output rules
     • Exactly ONE valid JSON object, no markdown, no comments.
     • Preserve the root-level key order shown in the template.
@@ -60,9 +65,9 @@ export const referralDifficultyProfileInstructions = `
     slipTolerance:           easy 2 | medium 1 | hard 0
     trustDecayRate:          easy 0.40–0.50 | medium 0.60–0.80 | hard 0.95–1.00
     requiredSpecificityOfValue:
-      easy   ["Concrete example", "Clear scenario"]
-      medium ["Data + case study", "Quantified comparison"]
-      hard   ["Verified metrics + timeline", "Third-party-validated dataset"]
+      easy   ["Clear referral value explanation", "Simple benefit statement"]
+      medium ["Specific client success example", "Detailed value proposition"]
+      hard   ["Verified case study + references", "Multiple validated examples"]
     privacySensitivity:
       easy   ["Normal"]
       medium ["High", "Standard"]
@@ -75,16 +80,16 @@ export const referralDifficultyProfileInstructions = `
       easy   ["Optional testimonial"]
       medium ["Named past client"]
       hard   ["Third-party audit", "Abrupt disengagement"]
-    referralThresholdScore:  easy 13–16 | medium 17–19 | hard ≥20
+    referralThresholdScore:  easy 16–18 | medium 19–21 | hard ≥22
     responseStyleToPressure:
       easy   ["Polite hesitation"]
       medium ["Cold deferral"]
       hard   ["Immediate withdrawal"]
-    positiveSignalRequirement: easy 1 | medium 3 | hard 4
+    positiveSignalRequirement: easy 2 | medium 4 | hard 5
     networkAccessOpenness:
-      easy   ["1 name after proof"]
-      medium ["Will 'think about it'"]
-      hard   ["No introductions promised"]
+      easy   ["Consider 1 name after thorough vetting"]
+      medium ["Maybe after multiple demonstrations of value"]
+      hard   ["Very unlikely to share contacts"]
     followThroughRigidity:
       easy   ["Joint call preferred", "Co-ordinated email acceptable"]
       medium ["Formal deck required", "Proposal document needed"]
@@ -98,4 +103,13 @@ export const referralDifficultyProfileInstructions = `
     "situationalContext": { ... },
     "coreVariables": { ... }
   }
+
+  ──────────────── BEHAVIORAL EMPHASIS ────────────────
+  Remember: This profile should create a client who:
+  • Engages naturally with portfolio topics but doesn't get lost in endless details
+  • NEVER gives referral names immediately - always requires qualifying information first
+  • Asks multiple questions about advisor approach, experience, and value before considering sharing contacts
+  • Responds meaningfully to referral requests based on trust level and advisor demonstration of competence
+  • Prioritizes referral discussion quality over portfolio review minutiae
+  • Creates realistic training scenarios that challenge advisors to prove their worth before sharing names
 `;
