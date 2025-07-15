@@ -85,6 +85,11 @@ export default function Home() {
   const [isPreparingSession, setIsPreparingSession] = useState<boolean>(false);
   const [tempID, setTempID] = useState<string | null>(null);
 
+  // Call duration tracking state
+  const [callStartTime, setCallStartTime] = useState<number | null>(null);
+  const [callDuration, setCallDuration] = useState<number>(0);
+  const [callDurationInterval, setCallDurationInterval] = useState<NodeJS.Timeout | null>(null);
+
   // Wizard Step State for new flow
   const [selectionStep, setSelectionStep] = useState<'selectScenario' | 'selectPersona' | 'selectDifficulty' | 'summary' | 'evaluationResults' | null>('selectScenario'); // Added 'evaluationResults' and null
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -355,6 +360,19 @@ export default function Home() {
     /* 🚦 GUARD  */
     if (endCalledRef.current) return;     // already running once
     endCalledRef.current = true;          // mark as entered
+
+    // Stop call duration tracking
+    if (callDurationInterval) {
+      clearInterval(callDurationInterval);
+      setCallDurationInterval(null);
+    }
+    
+    // Calculate final duration if we have a start time
+    if (callStartTime) {
+      const finalDuration = Date.now() - callStartTime;
+      setCallDuration(finalDuration);
+      console.log("[CallDuration] Call ended, final duration:", Math.round(finalDuration / 1000), "seconds");
+    }
 
     player.stop(); // Stop any currently playing audio
     console.log("[handleEndCall] Ending call. Current selectionStep:", selectionStep);
@@ -719,6 +737,15 @@ const vad = useMicVAD({
     setIsAvatarConnected(false);
     setSessionId(null);
     setTempID(null);
+    
+    // Reset call duration tracking
+    if (callDurationInterval) {
+      clearInterval(callDurationInterval);
+      setCallDurationInterval(null);
+    }
+    setCallStartTime(null);
+    setCallDuration(0);
+    
     toast.info("Session Reset. Please select a new scenario.");
   };
     
@@ -1013,6 +1040,25 @@ const vad = useMicVAD({
                       return;
                     }
                     console.log("[Debug] Attempting to start session. Current VAD object:", vad);
+                    
+                    // Start call duration tracking
+                    const startTime = Date.now();
+                    setCallStartTime(startTime);
+                    setCallDuration(0);
+                    
+                    // Clear any existing interval
+                    if (callDurationInterval) {
+                      clearInterval(callDurationInterval);
+                    }
+                    
+                    // Start interval to update duration every second
+                    const interval = setInterval(() => {
+                      setCallDuration(Date.now() - startTime);
+                    }, 1000);
+                    setCallDurationInterval(interval);
+                    
+                    console.log("[CallDuration] Started tracking at:", new Date(startTime).toISOString());
+                    
                     // Set states first to ensure video container is rendered
                     setListeningInitiated(true);
                     setManualListening(false);
@@ -1064,6 +1110,7 @@ const vad = useMicVAD({
                   transcript={messages}
                   persona={getPersonaById(selectedPersonaId!)} 
                   scenario={getScenarioDefinitionById(selectedScenarioId!)} // Pass the entire scenario object
+                  callDuration={callDuration}
                 />
               )}
 

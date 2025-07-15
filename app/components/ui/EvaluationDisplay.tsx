@@ -21,7 +21,20 @@ interface EvaluationDisplayProps {
   transcript: Message[];
   persona: Persona | null;
   scenario: ScenarioDefinition | undefined;
+  callDuration: number;
 }
+
+// Utility function to format duration in MM:SS or HH:MM:SS format
+const formatDuration = (ms: number): string => {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  
+  if (hours > 0) {
+    return `${hours}:${(minutes % 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${(seconds % 60).toString().padStart(2, '0')}`;
+};
 
 export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
   difficulty,
@@ -32,6 +45,7 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
   transcript,
   persona,
   scenario,
+  callDuration,
 }) => {
 
   const onDownloadTranscript = () => {
@@ -188,6 +202,12 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
     doc.text(currentDate, margin + 30, currentY);
     currentY += 8;
   
+    doc.setFont('helvetica', 'bold');
+    doc.text('Call Duration:', margin, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(formatDuration(callDuration), margin + 35, currentY);
+    currentY += 8;
+
     doc.setFont('helvetica', 'bold');
     doc.text('Messages:', margin, currentY);
     doc.setFont('helvetica', 'normal');
@@ -404,6 +424,12 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
     doc.text(difficulty ? difficulty.charAt(0).toUpperCase() + difficulty.slice(1) : 'N/A', margin + 30, currentY);
     currentY += 8;
   
+    doc.setFont('helvetica', 'bold');
+    doc.text('Call Duration:', margin, currentY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(formatDuration(callDuration), margin + 35, currentY);
+    currentY += 8;
+
     doc.setFont('helvetica', 'bold');
     doc.text('Generated:', margin, currentY);
     doc.setFont('helvetica', 'normal');
@@ -657,12 +683,20 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
           <CardTitle className="text-2xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-cyan-400">
             Evaluation Results
           </CardTitle>
-          <p className="mt-1 text-sm text-gray-300 text-center">
-            Difficulty:{' '}
-            <span className="font-semibold text-white">
-              {difficulty ? difficulty.charAt(0).toUpperCase() + difficulty.slice(1) : 'N/A'}
-            </span>
-          </p>
+          <div className="flex justify-center space-x-4">
+            <p className="mt-1 text-sm text-gray-300 text-center">
+              Difficulty:{' '}
+              <span className="font-semibold text-white">
+                {difficulty ? difficulty.charAt(0).toUpperCase() + difficulty.slice(1) : 'N/A'}
+              </span>
+            </p>
+            <p className="mt-1 text-sm text-gray-300 text-center">
+              Call Duration:{' '}
+              <span className="font-semibold text-white">
+                {formatDuration(callDuration)}
+              </span>
+            </p>
+          </div>
         </CardHeader>
 
         <CardContent className="p-6 space-y-6">
