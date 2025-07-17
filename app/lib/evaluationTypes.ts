@@ -1,7 +1,13 @@
+import { TrainingDomain } from './types';
+
+export type CriterionType = 'numeric-scale' | 'pass-fail' | 'qualitative';
+
 export interface CriterionEvaluation {
   criterionId: string;
   criterionText: string;
+  type: CriterionType;
   score: number;
+  maxScore?: number;
   commentsAndExamples: string;
 }
 
@@ -15,10 +21,12 @@ export interface DetailedEvaluationCategory {
   subtotal: number;
   redFlagCheck: RedFlagCheck;
   criteria: CriterionEvaluation[];
+  domain?: TrainingDomain;
 }
 
-export interface ReferralContextSuccessfullyCreated {
-  answer: string; // "Partially", "Yes", "No"
+export interface DomainSpecificOutcome {
+  question: string;
+  answer: string; // "Partially", "Yes", "No", etc.
   justification: string;
 }
 
@@ -28,10 +36,11 @@ export interface EvaluationSummary {
   keyStrengths: string;
   keyAreasForImprovement: string;
   whereYouCouldHaveSaidBetter: string;
-  referralContextSuccessfullyCreated: ReferralContextSuccessfullyCreated;
+  domainSpecificOutcome?: DomainSpecificOutcome;
 }
 
 export interface EvaluationResponse {
+  domain: TrainingDomain;
   evaluationSummary: EvaluationSummary;
   detailedEvaluation: DetailedEvaluationCategory[];
 }

@@ -1,6 +1,7 @@
 import { trainingReferralEvaluationInstructions } from "./prompt/training-referral";
 import { trainingInsuranceRejectionEvaluationInstructions } from "./prompt/training-insurance-rejection";
 import { trainingGoalPlanningEvaluationInstructions } from "./prompt/training-goal-planning";
+import { TrainingDomain } from "./types";
 
 const instructions = `## Instructions:
 - You are Mei Ling, a friendly and helpful voice assistant of Health Line Hotline. You are based in Singapore.
@@ -93,3 +94,14 @@ export const PROMPTS = {
 	trainingReferralEvaluationInstructions,
   trainingInsuranceRejectionEvaluationInstructions
 }
+
+// NOTE: This file has been deprecated. All prompt definitions and utilities
+// have been moved to `lib/prompt/index.ts` and its submodules.
+//
+// For backward compatibility during the transition phase, we simply re-export
+// everything from the new location. This prevents duplicate symbol errors
+// while allowing existing import paths (`@/lib/prompt`) to continue to work.
+//
+// TODO (cleanup): Delete this file once all imports have been updated and
+// verified.
+export * from './prompt/index';

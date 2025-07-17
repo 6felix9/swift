@@ -503,23 +503,23 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
     doc.text(`(${percentage}%)`, margin + doc.getTextWidth(scoreText) + 15, currentY);
     currentY += 20;
   
-    // Referral Context Success
-    if (evaluationData.evaluationSummary.referralContextSuccessfullyCreated) {
+    // Domain Specific Outcome
+    if (evaluationData.evaluationSummary.domainSpecificOutcome) {
       checkPageBreak(25);
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(46, 125, 50);
-      doc.text('Referral Context Created:', margin, currentY);
+      doc.text('Domain Outcome:', margin, currentY);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(60, 60, 60);
-      doc.text(evaluationData.evaluationSummary.referralContextSuccessfullyCreated.answer, margin + 60, currentY);
+      doc.text(evaluationData.evaluationSummary.domainSpecificOutcome.answer, margin + 45, currentY);
       currentY += 8;
   
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 100, 100);
       const justificationLines = doc.splitTextToSize(
-        evaluationData.evaluationSummary.referralContextSuccessfullyCreated.justification,
+        evaluationData.evaluationSummary.domainSpecificOutcome.justification,
         contentWidth - 10
       );
       doc.text(justificationLines, margin + 5, currentY);
@@ -755,15 +755,17 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
             }</span>
             <span className="text-lg font-semibold text-gray-200">/ {evaluationData!.evaluationSummary.maxPossibleScore}</span>
           </div>
-            <div>
-              <span className="text-sm font-medium text-gray-300">Referral Context:</span>
-              <span className="block mt-1 text-white">
-                {evaluationData!.evaluationSummary.referralContextSuccessfullyCreated.answer}
-              </span>
-              <p className="mt-1 text-xs text-gray-400">
-                {evaluationData!.evaluationSummary.referralContextSuccessfullyCreated.justification}
-              </p>
-            </div>
+            {evaluationData!.evaluationSummary.domainSpecificOutcome && (
+              <div>
+                <span className="text-sm font-medium text-gray-300">Outcome:</span>
+                <span className="block mt-1 text-white">
+                  {evaluationData!.evaluationSummary.domainSpecificOutcome.answer}
+                </span>
+                <p className="mt-1 text-xs text-gray-400">
+                  {evaluationData!.evaluationSummary.domainSpecificOutcome.justification}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-gray-200 text-sm">

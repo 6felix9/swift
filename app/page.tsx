@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { Persona, personas, getPersonaById } from '@/lib/personas';
 import { ScenarioDefinition, scenarioDefinitions, getScenarioDefinitionById } from '@/lib/scenarios';
 import { TrainingDomain } from '@/lib/types';
-import { PROMPTS } from '@/lib/prompt';
+import { getEvaluationPrompt } from '@/lib/prompt';
 import { EvaluationResponse } from "@/lib/evaluationTypes";
 import { Difficulty } from '@/lib/difficultyTypes';
 import { initializeAndJoinRoom, leaveAndDestroyRoom } from '@/lib/rtcService';
@@ -220,13 +220,16 @@ export default function Home() {
       const text       = decodeURIComponent(response.headers.get("X-Response")   || "");
 
       // 3️⃣ Immediately render the new turn
+      const userRoleKey = selectedScenario?.userRole || 'advisor';
+      const personaRoleKey = selectedScenario?.personaRole || 'client';
+      
       if (data === "START") {
-        setMessages([{ role: "client", content: text }]);
+        setMessages([{ role: personaRoleKey, content: text }]);
       } else {
         setMessages(msgs => [
           ...msgs,
-          { role: "advisor", content: transcript },
-          { role: "client",  content: text, latency },
+          { role: userRoleKey, content: transcript },
+          { role: personaRoleKey,  content: text, latency },
         ]);
       }
 
@@ -255,13 +258,16 @@ export default function Home() {
           let hist;
           const currentMessages = messages.slice(-10);
           
+          const userRoleKey = selectedScenario?.userRole || 'advisor';
+          const personaRoleKey = selectedScenario?.personaRole || 'client';
+          
           if (data === "START") {
-            hist = [{ role: "client", content: text }];
+            hist = [{ role: personaRoleKey, content: text }];
           } else {
             hist = [
               ...currentMessages,
-              { role: "advisor", content: transcript },
-              { role: "client", content: text }
+              { role: userRoleKey, content: transcript },
+              { role: personaRoleKey, content: text }
             ];
           }
           
@@ -417,12 +423,13 @@ export default function Home() {
       
       const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
       console.log('[handleEndCall] selectedScenarioId:', selectedScenarioId);
-      const evaluationPromptContent = selectedScenario ? PROMPTS[selectedScenario.evaluationPromptKey as keyof typeof PROMPTS] : '';
+      const evaluationPromptContent = selectedScenario ? getEvaluationPrompt(selectedScenario.evaluationPromptKey, selectedDomain) : '';
       const requestBody = {
         messages: conversationHistory,
         roleplayProfile: profileData,
         evaluationPrompt: evaluationPromptContent,
         scenarioContext: selectedScenario?.scenarioContext || "",
+        domain: selectedDomain,
       };
       console.log('[handleEndCall] Fetching /api/evaluate with body:', JSON.stringify(requestBody, null, 2).substring(0, 100));
 
@@ -514,7 +521,8 @@ export default function Home() {
     callDuration,
     callDurationInterval,
     callStartTime,
-    selectedDifficulty
+    selectedDifficulty,
+    selectedDomain
   ]);
 
   // Update the ref whenever handleEndCall changes
@@ -1349,13 +1357,21 @@ const vad = useMicVAD({
                           <Card 
                           className={clsx(
                             "backdrop-blur-md shadow-lg transition-all duration-300 hover:shadow-xl",
-                            message.role === "client" 
-                              ? "bg-[#1D3B86]/60 border border-[#1D3B86]/60 hover:bg-[#1D3B86]/70" 
-                              : "bg-[#00A9E7]/40 border border-[#00A9E7]/40 hover:bg-[#00A9E7]/50"
+                            (() => {
+                              const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
+                              const personaRoleKey = selectedScenario?.personaRole || 'client';
+                              return message.role === personaRoleKey
+                                ? "bg-[#1D3B86]/60 border border-[#1D3B86]/60 hover:bg-[#1D3B86]/70" 
+                                : "bg-[#00A9E7]/40 border border-[#00A9E7]/40 hover:bg-[#00A9E7]/50";
+                            })()
                           )}>
                             <CardHeader className="pb-2">
                               <CardTitle className="text-sm font-medium text-white">
-                                {message.role === "client" ? "Customer" : "You"}
+                                {(() => {
+                                  const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
+                                  const personaRoleKey = selectedScenario?.personaRole || 'client';
+                                  return message.role === personaRoleKey ? (selectedScenario?.personaRole || 'Customer') : 'You';
+                                })()}
                               </CardTitle>
                             </CardHeader>
                             <CardContent>

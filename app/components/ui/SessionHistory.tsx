@@ -155,15 +155,17 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
                           </div>
                         </div>
                         <div className="flex items-center gap-3 text-sm">
-                          <span className={`px-2 py-1 rounded text-sm font-medium ${
-                            session.evaluationData.evaluationSummary.referralContextSuccessfullyCreated.answer === 'Yes'
-                              ? 'bg-green-500/20 text-green-400'
-                              : session.evaluationData.evaluationSummary.referralContextSuccessfullyCreated.answer === 'Partially'
-                              ? 'bg-yellow-500/20 text-yellow-400'
-                              : 'bg-red-500/20 text-red-400'
-                          }`}>
-                            {session.evaluationData.evaluationSummary.referralContextSuccessfullyCreated.answer}
-                          </span>
+                          {session.evaluationData.evaluationSummary.domainSpecificOutcome && (
+                            <span className={`px-2 py-1 rounded text-sm font-medium ${
+                              session.evaluationData.evaluationSummary.domainSpecificOutcome.answer === 'Yes'
+                                ? 'bg-green-500/20 text-green-400'
+                                : session.evaluationData.evaluationSummary.domainSpecificOutcome.answer === 'Partially'
+                                ? 'bg-yellow-500/20 text-yellow-400'
+                                : 'bg-red-500/20 text-red-400'
+                            }`}>
+                              {session.evaluationData.evaluationSummary.domainSpecificOutcome.answer}
+                            </span>
+                          )}
                           <span className="text-gray-400">•</span>
                           <span className="text-gray-400 capitalize">{session.difficulty} difficulty</span>
                         </div>

@@ -6,15 +6,15 @@ Transform Swift AI from a financial-advisor–specific trainer into a generalize
 
 ## Phase 1 – Data-Structure Generalization (1-2 days)
 
-### 1.1 Create Domain-Agnostic Interfaces
+### 1.1 Create Domain-Agnostic Interfaces ✅ **COMPLETED**
 - [x] Replace hard-coded `"Financial Advisor"` with configurable `trainerRole` in `ScenarioDefinition`
 - [x] Add `domain` field to `ScenarioDefinition` & `Persona`
 - [x] Define `TrainingDomain` type enumerating supported domains
 
-### 1.2 Refactor Core Types
-- [ ] Make `Message.role` configurable (e.g. `"trainer" | "trainee" | "system"`)
-- [ ] Add `domain` context to evaluation types
-- [ ] Create generic, extensible evaluation-criteria structure
+### 1.2 Refactor Core Types ✅ **COMPLETED**
+- [x] Make `Message.role` configurable (e.g. `"trainer" | "trainee" | "system"`)
+- [x] Add `domain` context to evaluation types
+- [x] Create generic, extensible evaluation-criteria structure
 
 ### 1.3 Frontend Domain Selection ✅ **COMPLETED**
 - [x] Add domain selection tabs to scenario selection UI
