@@ -17,6 +17,8 @@ import { ScenarioSelection } from '@/components/ui/ScenarioSelection';
 import { PersonaSelection } from '@/components/ui/PersonaSelection';
 import { DifficultySelection } from "@/components/ui/DifficultySelection";
 import { EvaluationDisplay } from '@/components/ui/EvaluationDisplay'; // Added
+import { SessionHistory } from '@/components/ui/SessionHistory';
+import { StoredSession, getSessionById, saveSession } from '@/lib/sessionStorage';
 import { toast } from 'sonner';
 
 import { Persona, personas, getPersonaById } from '@/lib/personas';
@@ -91,8 +93,11 @@ export default function Home() {
   const [callDurationInterval, setCallDurationInterval] = useState<NodeJS.Timeout | null>(null);
 
   // Wizard Step State for new flow
-  const [selectionStep, setSelectionStep] = useState<'selectScenario' | 'selectPersona' | 'selectDifficulty' | 'summary' | 'evaluationResults' | null>('selectScenario'); // Added 'evaluationResults' and null
+  const [selectionStep, setSelectionStep] = useState<'selectScenario' | 'selectPersona' | 'selectDifficulty' | 'summary' | 'evaluationResults' | 'sessionHistory' | 'viewHistoricalSession' | null>('selectScenario'); // Added session history steps
   const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  // Session History state
+  const [selectedHistoricalSession, setSelectedHistoricalSession] = useState<StoredSession | null>(null);
 
   const toggleMessagesPanel = () => {
     setIsMessagesPanelVisible(!isMessagesPanelVisible);
@@ -441,8 +446,37 @@ export default function Home() {
       console.log('[handleEndCall] API response JSON:', JSON.stringify(result, null, 2).substring(0, 100));
 
       if (result.evaluation) {
-        setEvaluationData(result.evaluation as EvaluationResponse);
+        const evaluationResult = result.evaluation as EvaluationResponse;
+        setEvaluationData(evaluationResult);
         console.log('[handleEndCall] Evaluation data set successfully.');
+        
+        // Save session to localStorage
+        try {
+          const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
+          const selectedPersona = personasData.find(p => p.id === selectedPersonaId);
+          
+          if (selectedScenario && selectedPersona && selectedDifficulty) {
+            saveSession({
+              scenario: selectedScenario,
+              persona: selectedPersona,
+              difficulty: selectedDifficulty,
+              evaluationData: evaluationResult,
+              transcript: messages,
+              callDuration: callDuration
+            });
+            console.log('[handleEndCall] Session saved to localStorage successfully.');
+          } else {
+            console.warn('[handleEndCall] Missing data for session saving:', {
+              hasScenario: !!selectedScenario,
+              hasPersona: !!selectedPersona,
+              hasDifficulty: !!selectedDifficulty
+            });
+          }
+        } catch (sessionSaveError) {
+          console.error('[handleEndCall] Error saving session to localStorage:', sessionSaveError);
+          // Don't show user error for localStorage issues as evaluation still succeeded
+        }
+        
         toast.success("Evaluation generated!");
       } else {
         console.error('[handleEndCall] `result.evaluation` is missing. Full result:', JSON.stringify(result, null, 2));
@@ -474,7 +508,11 @@ export default function Home() {
     selectedPersonaId,
     personasData,
     selectedScenarioId,
-    scenarioDefinitionsData
+    scenarioDefinitionsData,
+    callDuration,
+    callDurationInterval,
+    callStartTime,
+    selectedDifficulty
   ]);
 
   // Update the ref whenever handleEndCall changes
@@ -948,6 +986,7 @@ const vad = useMicVAD({
                     setSelectedPersonaId(defaultPersonaId);
                     setSelectionStep('selectPersona');
                   }}
+                  onShowSessionHistory={() => setSelectionStep('sessionHistory')}
                 />
               )}
 
@@ -1106,11 +1145,64 @@ const vad = useMicVAD({
                   evaluationData={evaluationData}
                   isLoading={isEvaluating}
                   error={evaluationError}
-                  onRestartSession={handleRestartSession}
                   transcript={messages}
                   persona={getPersonaById(selectedPersonaId!)} 
                   scenario={getScenarioDefinitionById(selectedScenarioId!)} // Pass the entire scenario object
                   callDuration={callDuration}
+                  mode="live"
+                  primaryAction={{
+                    label: "Start New Session",
+                    onClick: handleRestartSession,
+                    className: "w-full bg-gradient-to-r from-blue-500 to-sky-600 hover:from-blue-600 hover:to-sky-700 text-white font-semibold py-3 rounded-lg shadow-md transition-transform hover:scale-105"
+                  }}
+                />
+              )}
+
+              {/* Session History Step */}
+              {selectionStep === 'sessionHistory' && (
+                <SessionHistory 
+                  onSelectSession={(sessionId) => {
+                    const session = getSessionById(sessionId);
+                    if (session) {
+                      setSelectedHistoricalSession(session);
+                      setSelectionStep('viewHistoricalSession');
+                    } else {
+                      toast.error('Session not found');
+                    }
+                  }}
+                  onBackToScenarioSelection={() => setSelectionStep('selectScenario')}
+                />
+              )}
+
+              {/* View Historical Session Step */}
+              {selectionStep === 'viewHistoricalSession' && selectedHistoricalSession && (
+                <EvaluationDisplay 
+                  difficulty={selectedHistoricalSession.difficulty}
+                  evaluationData={selectedHistoricalSession.evaluationData}
+                  isLoading={false}
+                  error={null}
+                  transcript={selectedHistoricalSession.transcript}
+                  persona={selectedHistoricalSession.persona}
+                  scenario={selectedHistoricalSession.scenario}
+                  callDuration={selectedHistoricalSession.callDuration}
+                  mode="historical"
+                  sessionTimestamp={selectedHistoricalSession.timestamp}
+                  primaryAction={{
+                    label: "Back to Session History",
+                    onClick: () => {
+                      setSelectedHistoricalSession(null);
+                      setSelectionStep('sessionHistory');
+                    },
+                    className: "w-full bg-gradient-to-r from-blue-500 to-sky-600 hover:from-blue-600 hover:to-sky-700 text-white font-semibold py-3 rounded-lg shadow-md transition-transform hover:scale-105"
+                  }}
+                  secondaryAction={{
+                    label: "Back to History",
+                    onClick: () => {
+                      setSelectedHistoricalSession(null);
+                      setSelectionStep('sessionHistory');
+                    },
+                    className: "flex items-center gap-2 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-medium py-2 px-4 rounded-lg shadow-md transition-all duration-200 hover:scale-105"
+                  }}
                 />
               )}
 

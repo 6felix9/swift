@@ -1,28 +1,41 @@
 import React from 'react';
 import clsx from 'clsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Assuming these are aliased correctly
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, History } from 'lucide-react';
 import { ScenarioDefinition } from '@/lib/scenarios'; // Ensure this path is correct
 import { useState, useEffect } from 'react';
-// import DigitalHumanLive from '@/components/ui/DigitalHumanLive'
+import { Button } from '@/components/ui/button';
 
 interface ScenarioSelectionProps {
   scenarioDefinitions: ScenarioDefinition[];
   selectedScenarioId: string | null;
   onSelectScenarioAndPersona: (scenarioId: string, defaultPersonaId: string) => void;
+  onShowSessionHistory: () => void;
 }
 
 export const ScenarioSelection: React.FC<ScenarioSelectionProps> = ({ 
   scenarioDefinitions, 
   selectedScenarioId, 
-  onSelectScenarioAndPersona 
+  onSelectScenarioAndPersona,
+  onShowSessionHistory 
 }) => {
   return (
     <>
       {/* Step 1: Scenario Selection */}
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-center mb-1 text-white">Step 1: Select a Training Scenario</h2>
-        <p className="text-sm text-center mb-4 text-gray-400">What scenario would you like to practice?</p>
+        <div className="relative flex justify-center items-center mb-4">
+          <div className="flex flex-col items-center">
+            <h2 className="text-2xl font-semibold text-center mb-1 text-white">Step 1: Select a Training Scenario</h2>
+            <p className="text-sm text-center text-gray-400">What scenario would you like to practice?</p>
+          </div>
+          <Button
+            onClick={onShowSessionHistory}
+            className="absolute right-0 flex items-center gap-2 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 hover:border-white/40 text-white font-medium py-2 px-4 rounded-lg shadow-md transition-all duration-300 hover:scale-105 hover:bg-gradient-to-r hover:from-[#002B49]/90 hover:to-[#001425]/95"
+          >
+            <History size={16} />
+            <span className="text-sm">Session History</span>
+          </Button>
+        </div>
         <div className="space-y-3">
           {scenarioDefinitions.map(scenarioDef => (
             <Card 

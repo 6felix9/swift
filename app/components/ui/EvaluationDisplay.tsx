@@ -5,23 +5,33 @@ import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { EvaluationResponse } from '@/lib/evaluationTypes';
 import { Difficulty } from '@/lib/difficultyTypes';
-import { GraduationCap, FileText } from 'lucide-react';
+import { GraduationCap, FileText, ArrowLeft } from 'lucide-react';
 import { Message } from '@/lib/types';
 import { Persona } from '@/lib/personas';
 import { ScenarioDefinition } from '@/lib/scenarios';
+import { formatSessionTimestamp } from '@/lib/sessionStorage';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
+
+interface ActionButton {
+  label: string;
+  onClick: () => void;
+  className?: string;
+}
 
 interface EvaluationDisplayProps {
   difficulty: Difficulty | null;
   evaluationData: EvaluationResponse | null;
   isLoading: boolean;
   error: string | null;
-  onRestartSession: () => void;
   transcript: Message[];
   persona: Persona | null;
   scenario: ScenarioDefinition | undefined;
   callDuration: number;
+  mode?: 'live' | 'historical';
+  sessionTimestamp?: Date;
+  primaryAction: ActionButton;
+  secondaryAction?: ActionButton;
 }
 
 // Utility function to format duration in MM:SS or HH:MM:SS format
@@ -41,11 +51,14 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
   evaluationData,
   isLoading,
   error,
-  onRestartSession,
   transcript,
   persona,
   scenario,
   callDuration,
+  mode = 'live',
+  sessionTimestamp,
+  primaryAction,
+  secondaryAction,
 }) => {
 
   const onDownloadTranscript = () => {
@@ -190,16 +203,22 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
     // Generation metadata
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(128, 128, 128); // Gray color
-    doc.text('Generated:', margin, currentY);
-    doc.setFont('helvetica', 'normal');
-    const currentDate = new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    doc.text(currentDate, margin + 30, currentY);
+    if (mode === 'historical' && sessionTimestamp) {
+      doc.text('Session Date:', margin, currentY);
+      doc.setFont('helvetica', 'normal');
+      doc.text(formatSessionTimestamp(sessionTimestamp), margin + 35, currentY);
+    } else {
+      doc.text('Generated:', margin, currentY);
+      doc.setFont('helvetica', 'normal');
+      const currentDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      doc.text(currentDate, margin + 30, currentY);
+    }
     currentY += 8;
   
     doc.setFont('helvetica', 'bold');
@@ -303,12 +322,14 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
     }
   
     // Generate filename with persona name and timestamp
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+    const timestampForFile = mode === 'historical' && sessionTimestamp 
+      ? sessionTimestamp.toISOString().slice(0, 19).replace(/[:.]/g, '-')
+      : new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
     const sanitizedPersonaName = (persona?.name || 'Unknown')
       .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special characters
       .replace(/\s+/g, '-') // Replace spaces with hyphens
       .toLowerCase();
-    const filename = `transcript-${sanitizedPersonaName}-${timestamp}.pdf`;
+    const filename = `transcript-${sanitizedPersonaName}-${timestampForFile}.pdf`;
     
     doc.save(filename);
   };
@@ -431,16 +452,22 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
     currentY += 8;
 
     doc.setFont('helvetica', 'bold');
-    doc.text('Generated:', margin, currentY);
-    doc.setFont('helvetica', 'normal');
-    const currentDate = new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    doc.text(currentDate, margin + 30, currentY);
+    if (mode === 'historical' && sessionTimestamp) {
+      doc.text('Session Date:', margin, currentY);
+      doc.setFont('helvetica', 'normal');
+      doc.text(formatSessionTimestamp(sessionTimestamp), margin + 35, currentY);
+    } else {
+      doc.text('Generated:', margin, currentY);
+      doc.setFont('helvetica', 'normal');
+      const currentDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      doc.text(currentDate, margin + 30, currentY);
+    }
     currentY += 20;
   
     // Add separator line
@@ -629,12 +656,14 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
     }
   
     // Generate filename
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+    const timestampForFile = mode === 'historical' && sessionTimestamp 
+      ? sessionTimestamp.toISOString().slice(0, 19).replace(/[:.]/g, '-')
+      : new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
     const sanitizedPersonaName = (persona?.name || 'Unknown')
       .replace(/[^a-zA-Z0-9\s]/g, '')
       .replace(/\s+/g, '-')
       .toLowerCase();
-    const filename = `evaluation-${sanitizedPersonaName}-${timestamp}.pdf`;
+    const filename = `evaluation-${sanitizedPersonaName}-${timestampForFile}.pdf`;
     
     doc.save(filename);
   };
@@ -660,10 +689,10 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
         <CardContent className="p-2 pt-0">
           <p className="text-sm text-red-200">{error}</p>
           <Button 
-            onClick={onRestartSession} 
-            className="mt-4 w-full bg-red-600 hover:bg-red-700 text-white"
+            onClick={primaryAction.onClick} 
+            className={primaryAction.className || "mt-4 w-full bg-red-600 hover:bg-red-700 text-white"}
           >
-            Try Again
+            {primaryAction.label}
           </Button>
         </CardContent>
       </motion.div>
@@ -677,6 +706,24 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
       transition={{ duration: 0.4 }}
       className="max-w-3xl mx-auto my-8 space-y-6"
     >
+      {/* Header with Back Button for Historical Mode */}
+      {mode === 'historical' && sessionTimestamp && (
+        <div className="relative flex justify-center items-center mb-6">
+          {secondaryAction && (
+            <Button
+              onClick={secondaryAction.onClick}
+              className="absolute left-0 flex items-center gap-2 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 hover:border-white/40 text-white font-medium py-2 px-3 rounded-lg transition-all duration-200 hover:scale-105"
+            >
+              <ArrowLeft size={16} />
+              <span className="text-sm">{secondaryAction.label}</span>
+            </Button>
+          )}
+          
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-white">Session from {formatSessionTimestamp(sessionTimestamp)}</h2>
+          </div>
+        </div>
+      )}
       {/* SUMMARY */}
       <Card className="bg-gradient-to-br from-[#0A3A5A]/80 to-[#001F35]/90 border border-blue-600/30 shadow-xl">
         <CardHeader className="p-6 pb-2">
@@ -738,13 +785,16 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
             </div>
           </div>
 
-          {/* Restart session button integrated into summary card */}
+          {/* Primary action button integrated into summary card */}
           <div className="pt-4 border-t border-blue-500/30">
             <Button
-              onClick={onRestartSession}
-              className="w-full bg-gradient-to-r from-blue-500 to-sky-600 hover:from-blue-600 hover:to-sky-700 text-white font-semibold py-3 rounded-lg shadow-md transition-transform hover:scale-105"
+              onClick={primaryAction.onClick}
+              className={mode === 'historical' 
+                ? "w-full bg-gray-600/50 text-gray-300 font-semibold py-3 rounded-lg cursor-default" 
+                : (primaryAction.className || "w-full bg-gradient-to-r from-blue-500 to-sky-600 hover:from-blue-600 hover:to-sky-700 text-white font-semibold py-3 rounded-lg shadow-md transition-transform hover:scale-105")}
+              disabled={mode === 'historical'}
             >
-              Start New Session
+              {primaryAction.label}
             </Button>
           </div>
         </CardContent>
