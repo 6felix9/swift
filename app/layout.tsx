@@ -53,9 +53,9 @@ export default function RootLayout({
       >
         
             <div className="relative flex min-h-screen flex-col">
-              <header className="w-full bg-yellow-500 text-black text-center p-2 font-semibold">
+              {/* <header className="w-full bg-yellow-500 text-black text-center p-2 font-semibold">
                 Role-Play Training: Referral Skills Evaluation (You are the Financial Advisor)
-              </header>
+              </header> */}
               <div className="flex-1">
                 <main className="flex flex-col items-center justify-center grow py-6 px-6">
                   <div className="w-full backdrop-blur-md bg-gradient-to-br from-[#002B49]/60 to-[#001425]/70 rounded-2xl border border-white/15 shadow-[0_8px_32px_rgba(0,30,60,0.37)] p-8">

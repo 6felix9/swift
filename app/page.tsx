@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 
 import { Persona, personas, getPersonaById } from '@/lib/personas';
 import { ScenarioDefinition, scenarioDefinitions, getScenarioDefinitionById } from '@/lib/scenarios';
+import { TrainingDomain } from '@/lib/types';
 import { PROMPTS } from '@/lib/prompt';
 import { EvaluationResponse } from "@/lib/evaluationTypes";
 import { Difficulty } from '@/lib/difficultyTypes';
@@ -80,6 +81,7 @@ export default function Home() {
   // State for new Scenario-based training
   const [scenarioDefinitionsData, setScenarioDefinitionsData] = useState<ScenarioDefinition[]>([]);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+  const [selectedDomain, setSelectedDomain] = useState<TrainingDomain>('financial-advisor');
   const [personasData, setPersonasData] = useState<Persona[]>([]);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null); 
@@ -766,6 +768,7 @@ const vad = useMicVAD({
     setManualListening(false);
     setIsMuted(false); // Reset mute state
     setSelectedScenarioId(null);
+    setSelectedDomain('financial-advisor'); // Reset to default domain
     setSelectedPersonaId(null);
     setSelectedDifficulty(null);
     setDifficultyProfile(null);
@@ -981,12 +984,18 @@ const vad = useMicVAD({
                 <ScenarioSelection 
                   scenarioDefinitions={scenarioDefinitionsData}
                   selectedScenarioId={selectedScenarioId}
+                  selectedDomain={selectedDomain}
                   onSelectScenarioAndPersona={(scenarioId, defaultPersonaId) => {
                     setSelectedScenarioId(scenarioId);
                     setSelectedPersonaId(defaultPersonaId);
                     setSelectionStep('selectPersona');
                   }}
                   onShowSessionHistory={() => setSelectionStep('sessionHistory')}
+                  onDomainChange={(domain) => {
+                    setSelectedDomain(domain);
+                    setSelectedScenarioId(null); // Clear selected scenario when domain changes
+                    setSelectedPersonaId(null); // Clear selected persona when domain changes
+                  }}
                 />
               )}
 
@@ -1003,7 +1012,10 @@ const vad = useMicVAD({
                       setSelectionStep('selectScenario');
                       // setSelectedPersonaId(null); // Optional: Clear persona if going back
                     }}
-                    onNextToDifficulty={() => setSelectionStep('selectDifficulty')}
+                    onNextToDifficulty={() => {
+                      setSelectionStep('selectDifficulty')
+                      setSelectedDifficulty('easy')
+                    }}
                   />
               )}
 

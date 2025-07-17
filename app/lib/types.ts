@@ -3,3 +3,5 @@ export type Message = {
   content: string;
   latency?: number;
 };
+
+export type TrainingDomain = 'financial-advisor' | 'healthcare' | 'customer-service';
