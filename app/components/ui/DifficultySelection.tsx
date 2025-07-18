@@ -6,7 +6,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { ScenarioDefinition } from '@/lib/scenarios';
 import { Persona } from '@/lib/personas';
 import { Difficulty } from '@/lib/difficultyTypes';
-import { getDifficultyDescriptions } from '@/lib/scenarioConfig';
+import { getDifficultyDescriptions } from '@/lib/scenarios';
 
 interface DifficultySelectionProps {
   selectedScenario: ScenarioDefinition | undefined;

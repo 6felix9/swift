@@ -1,4 +1,11 @@
 import { TrainingDomain } from './types';
+import type { Difficulty } from './difficultyTypes';
+
+export interface DifficultyDescription {
+  id: Difficulty;
+  title: string;
+  description: string;
+}
 
 export interface ScenarioDefinition {
   id: string;
@@ -11,7 +18,82 @@ export interface ScenarioDefinition {
   personas: string[]; // IDs of Personas from personas.ts
   personaOpeningLine: string; // Specific to this persona IN THIS SCENARIO
   evaluationPromptKey: string; // Key to retrieve evaluation prompt from PROMPTS object
+  difficultyDescriptions?: DifficultyDescription[]; // Optional difficulty configurations
+  difficultyProfileTemplateKey?: string; // Optional difficulty profile template key
+  suggestionPromptKey?: string; // Optional suggestion prompt key
 }
+
+const REFERRAL_DIFFICULTY_DESCRIPTIONS: DifficultyDescription[] = [
+  {
+    id: 'easy',
+    title: 'Easy ⭐',
+    description: `Guarded but open. Moderate-high trust that can grow with a clear, data-driven win. Allows one minor slip; ask only after demonstrating tangible value.`
+  },
+  {
+    id: 'medium',
+    title: 'Medium ⭐⭐',
+    description: `Cautious and analytical. Trust on probation—zero tolerance for mis-steps. Requires rigorous evidence, case studies, and low-pressure timing before any referral talk.`
+  },
+  {
+    id: 'hard',
+    title: 'Hard ⭐⭐⭐',
+    description: `Ultra-guarded, deeply skeptical. Trust starts low and collapses at the first mistake. Formal audits, multi-gatekeeper approvals, and near-impossible referral access.`
+  }
+];
+
+const INSURANCE_REJECTION_DIFFICULTY_DESCRIPTIONS: DifficultyDescription[] = [
+  {
+    id: 'easy',
+    title: 'Easy ⭐',
+    description: `Upset but cooperative. Willing to work through the appeals process with guidance. Trusts advisor's expertise and maintains hope for resolution.`
+  },
+  {
+    id: 'medium',
+    title: 'Medium ⭐⭐',
+    description: `Frustrated and stressed. Requires careful emotional handling and frequent reassurance. May need convincing to pursue appeals, anxious about timelines and costs.`
+  },
+  {
+    id: 'hard',
+    title: 'Hard ⭐⭐⭐',
+    description: `Extremely distressed and potentially hostile. May blame advisor, threaten legal action, or demand immediate solutions. Requires exceptional empathy and crisis management.`
+  }
+];
+
+const HEALTHCARE_DIFFICULTY_DESCRIPTIONS: DifficultyDescription[] = [
+  {
+    id: 'easy',
+    title: 'Easy ⭐',
+    description: `Patient is calm, articulate, and trusts your expertise. They are seeking clear information and are open to your recommendations.`
+  },
+  {
+    id: 'medium',
+    title: 'Medium ⭐⭐',
+    description: `Patient is anxious and has some misconceptions from online research. Requires empathy, patience, and clear, simple explanations to build trust.`
+  },
+  {
+    id: 'hard',
+    title: 'Hard ⭐⭐⭐',
+    description: `Patient is distrustful, possibly confrontational, and has strong, misinformed opinions. Requires advanced de-escalation and rapport-building skills.`
+  }
+];
+
+const CUSTOMER_SERVICE_DIFFICULTY_DESCRIPTIONS: DifficultyDescription[] = [
+  {
+    id: 'easy',
+    title: 'Easy ⭐',
+    description: `Customer is frustrated but polite. They clearly explain the issue and are willing to follow troubleshooting steps.`
+  },
+  {
+    id: 'medium',
+    title: 'Medium ⭐⭐',
+    description: `Customer is angry and demanding an immediate fix or refund. They may interrupt frequently and express significant dissatisfaction with the company.`
+  },
+  {
+    id: 'hard',
+    title: 'Hard ⭐⭐⭐',
+    description: `Customer is irate, threatening to escalate to social media or legal action. They are uncooperative and may use personal attacks.`
+  }
+];
 
 export const scenarioDefinitions: ScenarioDefinition[] = [
   // Financial Advisor Scenarios
@@ -24,11 +106,14 @@ export const scenarioDefinitions: ScenarioDefinition[] = [
     personaRole: 'Client',
     scenarioContext: `You are in a scheduled annual review meeting with your client, reviewing portfolio performance and discussing future goals.`,
     personas: [
-      // 'LIANG_CHEN', 
       'CHLOE_ZHANG', 
-      'SARAH_LEE'],
+      'SARAH_LEE'
+    ],
     personaOpeningLine: "Alright, thanks for setting this up. So, what did you want to cover today?",
-    evaluationPromptKey: 'trainingReferralEvaluationInstructions'
+    evaluationPromptKey: 'trainingReferralEvaluationInstructions',
+    difficultyDescriptions: REFERRAL_DIFFICULTY_DESCRIPTIONS,
+    difficultyProfileTemplateKey: 'REFERRAL_ANNUAL_REVIEW',
+    suggestionPromptKey: 'REFERRAL_ANNUAL_REVIEW'
   },
   {
     id: 'INSURANCE_REJECTION_HANDLING',
@@ -38,9 +123,12 @@ export const scenarioDefinitions: ScenarioDefinition[] = [
     userRole: 'Financial Advisor',
     personaRole: 'Client',
     scenarioContext: `You are preparing to speak with a client who has called unexpectedly. Their significant home insurance claim for water damage has just been rejected by "SecureHome Mutual". They received a letter with technical jargon and reasons for rejection they don't fully understand.`,
-    personas: ['ELEANOR_VANCE', 'ALEX_MILLER'],
+    personas: ['ELEANOR_VANCE'],
     personaOpeningLine: "Hello? I'm calling about an insurance matter. I've received a claim rejection letter from SecureHome Mutual regarding my recent water damage claim, and I need some assistance reviewing it.",
-    evaluationPromptKey: 'trainingInsuranceRejectionEvaluationInstructions'
+    evaluationPromptKey: 'trainingInsuranceRejectionEvaluationInstructions',
+    difficultyDescriptions: INSURANCE_REJECTION_DIFFICULTY_DESCRIPTIONS,
+    difficultyProfileTemplateKey: 'INSURANCE_REJECTION_HANDLING',
+    suggestionPromptKey: 'INSURANCE_REJECTION_HANDLING'
   },
 
   // Healthcare Scenarios (Placeholders)
@@ -52,21 +140,12 @@ export const scenarioDefinitions: ScenarioDefinition[] = [
     userRole: 'Healthcare Professional',
     personaRole: 'Patient',
     scenarioContext: `You are speaking with a patient who has been experiencing side effects from their prescribed medication and is considering stopping it without consulting their doctor.`,
-    personas: ['CHLOE_ZHANG'], // Using existing persona as placeholder
+    personas: ['MARIA_GOMEZ'], 
     personaOpeningLine: "I've been having some issues with the medication you prescribed last month, and I'm thinking about stopping it.",
-    evaluationPromptKey: 'trainingReferralEvaluationInstructions' // Using existing prompt as placeholder
-  },
-  {
-    id: 'EMERGENCY_RESPONSE',
-    name: 'Emergency Response: Anxious Family Member',
-    description: 'Practice communicating with worried family members during a medical emergency.',
-    domain: 'healthcare',
-    userRole: 'Healthcare Professional',
-    personaRole: 'Family Member',
-    scenarioContext: `A family member is extremely worried about their loved one who was just admitted to the emergency department. They need clear communication and reassurance.`,
-    personas: ['SARAH_LEE'], // Using existing persona as placeholder
-    personaOpeningLine: "Please, can you tell me what's happening with my mother? No one has told us anything and we're really scared.",
-    evaluationPromptKey: 'trainingReferralEvaluationInstructions' // Using existing prompt as placeholder
+    evaluationPromptKey: 'trainingReferralEvaluationInstructions', // Using existing prompt as placeholder
+    difficultyDescriptions: HEALTHCARE_DIFFICULTY_DESCRIPTIONS,
+    difficultyProfileTemplateKey: 'PATIENT_CONSULTATION',
+    suggestionPromptKey: '',
   },
 
   // Customer Service Scenarios (Placeholders)
@@ -78,24 +157,20 @@ export const scenarioDefinitions: ScenarioDefinition[] = [
     userRole: 'Customer Service Representative',
     personaRole: 'Customer',
     scenarioContext: `A customer is calling about a product they purchased that has broken down three times in the past month. They are frustrated and demanding a full refund.`,
-    personas: ['ELEANOR_VANCE'], // Using existing persona as placeholder
+    personas: ['ANGELA_BROWN'],
     personaOpeningLine: "This is ridiculous! I've had this product for a month and it's broken three times already. I want my money back!",
-    evaluationPromptKey: 'trainingReferralEvaluationInstructions' // Using existing prompt as placeholder
+    evaluationPromptKey: 'trainingReferralEvaluationInstructions', // Using existing prompt as placeholder
+    difficultyDescriptions: CUSTOMER_SERVICE_DIFFICULTY_DESCRIPTIONS,
+    difficultyProfileTemplateKey: 'COMPLAINT_HANDLING',
+    suggestionPromptKey: '',
   },
-  {
-    id: 'PRODUCT_SUPPORT',
-    name: 'Technical Support: Setup Assistance',
-    description: 'Practice helping a customer who is struggling to set up their new product.',
-    domain: 'customer-service',
-    userRole: 'Customer Service Representative',
-    personaRole: 'Customer',
-    scenarioContext: `A customer has purchased a complex product and is having difficulty with the initial setup. They are becoming increasingly frustrated with the process.`,
-    personas: ['ALEX_MILLER'], // Using existing persona as placeholder
-    personaOpeningLine: "I've been trying to set this up for two hours and nothing is working. The instructions don't make any sense to me.",
-    evaluationPromptKey: 'trainingReferralEvaluationInstructions' // Using existing prompt as placeholder
-  },  
 ];
 
 export const getScenarioDefinitionById = (id: string): ScenarioDefinition | undefined => {
   return scenarioDefinitions.find(s => s.id === id);
+};
+
+export const getDifficultyDescriptions = (scenarioId: string): DifficultyDescription[] => {
+  const scenario = getScenarioDefinitionById(scenarioId);
+  return scenario?.difficultyDescriptions || [];
 };

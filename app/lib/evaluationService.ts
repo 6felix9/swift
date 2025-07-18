@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { Persona } from "./personas";
 import { EvaluationResponse } from "./evaluationTypes";
+import { getScenarioDefinitionById } from "./scenarios";
 import Groq from "groq-sdk";
 
 // Lazy initialization of AI clients
@@ -22,7 +23,7 @@ function getGroqClient(): Groq {
 }
 
 interface Message {
-  role: "advisor" | "client" | "system";
+  role: string; // Dynamic role based on scenario
   content: string;
 }
 
@@ -52,10 +53,21 @@ Your response must be only the JSON object, with no additional text, commentary,
 `;
 }
 
-function buildTranscript(messages: Message[]): string {
+function buildTranscript(messages: Message[], scenarioId?: string): string {
+  // Get role names directly from scenario
+  const scenario = scenarioId ? getScenarioDefinitionById(scenarioId) : null;
+  const userRole = scenario?.userRole || "advisor";
+  const personaRole = scenario?.personaRole || "client";
+  
   return messages
-    .filter((msg) => msg.role === "advisor" || msg.role === "client")
-    .map((msg) => `${msg.role}: ${msg.content}`)
+    .filter((msg) => {
+      // Include only user and persona messages, exclude system messages
+      return msg.role === userRole || msg.role === personaRole;
+    })
+    .map((msg) => {
+      const displayRole = msg.role === userRole ? userRole : personaRole;
+      return `${displayRole}: ${msg.content}`;
+    })
     .join("\n");
 }
 
@@ -128,13 +140,14 @@ export async function generateCallEvaluation(
   messages: Message[],
   roleplayProfile: Persona | null,
   evaluationPrompt: string,
-  scenarioContext: string
+  scenarioContext: string,
+  scenarioId?: string
 ): Promise<EvaluationResponse> {
-  console.log("[EvaluationService] Generating call evaluation...");
+  console.log(`[EvaluationService] Generating call evaluation for scenario: ${scenarioId || 'unknown'}...`);
   const startTime = Date.now();
 
   const systemMessage = buildSystemPrompt(scenarioContext, evaluationPrompt, roleplayProfile);
-  const transcript = buildTranscript(messages);
+  const transcript = buildTranscript(messages, scenarioId);
   const fullPrompt = `${systemMessage}\n\n${transcript}`;
 
   const rawResponse = await tryAIProviders(fullPrompt);

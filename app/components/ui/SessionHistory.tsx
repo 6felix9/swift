@@ -178,7 +178,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
                             const scorePercent = Math.round((session.evaluationData.evaluationSummary.totalScore / session.evaluationData.evaluationSummary.maxPossibleScore) * 100);
                             const scoreColor = 
                               scorePercent <= 30 ? 'text-red-400' : 
-                              scorePercent <= 50 ? 'text-yellow-400' : 
+                              scorePercent <= 60 ? 'text-yellow-400' : 
                               'text-green-400';
                             
                             return (

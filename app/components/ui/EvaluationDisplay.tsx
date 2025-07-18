@@ -250,14 +250,8 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       
-      // Different colors for different roles
-      if (msg.role.toLowerCase() === 'client') {
-        doc.setTextColor(52, 152, 219); // Blue
-      } else if (msg.role.toLowerCase() === 'advisor') {
-        doc.setTextColor(46, 125, 50); // Green
-      } else {
-        doc.setTextColor(156, 39, 176); // Purple for other roles
-      }
+      // Role colors
+      doc.setTextColor(52, 152, 219); // Blue
   
       const speakerName = `${msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}:`;
       doc.text(speakerName, margin, currentY);
@@ -280,13 +274,7 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
         // Repeat speaker name on new page if message continues
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
-        if (msg.role.toLowerCase() === 'client') {
-          doc.setTextColor(52, 152, 219);
-        } else if (msg.role.toLowerCase() === 'advisor') {
-          doc.setTextColor(46, 125, 50);
-        } else {
-          doc.setTextColor(156, 39, 176);
-        }
+        doc.setTextColor(52, 152, 219);
         doc.text(`${speakerName} (continued)`, margin, currentY);
         currentY += 8;
         
@@ -509,7 +497,7 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(46, 125, 50);
-      doc.text('Domain Outcome:', margin, currentY);
+      doc.text('Outcome:', margin, currentY);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(60, 60, 60);
       doc.text(evaluationData.evaluationSummary.domainSpecificOutcome.answer, margin + 45, currentY);

@@ -1,5 +1,6 @@
 import { referralDifficultyProfileInstructions } from './referral-difficulty-template';
 import { insuranceRejectionDifficultyProfileInstructions } from './insurance-rejection-difficulty-template';
+import { genericDifficultyProfileInstructions } from './generic-difficulty-template';
 
 export interface DifficultyProfileTemplate {
   template: string;
@@ -17,11 +18,10 @@ export const DIFFICULTY_PROFILE_TEMPLATES: Record<string, DifficultyProfileTempl
     template: insuranceRejectionDifficultyProfileInstructions,
     name: 'Insurance Rejection Profile',
     description: 'Difficulty profile for handling insurance claim rejections'
+  },
+  'GENERIC': {
+    template: genericDifficultyProfileInstructions,
+    name: 'Generic Profile',
+    description: 'Difficulty profile for generic scenarios'
   }
 };
-
-export function getDifficultyProfileTemplate(scenarioId: string): DifficultyProfileTemplate {
-  return DIFFICULTY_PROFILE_TEMPLATES[scenarioId] || DIFFICULTY_PROFILE_TEMPLATES['REFERRAL_ANNUAL_REVIEW'];
-}
-
-export { referralDifficultyProfileInstructions, insuranceRejectionDifficultyProfileInstructions };

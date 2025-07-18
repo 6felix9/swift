@@ -13,9 +13,10 @@ export const trainingInsuranceRejectionEvaluationInstructions = `
     "maxPossibleScore": 90,
     "keyStrengths": "",
     "keyAreasForImprovement": "",
-    "referralContextSuccessfullyCreated": {
-      "answer": "Not applicable",
-      "justification": "Not applicable"
+    "domainSpecificOutcome": { 
+      "question": "",
+      "answer": "",
+      "justification": ""
     }
   },
   "detailedEvaluation": [

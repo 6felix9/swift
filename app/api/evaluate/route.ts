@@ -2,21 +2,35 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { generateCallEvaluation } from '@/lib/evaluationService';
 import { PersonaSchema, getPersonaById, Persona } from '@/lib/personas';
+import { getScenarioDefinitionById } from '@/lib/scenarios';
 
 // Maximum duration for the evaluation process in seconds
 export const maxDuration = 60;
+
+// Helper function to validate message roles based on scenario
+function createRoleValidator(scenarioId: string) {
+  const scenario = getScenarioDefinitionById(scenarioId);
+  if (!scenario) {
+    // Fallback to original roles if scenario not found
+    return z.enum(['advisor', 'client', 'system']);
+  }
+  
+  // Create enum with scenario-specific roles plus system
+  return z.enum([scenario.userRole, scenario.personaRole, 'system'] as [string, string, string]);
+}
 
 // Define the schema for the request body
 const EvaluateRequestSchema = z.object({
   messages: z.array(
     z.object({
-      role: z.enum(['advisor', 'client', 'system']),
+      role: z.string(), // Will be validated dynamically based on scenario
       content: z.string(),
     })
   ),
   roleplayProfile: PersonaSchema.optional().nullable(),
   evaluationPrompt: z.string(),
   scenarioContext: z.string(),
+  scenarioId: z.string(),
 });
 
 export async function POST(request: Request) {
@@ -27,7 +41,26 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     parsedBody = EvaluateRequestSchema.parse(body);
-    console.log(`[${requestId}] /api/evaluate: Request body parsed successfully.`);
+    
+    // Additional role validation based on scenario
+    const { scenarioId, messages } = parsedBody;
+    const scenario = getScenarioDefinitionById(scenarioId);
+    if (scenario) {
+      const roleValidator = createRoleValidator(scenarioId);
+      for (const message of messages) {
+        try {
+          roleValidator.parse(message.role);
+        } catch (roleError) {
+          console.error(`[${requestId}] /api/evaluate: Invalid role "${message.role}" for scenario ${scenarioId}`);
+          return NextResponse.json({ 
+            error: 'Invalid message role for scenario', 
+            details: `Expected roles: ${scenario.userRole}, ${scenario.personaRole}, or system. Got: ${message.role}` 
+          }, { status: 400 });
+        }
+      }
+    }
+    
+    console.log(`[${requestId}] /api/evaluate: Request body parsed and validated successfully.`);
   } catch (error) {
     console.error(`[${requestId}] /api/evaluate: Invalid request body:`, error);
     if (error instanceof z.ZodError) {
@@ -36,7 +69,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const { messages, roleplayProfile, evaluationPrompt, scenarioContext } = parsedBody;
+  const { messages, roleplayProfile, evaluationPrompt, scenarioContext, scenarioId } = parsedBody;
 
   try {
     console.log(`[${requestId}] /api/evaluate: Calling generateCallEvaluation service...`);
@@ -50,7 +83,8 @@ export async function POST(request: Request) {
       messages,
       persona,
       evaluationPrompt,
-      scenarioContext
+      scenarioContext,
+      scenarioId
     );
     console.log(`[${requestId}] /api/evaluate: Evaluation generated successfully.`);
     return NextResponse.json({ evaluation });

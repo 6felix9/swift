@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import Groq from "groq-sdk";
 import { Persona } from '@/lib/personas';
 import { PERSONA_PROMPTS } from "@/lib/prompt/persona";
+import { getScenarioDefinitionById } from "@/lib/scenarios";
 
 // Lazy initialization of AI clients
 let geminiClient: GoogleGenAI | null = null;
@@ -22,8 +23,27 @@ function getGroqClient(): Groq {
 }
 
 interface Message {
-  role: "advisor" | "client" | "system";
+  role: string; // Dynamic role based on scenario
   content: string;
+}
+
+// Role mapping utilities for AI responses
+function mapToAIRole(role: string, scenarioId?: string): "user" | "model" {
+  if (role === "system") return "user"; // System messages treated as user context
+  
+  if (!scenarioId) {
+    // Fallback mapping for backward compatibility
+    if (role === "advisor") return "user";
+    if (role === "client") return "model";
+    return "user";
+  }
+  
+  const scenario = getScenarioDefinitionById(scenarioId);
+  if (!scenario) return "user";
+  
+  if (role === scenario.userRole) return "user";
+  if (role === scenario.personaRole) return "model";
+  return "user";
 }
 
 function isValidResponse(rawResponse: string): boolean {
@@ -72,7 +92,8 @@ function processMainResponse(rawText: string | undefined | null, requestId: stri
 async function callGeminiFlash(
   systemPromptContent: string,
   messages: Message[],
-  requestId: string
+  requestId: string,
+  scenarioId?: string
 ): Promise<string> {
   console.log(`[${requestId}] Attempting response generation with Gemini 2.5 Flash`);
   const t0 = Date.now();
@@ -83,7 +104,7 @@ async function callGeminiFlash(
   const chat = getGeminiClient().chats.create({
     model: "gemini-2.5-flash",
     history: priorMsgs.map(m => ({
-      role: m.role === "advisor" ? "user" : "model",
+      role: mapToAIRole(m.role, scenarioId),
       parts: [{ text: m.content }]
     })),
     config: {
@@ -112,7 +133,8 @@ async function callGeminiFlash(
 async function callGeminiFlashLite(
   systemPromptContent: string,
   messages: Message[],
-  requestId: string
+  requestId: string,
+  scenarioId?: string
 ): Promise<string> {
   console.log(`[${requestId}] Attempting response generation with Gemini 2.5 Flash Lite`);
   const t0 = Date.now();
@@ -123,7 +145,7 @@ async function callGeminiFlashLite(
   const chat = getGeminiClient().chats.create({
     model: "gemini-2.5-flash-lite-preview-06-17",
     history: priorMsgs.map(m => ({
-      role: m.role === "advisor" ? "user" : "model",
+      role: mapToAIRole(m.role, scenarioId),
       parts: [{ text: m.content }]
     })),
     config: {
@@ -152,7 +174,8 @@ async function callGeminiFlashLite(
 async function callGroq(
   systemPromptContent: string,
   messages: Message[],
-  requestId: string
+  requestId: string,
+  scenarioId?: string
 ): Promise<string> {
   console.log(`[${requestId}] Attempting response generation with Groq`);
   const t0 = Date.now();
@@ -165,12 +188,15 @@ async function callGroq(
     { role: "system", content: systemPromptContent }
   ];
   
-  // Push all messages, casting to the literal types
+  // Push all messages, mapping to Groq roles
   chat.push(
-    ...messages.map(m => ({
-      role: (m.role === "advisor" ? "user" : "assistant") as GroqRole,
-      content: m.content
-    }))
+    ...messages.map(m => {
+      const mappedRole = mapToAIRole(m.role, scenarioId);
+      return {
+        role: (mappedRole === "user" ? "user" : "assistant") as GroqRole,
+        content: m.content
+      };
+    })
   );
   
   console.log(`[${requestId}] Groq chat messages prepared`);
@@ -195,12 +221,13 @@ async function callGroq(
 async function tryAIProviders(
   systemPromptContent: string,
   messages: Message[],
-  requestId: string
+  requestId: string,
+  scenarioId?: string
 ): Promise<string> {
   const providers = [
-    { name: "Gemini 2.5 Flash", fn: () => callGeminiFlash(systemPromptContent, messages, requestId) },
-    { name: "Gemini 2.5 Flash Lite", fn: () => callGeminiFlashLite(systemPromptContent, messages, requestId) },
-    { name: "Groq", fn: () => callGroq(systemPromptContent, messages, requestId) }
+    { name: "Gemini 2.5 Flash", fn: () => callGeminiFlash(systemPromptContent, messages, requestId, scenarioId) },
+    { name: "Gemini 2.5 Flash Lite", fn: () => callGeminiFlashLite(systemPromptContent, messages, requestId, scenarioId) },
+    { name: "Groq", fn: () => callGroq(systemPromptContent, messages, requestId, scenarioId) }
   ];
 
   const errors: string[] = [];
@@ -275,7 +302,7 @@ export async function generateMainAiTextResponse(
   `;
 
   try {
-    const rawResponse = await tryAIProviders(systemPromptContent, messages, requestId);
+    const rawResponse = await tryAIProviders(systemPromptContent, messages, requestId, scenarioId);
     return processMainResponse(rawResponse, requestId);
   } catch (error: any) {
     console.error(`[${requestId}] Error generating main AI response:`, error);

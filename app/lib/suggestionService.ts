@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import Groq from "groq-sdk";
 import { SUGGESTION_PROMPTS } from "@/lib/prompt/suggestions";
+import { getScenarioDefinitionById } from "./scenarios";
 
 // Lazy initialization of AI clients
 let geminiClient: GoogleGenAI | null = null;
@@ -21,7 +22,7 @@ function getGroqClient(): Groq {
 }
 
 export interface Message {
-  role: "advisor" | "client" | "system";
+  role: string; // Dynamic role based on scenario
   content: string;
 }
 
@@ -33,28 +34,34 @@ interface ConversationPrompt {
 function buildConversationPrompt(
   messages: Message[], 
   systemPrompt?: string, 
-  includeSystemInPrompt: boolean = false
+  includeSystemInPrompt: boolean = false,
+  scenarioId?: string
 ): ConversationPrompt {
+  // Get role names directly from scenario
+  const scenario = scenarioId ? getScenarioDefinitionById(scenarioId) : null;
+  const userRole = scenario?.userRole || "Advisor";
+  const personaRole = scenario?.personaRole || "Client";
+  
   let conversationPrompt = "Here is the transcript so far:\n";
   
-  // Build conversation history
+  // Build conversation history with scenario-specific roles
   for (const message of messages) {
-    const role = message.role === "advisor" ? "Advisor" : "Client";
-    conversationPrompt += `${role}: ${message.content}\n`;
+    const displayRole = message.role === userRole ? userRole : personaRole;
+    conversationPrompt += `${displayRole}: ${message.content}\n`;
   }
   
-  // Extract the latest client message for emphasis
-  const latestClientMessage = messages
-    .filter(msg => msg.role === "client")
+  // Extract the latest persona message for emphasis
+  const latestPersonaMessage = messages
+    .filter(msg => msg.role === personaRole)
     .slice(-1)[0];
   
-  if (latestClientMessage) {
-    conversationPrompt += `\nThe client said:\n${latestClientMessage.content}\n`;
+  if (latestPersonaMessage) {
+    conversationPrompt += `\nThe ${personaRole.toLowerCase()} said:\n${latestPersonaMessage.content}\n`;
   }
   
-  // // Add clear task instruction
-  conversationPrompt += "\nSuggests what the advisor should say next";
-  
+  // Add clear task instruction with dynamic role
+  conversationPrompt += `\nSuggests what the ${userRole.toLowerCase()} should say next`;
+
   // Handle system prompt integration for different providers
   if (includeSystemInPrompt && systemPrompt) {
     // For Groq: prepend system prompt to conversation prompt
@@ -195,11 +202,11 @@ function processSuggestionResponse(rawText: string | undefined | null, requestId
   return [];
 }
 
-async function callGeminiFlash(messages: Message[], systemPrompt: string, requestId: string): Promise<string> {
+async function callGeminiFlash(messages: Message[], systemPrompt: string, requestId: string, scenarioId?: string): Promise<string> {
   const t0 = Date.now();
   
   // Build conversation prompt using shared function
-  const promptData = buildConversationPrompt(messages, systemPrompt, false);
+  const promptData = buildConversationPrompt(messages, systemPrompt, false, scenarioId);
   
   console.log(`[${requestId}] Gemini Flash conversation prompt prepared`);
 
@@ -224,11 +231,11 @@ async function callGeminiFlash(messages: Message[], systemPrompt: string, reques
   return result;
 }
 
-async function callGeminiFlashLite(messages: Message[], systemPrompt: string, requestId: string): Promise<string> {
+async function callGeminiFlashLite(messages: Message[], systemPrompt: string, requestId: string, scenarioId?: string): Promise<string> {
   const t0 = Date.now();
   
   // Build conversation prompt using shared function
-  const promptData = buildConversationPrompt(messages, systemPrompt, false);
+  const promptData = buildConversationPrompt(messages, systemPrompt, false, scenarioId);
   
   console.log(`[${requestId}] Gemini Flash Lite conversation prompt prepared`);
   
@@ -253,11 +260,11 @@ async function callGeminiFlashLite(messages: Message[], systemPrompt: string, re
   return result;
 }
 
-async function callGroq(messages: Message[], systemPrompt: string, requestId: string): Promise<string> {
+async function callGroq(messages: Message[], systemPrompt: string, requestId: string, scenarioId?: string): Promise<string> {
   const t0 = Date.now();
   
   // Build unified context prompt using shared function
-  const promptData = buildConversationPrompt(messages, systemPrompt, true);
+  const promptData = buildConversationPrompt(messages, systemPrompt, true, scenarioId);
   
   console.log(`[${requestId}] Groq context prompt prepared`);
   
@@ -279,11 +286,11 @@ async function callGroq(messages: Message[], systemPrompt: string, requestId: st
   return result;
 }
 
-async function tryAIProviders(messages: Message[], systemPrompt: string, requestId: string): Promise<string> {
+async function tryAIProviders(messages: Message[], systemPrompt: string, requestId: string, scenarioId?: string): Promise<string> {
   const providers = [
-    { name: "Gemini 2.5 Flash", fn: () => callGeminiFlash(messages, systemPrompt, requestId) },
-    { name: "Gemini 2.5 Flash Lite", fn: () => callGeminiFlashLite(messages, systemPrompt, requestId) },
-    { name: "Groq", fn: () => callGroq(messages, systemPrompt, requestId) },
+    { name: "Gemini 2.5 Flash", fn: () => callGeminiFlash(messages, systemPrompt, requestId, scenarioId) },
+    { name: "Gemini 2.5 Flash Lite", fn: () => callGeminiFlashLite(messages, systemPrompt, requestId, scenarioId) },
+    { name: "Groq", fn: () => callGroq(messages, systemPrompt, requestId, scenarioId) },
   ];
 
   const errors: string[] = [];
@@ -316,13 +323,13 @@ export async function generateNextTurnSuggestions(
   requestId: string,
   scenarioId: string = 'REFERRAL_ANNUAL_REVIEW'
 ): Promise<string[]> {
-  console.log(`[${requestId}] Generating next turn suggestions...`);
+  console.log(`[${requestId}] Generating next turn suggestions for scenario: ${scenarioId}...`);
   const startTime = Date.now();
 
-  const systemPromptContent = SUGGESTION_PROMPTS[scenarioId];
+  const systemPromptContent = SUGGESTION_PROMPTS[scenarioId] || SUGGESTION_PROMPTS['GENERIC'];
   
   try {
-    const rawResponse = await tryAIProviders(messages, systemPromptContent, requestId);
+    const rawResponse = await tryAIProviders(messages, systemPromptContent, requestId, scenarioId);
     
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`[${requestId}] Suggestion generation completed in ${elapsed}s`);

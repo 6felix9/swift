@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { Persona, personas, getPersonaById } from '@/lib/personas';
 import { ScenarioDefinition, scenarioDefinitions, getScenarioDefinitionById } from '@/lib/scenarios';
 import { TrainingDomain } from '@/lib/types';
-import { getEvaluationPrompt } from '@/lib/prompt';
+import { EVALUATION_PROMPTS } from '@/lib/prompt';
 import { EvaluationResponse } from "@/lib/evaluationTypes";
 import { Difficulty } from '@/lib/difficultyTypes';
 import { initializeAndJoinRoom, leaveAndDestroyRoom } from '@/lib/rtcService';
@@ -423,13 +423,15 @@ export default function Home() {
       
       const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
       console.log('[handleEndCall] selectedScenarioId:', selectedScenarioId);
-      const evaluationPromptContent = selectedScenario ? getEvaluationPrompt(selectedScenario.evaluationPromptKey, selectedDomain) : '';
+      const evaluationPromptContent = selectedScenario && selectedScenarioId 
+        ? (EVALUATION_PROMPTS[selectedScenarioId] || EVALUATION_PROMPTS['GENERIC'] || '') 
+        : '';
       const requestBody = {
         messages: conversationHistory,
         roleplayProfile: profileData,
         evaluationPrompt: evaluationPromptContent,
         scenarioContext: selectedScenario?.scenarioContext || "",
-        domain: selectedDomain,
+        scenarioId: selectedScenarioId,
       };
       console.log('[handleEndCall] Fetching /api/evaluate with body:', JSON.stringify(requestBody, null, 2).substring(0, 100));
 
@@ -521,8 +523,7 @@ export default function Home() {
     callDuration,
     callDurationInterval,
     callStartTime,
-    selectedDifficulty,
-    selectedDomain
+    selectedDifficulty
   ]);
 
   // Update the ref whenever handleEndCall changes

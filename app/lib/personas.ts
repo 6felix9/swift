@@ -90,6 +90,33 @@ Net Worth: ~$200K.
     elevenLabsVoiceId: 'ZyIwtt7dzBKVYuXxaRw7',
     avatarRole: ''
   },
+  {
+    id: 'ANGELA_BROWN',
+    name: 'Angela Brown',
+    profileDetails: `Age: 38
+Occupation: Freelance Graphic Designer (works from home)
+Family: Single; lives with two cats
+Product: “SmartMix Pro” countertop blender (purchased 1 month ago)
+Issue: Unit has failed three times—motor stalls, emits burning smell, then shuts off
+Current Mood: Frustrated, inconvenienced, worried about fire hazard
+Goals: Obtain full refund or brand-new replacement; avoid lengthy RMA; maintain project schedule
+`,
+    elevenLabsVoiceId: 'wrxvN1LZJIfL3HHvffqe',
+    avatarRole: '20241014-people-bbox'
+  },
+  {
+    id: 'MARIA_GOMEZ',
+    name: 'Maria Gomez',
+    profileDetails: `Age: 55
+Occupation: Office Administrator
+Family: Married; one adult daughter
+Medical Background: Type-2 diabetes (10 yrs), mild hypertension
+Current Issue: Started GLP-1 medication 4 weeks ago; experiencing nausea and dizziness; considering stopping
+Goals: Feel better day-to-day; avoid complications; minimize side-effects; keep costs manageable
+`,
+    elevenLabsVoiceId: 'wrxvN1LZJIfL3HHvffqe',
+    avatarRole: '20241014-people-bbox'
+  }
 ];
 
 export const getPersonaById = (id: string): Persona | null => {

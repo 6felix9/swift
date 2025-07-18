@@ -20,7 +20,8 @@ Any polite deferral (“I’ll think about it”) is **not** a success.
     "maxPossibleScore": 85,
     "keyStrengths": "",
     "keyAreasForImprovement": "",
-    "referralContextSuccessfullyCreated": {
+    "domainSpecificOutcome": { 
+      "question": "",
       "answer": "",
       "justification": ""
     }

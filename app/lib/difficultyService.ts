@@ -1,5 +1,5 @@
 import { Difficulty } from "@/lib/difficultyTypes";
-import { getDifficultyProfileTemplate } from "@/lib/prompt/difficulty-profiles";
+import { DIFFICULTY_PROFILE_TEMPLATES } from "@/lib/prompt/difficulty-profiles";
 import { GoogleGenAI } from "@google/genai";
 
 // Testing Gemini flash 2.5 model for evaluation
@@ -132,7 +132,7 @@ export async function generateDifficultyProfile(
   );
 
   // 1) Get the scenario-specific template and inject the difficulty
-  const templateData = getDifficultyProfileTemplate(scenarioId);
+  const templateData = DIFFICULTY_PROFILE_TEMPLATES[scenarioId] || DIFFICULTY_PROFILE_TEMPLATES['GENERIC'];
   const prompt = templateData.template.replace(
     '<<DIFFICULTY>>',
     difficulty

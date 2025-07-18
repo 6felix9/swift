@@ -14,7 +14,8 @@ export const trainingGoalPlanningEvaluationInstructions = `
     "maxPossibleScore": 75,
     "keyStrengths": "",
     "keyAreasForImprovement": "",
-    "referralContextSuccessfullyCreated": {
+    "domainSpecificOutcome": { 
+      "question": "",
       "answer": "",
       "justification": ""
     }

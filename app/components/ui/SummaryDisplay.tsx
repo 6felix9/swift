@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScenarioDefinition } from '@/lib/scenarios';
 import { Persona } from '@/lib/personas';
 import { toast } from 'sonner'; // Assuming toast is used for error notifications
-import { getDifficultyDescriptions } from '@/lib/scenarioConfig';
+import { getDifficultyDescriptions } from '@/lib/scenarios';
 
 interface SummaryDisplayProps {
   selectedScenario: ScenarioDefinition | undefined;
