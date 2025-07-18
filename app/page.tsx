@@ -2,12 +2,11 @@
 
 import clsx from "clsx";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { EnterIcon, LoadingIcon } from "@/lib/icons";
+import { LoadingIcon } from "@/lib/icons";
 import { usePlayer } from "@/lib/usePlayer";
 import { useMicVAD, utils } from "@ricky0123/vad-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Message } from "@/lib/types";
 import { brandColors } from "@/lib/constants";
@@ -1441,7 +1440,6 @@ const vad = useMicVAD({
                   size="sm"
                   className="bg-[#00385C]/80 border-sky-500/60 text-sky-200 hover:bg-sky-700/70 hover:text-sky-100 transition-all duration-200 px-3 py-1.5 text-xs rounded-lg shadow-md hover:shadow-lg focus:ring-2 focus:ring-sky-400/50"
                   onClick={() => {
-                    // setInput(suggestion); // Set input field with suggestion
                     handleSubmit(suggestion); // Submit the suggestion
                   }}
                 >
