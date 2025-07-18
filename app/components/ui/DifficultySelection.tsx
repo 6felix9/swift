@@ -7,6 +7,7 @@ import { ScenarioDefinition } from '@/lib/scenarios';
 import { Persona } from '@/lib/personas';
 import { Difficulty } from '@/lib/difficultyTypes';
 import { getDifficultyDescriptions } from '@/lib/scenarios';
+import { motion } from 'framer-motion';
 
 interface DifficultySelectionProps {
   selectedScenario: ScenarioDefinition | undefined;
@@ -40,60 +41,91 @@ export const DifficultySelection: React.FC<DifficultySelectionProps> = ({
   const scenarioDifficulties = getDifficultyDescriptions(selectedScenario.id);
 
   return (
-    <>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+    >
       {/* Persona recap */}
-      <div className="mb-4 p-3 border border-white/20 rounded-lg bg-white/5 shadow-sm">
+      <motion.div 
+        className="mb-4 p-3 border border-white/20 rounded-lg bg-white/5 shadow-sm"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+      >
         <p className="text-xs text-gray-400 mb-0.5">Selected Persona:</p>
         <h3 className="text-md font-semibold text-[#FFD700]">
           {selectedPersona.name}
         </h3>
-      </div>
+      </motion.div>
 
       {/* Difficulty cards */}
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-center mb-1 text-white">
-          Step 3: Select Difficulty
-        </h2>
-        <p className="text-sm text-center mb-4 text-gray-400">
-          How challenging should the customer be to convince?
-        </p>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
+          <h2 className="text-2xl font-semibold text-center mb-1 text-white">
+            Step 3: Select Difficulty
+          </h2>
+          <p className="text-sm text-center mb-4 text-gray-400">
+            How challenging should the customer be to convince?
+          </p>
+        </motion.div>
         <div className="space-y-3">
-          {scenarioDifficulties.map((diff) => (
-            <Card
+          {scenarioDifficulties.map((diff, index) => (
+            <motion.div
               key={diff.id}
-              className={clsx(
-                'transition-all duration-300 cursor-pointer hover:shadow-lg p-4',
-                selectedDifficulty === diff.id
-                  ? 'bg-gradient-to-r from-[#003B6F]/90 to-[#001F3A]/95 border-2 border-[#60A5FA]/80 shadow-[0_0_20px_rgba(96,165,250,0.4)] scale-105'
-                  : 'bg-gradient-to-r from-[#002B49]/60 to-[#001425]/70 border border-white/10 hover:border-white/30 hover:scale-[1.02]'
-              )}
-              onClick={() => onSelectDifficulty(diff.id)}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ 
+                duration: 0.3, 
+                delay: 0.3 + index * 0.1,
+                ease: "easeOut"
+              }}
             >
-              <CardHeader className="p-0 pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className={clsx(
-                    'text-lg font-medium transition-colors',
-                    selectedDifficulty === diff.id ? 'text-[#60A5FA]' : 'text-white'
-                  )}>
-                    {diff.title}
-                  </CardTitle>
-                  {selectedDifficulty === diff.id && (
-                    <CheckCircle2 className="w-5 h-5 text-[#60A5FA]" />
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <p className="text-sm text-gray-300 truncate">
-                  {diff.description}
-                </p>
-              </CardContent>
-            </Card>
+              <Card
+                className={clsx(
+                  'transition-all duration-200 cursor-pointer hover:shadow-lg p-4',
+                  selectedDifficulty === diff.id
+                    ? 'bg-gradient-to-r from-[#003B6F]/90 to-[#001F3A]/95 border-2 border-[#60A5FA]/80 shadow-[0_0_20px_rgba(96,165,250,0.4)] scale-105'
+                    : 'bg-gradient-to-r from-[#002B49]/60 to-[#001425]/70 border border-white/10 hover:border-white/30 hover:scale-[1.02]'
+                )}
+                onClick={() => onSelectDifficulty(diff.id)}
+              >
+                <CardHeader className="p-0 pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className={clsx(
+                      'text-lg font-medium transition-colors',
+                      selectedDifficulty === diff.id ? 'text-[#60A5FA]' : 'text-white'
+                    )}>
+                      {diff.title}
+                    </CardTitle>
+                    {selectedDifficulty === diff.id && (
+                      <CheckCircle2 className="w-5 h-5 text-[#60A5FA]" />
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <p className="text-sm text-gray-300 truncate">
+                    {diff.description}
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </div>
       </div>
 
       {/* Navigation buttons */}
-      <div className="space-y-3">
+      <motion.div 
+        className="space-y-3"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.5 }}
+      >
         <div className="flex gap-3">
             <Button
             variant="outline"
@@ -113,11 +145,11 @@ export const DifficultySelection: React.FC<DifficultySelectionProps> = ({
         <Button
             onClick={onNextToSummary}
             disabled={!selectedDifficulty}
-            className="w-full px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-300 disabled:opacity-50"
+            className="w-full px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200 disabled:opacity-50"
         >
             Next: Confirm Details &rarr;
         </Button>
-      </div>
-    </>
+      </motion.div>
+    </motion.div>
   );
 };

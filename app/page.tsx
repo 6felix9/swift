@@ -1269,20 +1269,42 @@ const vad = useMicVAD({
           (isMessagesPanelVisible || isAnimating) ? "gap-8" : "justify-center"
         )}>
           {/* Left Side - Avatar Video */}
-          <div className={clsx(
-            "flex flex-col items-center relative transition-all duration-300",
-            (isMessagesPanelVisible || isAnimating) ? "w-1/2" : "w-full max-w-md"
-          )}>
+          <motion.div 
+            className={clsx(
+              "flex flex-col items-center relative transition-all duration-300",
+              (isMessagesPanelVisible || isAnimating) ? "w-1/2" : "w-full max-w-md"
+            )}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
             {sessionId ? (
-              <div id="video-container" ref={videoContainerRef} className="h-150 max-w-md aspect-video bg-black rounded-xl shadow-lg" />
+              <motion.div 
+                id="video-container" 
+                ref={videoContainerRef} 
+                className="h-150 max-w-md aspect-video bg-black rounded-xl shadow-lg"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+              />
             ) : (
-              <div className="h-150 max-w-md aspect-video bg-black rounded-xl shadow-lg flex items-center justify-center text-white text-lg">
+              <motion.div 
+                className="h-150 max-w-md aspect-video bg-black rounded-xl shadow-lg flex items-center justify-center text-white text-lg"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+              >
                 Connecting to Avatar...
-              </div>
+              </motion.div>
             )}
             
             {/* Mute/Unmute Button - Positioned as overlay */}
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+            <motion.div 
+              className="absolute bottom-4 left-1/2 transform -translate-x-1/2"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.6 }}
+            >
               <Button
                 onClick={handleMuteToggle}
                 disabled={!vad || !!vad.loading || !!vad.errored}
@@ -1302,11 +1324,16 @@ const vad = useMicVAD({
                   <Mic size={20} />
                 )}
               </Button>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           {/* Messages Toggle Button - Always positioned at top-right of main content area */}
-          <div className="absolute top-0 right-0 z-10">
+          <motion.div 
+            className="absolute top-0 right-0 z-10"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3, delay: 0.4 }}
+          >
             <Button
               onClick={toggleMessagesPanel}
               className={clsx(
@@ -1322,7 +1349,7 @@ const vad = useMicVAD({
                 <MessageSquare size={20} />
               )}
             </Button>
-          </div>
+          </motion.div>
 
           {/* Right Side - Scrollable Messages */}
           <AnimatePresence onExitComplete={() => setIsAnimating(false)}>
@@ -1395,7 +1422,12 @@ const vad = useMicVAD({
         </div>
 
         {/* Bottom Controls Section */}
-        <div className="w-full max-w-3xl mx-auto mt-4 relative">
+        <motion.div 
+          className="w-full max-w-3xl mx-auto mt-4 relative"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+        >
           {/* Top row with mute indicator and toggle button */}
           <div className="flex items-center justify-between w-full mb-2">
             {/* Left side - Empty space */}
@@ -1404,53 +1436,85 @@ const vad = useMicVAD({
             {/* Center - Mute Status Indicator */}
             <div className="flex-1 flex justify-center">
               {isMuted && (
-                <div className="text-red-400 text-sm font-medium">
+                <motion.div 
+                  className="text-red-400 text-sm font-medium"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
                   You are muted
-                </div>
+                </motion.div>
               )}
             </div>
             
             {/* Right side - Suggestions Panel Toggle Button */}
             <div className="flex-1 flex justify-end">
-              <Button
-                onClick={toggleSuggestionsPanel}
-                className="p-2 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl border-2 bg-[#00A9E7] hover:bg-[#0098D1] border-[#00A9E7] text-white hover:border-[#0098D1]"
-                aria-label={isSuggestionsPanelVisible ? "Hide suggestions" : "Show suggestions"}
-                title={isSuggestionsPanelVisible ? "Hide suggestions" : "Show suggestions"}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.6 }}
               >
-                {isSuggestionsPanelVisible ? (
-                  <EyeOff size={20} />
-                ) : (
-                  <Eye size={20} />
-                )}
-              </Button>
+                <Button
+                  onClick={toggleSuggestionsPanel}
+                  className="p-2 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl border-2 bg-[#00A9E7] hover:bg-[#0098D1] border-[#00A9E7] text-white hover:border-[#0098D1]"
+                  aria-label={isSuggestionsPanelVisible ? "Hide suggestions" : "Show suggestions"}
+                  title={isSuggestionsPanelVisible ? "Hide suggestions" : "Show suggestions"}
+                >
+                  {isSuggestionsPanelVisible ? (
+                    <EyeOff size={20} />
+                  ) : (
+                    <Eye size={20} />
+                  )}
+                </Button>
+              </motion.div>
             </div>
           </div>
                     
           {isApiLoading ? (
-            <div className="mt-4 mb-2 w-full max-w-3xl mx-auto flex justify-center px-4">
+            <motion.div 
+              className="mt-4 mb-2 w-full max-w-3xl mx-auto flex justify-center px-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
               <LoadingIcon />
-            </div>
+            </motion.div>
           ) : suggestions && suggestions.length > 0 ? (
-            <div className="mt-4 mb-2 w-full max-w-3xl mx-auto flex flex-wrap justify-center gap-2 px-4 relative">
+            <motion.div 
+              className="mt-4 mb-2 w-full max-w-3xl mx-auto flex flex-wrap justify-center gap-2 px-4 relative"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
               {isSuggestionsPanelVisible && suggestions.map((suggestion, index) => (
-                <Button
+                <motion.div
                   key={index}
-                  variant="outline"
-                  size="sm"
-                  className="bg-[#00385C]/80 border-sky-500/60 text-sky-200 hover:bg-sky-700/70 hover:text-sky-100 transition-all duration-200 px-3 py-1.5 text-xs rounded-lg shadow-md hover:shadow-lg focus:ring-2 focus:ring-sky-400/50"
-                  onClick={() => {
-                    handleSubmit(suggestion); // Submit the suggestion
-                  }}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2, delay: index * 0.05 }}
                 >
-                  {suggestion}
-                </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-[#00385C]/80 border-sky-500/60 text-sky-200 hover:bg-sky-700/70 hover:text-sky-100 transition-all duration-50 px-3 py-1.5 text-xs rounded-lg shadow-md hover:shadow-lg focus:ring-2 focus:ring-sky-400/50"
+                    onClick={() => {
+                      handleSubmit(suggestion); // Submit the suggestion
+                    }}
+                  >
+                    {suggestion}
+                  </Button>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           ) : null}
           
           {/* End Call Button - Moved below the form */}
-          <div className="w-full max-w-3xl mx-auto mt-4">
+          <motion.div 
+            className="w-full max-w-3xl mx-auto mt-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.8 }}
+          >
             <Button
               ref={endCallRef}
               type="button"
@@ -1461,7 +1525,7 @@ const vad = useMicVAD({
               <PhoneOff size={20} />
               <span>End Call</span>
             </Button>
-          </div>
+          </motion.div>
 
           <div className="pt-6 text-center max-w-xl text-balance min-h-16 mx-auto px-4" style={{ color: '#FFFFFF', fontSize: '0.95rem' }}>
             {messages.length === 0 && listeningInitiated && (
@@ -1498,22 +1562,37 @@ const vad = useMicVAD({
             )}
           </div>
 
-        </div>
+        </motion.div>
 
         {/* Active Session Display (Scenario and Patient) */}
         {listeningInitiated ? (
-          <div className="mb-8 flex flex-col items-center w-full max-w-7xl mx-auto px-6">
+          <motion.div 
+            className="mb-8 flex flex-col items-center w-full max-w-7xl mx-auto px-6"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.9 }}
+          >
             {/* Clean Title Section */}
-            <div className="text-center mb-8">
+            <motion.div 
+              className="text-center mb-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 1.0 }}
+            >
               <h2 className="text-2xl font-semibold text-white mb-2">Active Training Session</h2>
               <div className="w-16 h-0.5 bg-[#FFB800] mx-auto"></div>
-            </div>
+            </motion.div>
             
             {/* Cards Container */}
             <div className="w-full flex flex-row gap-6 justify-between">
               {/* Scenario Card */}
               {selectedScenarioId && (
-                <div className="w-1/2">
+                <motion.div 
+                  className="w-1/2"
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 1.1 }}
+                >
                   <Card className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border-2 border-[#FFB800]/70 shadow-[0_0_15px_rgba(255,184,0,0.3)] min-h-[180px]">
                     <CardHeader className="p-5 pb-3">
                       <div className="flex items-center gap-3">
@@ -1534,12 +1613,17 @@ const vad = useMicVAD({
                       </p>
                     </CardContent>
                   </Card>
-                </div>
+                </motion.div>
               )}
 
               {/* Persona Card */}
               {selectedScenarioId && scenarioDefinitionsData.find(s => s.id === selectedScenarioId)?.personas !== undefined && (
-                <div className="w-1/2">
+                <motion.div 
+                  className="w-1/2"
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 1.2 }}
+                >
                   <Card className="bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border-2 border-[#FFB800]/70 shadow-[0_0_15px_rgba(255,184,0,0.3)] min-h-[180px]">
                     <CardHeader className="p-5 pb-3">
                       <div className="flex items-center gap-3">
@@ -1560,10 +1644,10 @@ const vad = useMicVAD({
                       </p>
                     </CardContent>
                   </Card>
-                </div>
+                </motion.div>
               )}
             </div>
-          </div>
+          </motion.div>
         ) : null}
 
       </div>

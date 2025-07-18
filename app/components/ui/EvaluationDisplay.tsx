@@ -658,9 +658,14 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
 
   if (isLoading) {
     return (
-      <div className="text-center p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeInOut" }}
+        className="text-center p-6"
+      >
         <p className="text-lg text-gray-400 animate-pulse">Loading Evaluation Results…</p>
-      </div>
+      </motion.div>
     );
   }
 

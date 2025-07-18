@@ -5,6 +5,7 @@ import { ScenarioDefinition } from '@/lib/scenarios';
 import { Persona } from '@/lib/personas';
 import { toast } from 'sonner'; // Assuming toast is used for error notifications
 import { getDifficultyDescriptions } from '@/lib/scenarios';
+import { motion } from 'framer-motion';
 
 interface SummaryDisplayProps {
   selectedScenario: ScenarioDefinition | undefined;
@@ -44,64 +45,99 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
   }
 
   return (
-    <>
-      <div className="flex gap-3">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+    >
+      <motion.div 
+        className="flex gap-3"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+      >
         {/* Selected Scenario Display */}
-        <Card className="flex-1/2 mb-3 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
-          <CardHeader className="p-4 pb-2">
-            <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Scenario</p>
-            <CardTitle className="text-lg font-medium text-[#FFD700]">
-              {selectedScenario.name}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-sm text-gray-300 mb-1">{selectedScenario.description}</p>
-            <p className="text-xs text-gray-400">Your Role: {selectedScenario.userRole}</p>
-          </CardContent>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+          className="flex-1/2"
+        >
+          <Card className="mb-3 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
+            <CardHeader className="p-4 pb-2">
+              <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Scenario</p>
+              <CardTitle className="text-lg font-medium text-[#FFD700]">
+                {selectedScenario.name}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <p className="text-sm text-gray-300 mb-1">{selectedScenario.description}</p>
+              <p className="text-sm text-gray-400">Your Role: {selectedScenario.userRole}</p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Selected Difficulty Display */}
-        <Card className="flex-1/2 mb-3 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, delay: 0.3 }}
+          className="flex-1/2"
+        >
+          <Card className="mb-3 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
+            <CardHeader className="p-4 pb-2">
+              <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Difficulty</p>
+              <CardTitle className="text-lg font-medium text-[#FFD700]">
+                {selectedDifficulty && (() => {
+                  // Capitalize first letter
+                  const label = selectedDifficulty[0].toUpperCase() + selectedDifficulty.slice(1);
+                  // 1 star for easy, 2 for medium, 3 for hard
+                  const count = selectedDifficulty === 'easy'
+                    ? 1
+                    : selectedDifficulty === 'medium'
+                      ? 2
+                      : 3;
+                  return `${label} ${'⭐'.repeat(count)}`;
+                })()}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <p className="text-sm text-gray-300 mb-1">{getDifficultyDescriptions(selectedScenario.id).find(difficulty => difficulty.id === selectedDifficulty)?.description}</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
+
+      {/* Selected Persona Display */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.4 }}
+      >
+        <Card className="mb-6 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
           <CardHeader className="p-4 pb-2">
-            <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Difficulty</p>
-            <CardTitle className="text-lg font-medium text-[#FFD700]">
-              {selectedDifficulty && (() => {
-                // Capitalize first letter
-                const label = selectedDifficulty[0].toUpperCase() + selectedDifficulty.slice(1);
-                // 1 star for easy, 2 for medium, 3 for hard
-                const count = selectedDifficulty === 'easy'
-                  ? 1
-                  : selectedDifficulty === 'medium'
-                    ? 2
-                    : 3;
-                return `${label} ${'⭐'.repeat(count)}`;
-              })()}
+            <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Selected Persona</p>
+            <CardTitle className="text-lg font-medium text-[#60A5FA]">
+              {selectedPersona.name}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
-            <p className="text-sm text-gray-300 mb-1">{getDifficultyDescriptions(selectedScenario.id).find(difficulty => difficulty.id === selectedDifficulty)?.description}</p>
+            <p className="text-sm font-semibold text-gray-200 mb-1">Profile Details:</p>
+            <div className="text-sm text-gray-300 whitespace-pre-wrap max-h-48 overflow-y-auto p-3 bg-black/25 rounded-md">
+              {selectedPersona.profileDetails}
+            </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Selected Persona Display */}
-      <Card className="mb-6 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 shadow-md">
-        <CardHeader className="p-4 pb-2">
-          <p className="text-xs uppercase tracking-wider text-gray-400 mb-0.5">Selected Persona</p>
-          <CardTitle className="text-lg font-medium text-[#60A5FA]">
-            {selectedPersona.name}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <p className="text-sm font-semibold text-gray-200 mb-1">Profile Details:</p>
-          <div className="text-sm text-gray-300 whitespace-pre-wrap max-h-48 overflow-y-auto p-3 bg-black/25 rounded-md">
-            {selectedPersona.profileDetails}
-          </div>
-        </CardContent>
-      </Card>
+      </motion.div>
 
       {/* Action Buttons */}
-      <div className="space-y-3 mt-8">
+      <motion.div 
+        className="space-y-3 mt-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.5 }}
+      >
         <Button
           onClick={onStartSession}
           disabled={isStartingSession || loading}
@@ -136,7 +172,7 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
             &larr; Change Scenario
           </Button>
         </div>
-      </div>
-    </>
+      </motion.div>
+    </motion.div>
   );
 };

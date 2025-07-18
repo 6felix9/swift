@@ -5,6 +5,7 @@ import { CheckCircle2, History, Briefcase, Heart, Headphones } from 'lucide-reac
 import { ScenarioDefinition } from '@/lib/scenarios'; // Ensure this path is correct
 import { TrainingDomain } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ScenarioSelectionProps {
   scenarioDefinitions: ScenarioDefinition[];
@@ -55,7 +56,7 @@ export const ScenarioSelection: React.FC<ScenarioSelectionProps> = ({
           </div>
           <Button
             onClick={onShowSessionHistory}
-            className="absolute right-0 flex items-center gap-2 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 hover:border-white/40 text-white font-medium py-2 px-4 rounded-lg shadow-md transition-all duration-300 hover:scale-105 hover:bg-gradient-to-r hover:from-[#002B49]/90 hover:to-[#001425]/95"
+            className="absolute right-0 flex items-center gap-2 bg-gradient-to-r from-[#002B49]/80 to-[#001425]/90 border border-white/20 hover:border-white/40 text-white font-medium py-2 px-4 rounded-lg shadow-md transition-all duration-200 hover:scale-105 hover:bg-gradient-to-r hover:from-[#002B49]/90 hover:to-[#001425]/95"
           >
             <History size={16} />
             <span className="text-sm">Session History</span>
@@ -73,7 +74,7 @@ export const ScenarioSelection: React.FC<ScenarioSelectionProps> = ({
                   key={domain}
                   onClick={() => onDomainChange(domain as TrainingDomain)}
                   className={clsx(
-                    "flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-300 border-2",
+                    "flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 border-2",
                     isSelected
                       ? "bg-gradient-to-r from-[#002B49]/90 to-[#001425]/95 border-[#FFB800]/80 text-[#FFB800] shadow-[0_0_15px_rgba(255,184,0,0.3)] scale-105"
                       : "bg-gradient-to-r from-[#002B49]/60 to-[#001425]/70 border-white/10 text-white hover:border-white/30 hover:scale-[1.02]"
@@ -89,45 +90,64 @@ export const ScenarioSelection: React.FC<ScenarioSelectionProps> = ({
             {domainConfig[selectedDomain].description}
           </p>
         </div>
-        <div className="space-y-3">
-          {filteredScenarios.map(scenarioDef => (
-            <Card 
-              key={scenarioDef.id}
-              className={clsx(
-                "transition-all duration-300 cursor-pointer hover:shadow-lg",
-                selectedScenarioId === scenarioDef.id
-                  ? "bg-gradient-to-r from-[#002B49]/90 to-[#001425]/95 border-2 border-[#FFB800]/80 shadow-[0_0_20px_rgba(255,184,0,0.4)] scale-105"
-                  : "bg-gradient-to-r from-[#002B49]/60 to-[#001425]/70 border border-white/10 hover:border-white/30 hover:scale-[1.02]"
-              )}
-              onClick={() => {
-                onSelectScenarioAndPersona(scenarioDef.id, scenarioDef.personas[0]);
-              }}
-            >
-              <CardHeader className="p-4 pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className={clsx(
-                    "text-lg font-medium transition-colors",
+        <AnimatePresence mode="wait">
+          <motion.div 
+            key={selectedDomain}
+            className="space-y-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+          >
+            {filteredScenarios.map((scenarioDef, index) => (
+              <motion.div
+                key={scenarioDef.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ 
+                  duration: 0.3, 
+                  delay: index * 0.1,
+                  ease: "easeOut"
+                }}
+              >
+                <Card 
+                  className={clsx(
+                    "transition-all duration-200 cursor-pointer hover:shadow-lg",
                     selectedScenarioId === scenarioDef.id
-                      ? "text-[#FFB800]"
-                      : "text-white"
-                  )}>
-                    {scenarioDef.name}
-                  </CardTitle>
-                  {selectedScenarioId === scenarioDef.id && (
-                    <CheckCircle2 className="w-5 h-5 text-[#FFB800]" />
+                      ? "bg-gradient-to-r from-[#002B49]/90 to-[#001425]/95 border-2 border-[#FFB800]/80 shadow-[0_0_20px_rgba(255,184,0,0.4)] scale-105"
+                      : "bg-gradient-to-r from-[#002B49]/60 to-[#001425]/70 border border-white/10 hover:border-white/30 hover:scale-[1.02]"
                   )}
-                </div>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <p className="text-sm text-white mb-2">{scenarioDef.description}</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400">Role:</span>
-                  <span className="text-xs text-[#FFB800] font-medium">{scenarioDef.userRole}</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  onClick={() => {
+                    onSelectScenarioAndPersona(scenarioDef.id, scenarioDef.personas[0]);
+                  }}
+                >
+                  <CardHeader className="p-4 pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className={clsx(
+                        "text-lg font-medium transition-colors",
+                        selectedScenarioId === scenarioDef.id
+                          ? "text-[#FFB800]"
+                          : "text-white"
+                      )}>
+                        {scenarioDef.name}
+                      </CardTitle>
+                      {selectedScenarioId === scenarioDef.id && (
+                        <CheckCircle2 className="w-5 h-5 text-[#FFB800]" />
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0">
+                    <p className="text-sm text-white mb-2">{scenarioDef.description}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">Role:</span>
+                      <span className="text-xs text-[#FFB800] font-medium">{scenarioDef.userRole}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </>
   );
