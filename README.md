@@ -1,6 +1,6 @@
-# Financial Advisor AI Training
+# Swift AI Training Platform
 
-AI-powered training platform for financial advisors to practice client interactions through real-time voice conversations with digital avatars. Helps advisors develop referral-seeking skills and handle complex client scenarios.
+AI-powered training platform for professionals across multiple domains to practice client interactions through real-time voice conversations with digital avatars. Supports training for financial services, healthcare, and customer service professionals.
 
 ## Tech Stack
 
@@ -95,6 +95,14 @@ Deploy on platforms that support persistent containers:
 - Azure Container Instances  
 - DigitalOcean App Platform
 - Any VPS with Docker
+
+## Training Domains
+
+The platform supports training scenarios across multiple professional domains:
+
+- **Financial Services**: Referral seeking, insurance claim handling, portfolio reviews
+- **Healthcare**: Patient consultations, medication discussions, care coordination  
+- **Customer Service**: Complaint handling, product support, escalation management
 
 ## Changing Persona Avatars
 

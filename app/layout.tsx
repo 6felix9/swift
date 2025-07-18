@@ -6,16 +6,16 @@ import { Toaster } from "sonner";
 
 
 export const metadata: Metadata = {
-  title: "Financial Advisor Training: Referral Skills",
-  description: "Role-play simulation to evaluate referral-seeking skills with client Liang Chen.",
+  title: "Swift AI Training Platform",
+  description: "AI-powered training platform for professionals across financial services, healthcare, and customer service domains.",
   icons: {
     icon: "/favicon.ico"
   },
   manifest: "/manifest.json",
   openGraph: {
-    title: "Financial Advisor Training: Referral Skills",
-    description: "Role-play simulation to evaluate referral-seeking skills with client Liang Chen.",
-    siteName: "Healthier SG",
+    title: "Swift AI Training Platform",
+    description: "AI-powered training platform for professionals across financial services, healthcare, and customer service domains.",
+    siteName: "Swift AI",
     locale: "en_SG",
     type: "website"
   }
