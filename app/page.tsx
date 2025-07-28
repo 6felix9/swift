@@ -8,6 +8,7 @@ import { useMicVAD, utils } from "@ricky0123/vad-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartLineLinear } from "@/components/ui/chart-line-linear";
 import { Message } from "@/lib/types";
 import { brandColors } from "@/lib/constants";
 import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
@@ -1330,6 +1331,9 @@ const vad = useMicVAD({
 
   return (
     <div style={mainContainerStyle} className="flex flex-col items-center">
+
+    <ChartLineLinear className="w-1/2 mx-auto" />
+
       {/* Content for listeningInitiated, wrapped to ensure it's on top */}
       <div style={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1 }}>
         <motion.div
