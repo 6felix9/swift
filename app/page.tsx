@@ -76,7 +76,6 @@ export default function Home() {
 
   // Add this state variable at the top of your component
   const [isMessagesPanelVisible, setIsMessagesPanelVisible] = useState(true);
-  const [isAnimating, setIsAnimating] = useState(false);
   const [isSuggestionsPanelVisible, setIsSuggestionsPanelVisible] = useState(true);
 
   // State for new Scenario-based training
@@ -224,14 +223,18 @@ export default function Home() {
       { role: 'client', content: 'Hi there! I was hoping you could help me understand some investment options.' },
       { role: 'advisor', content: 'Of course! I\'d be happy to help you explore your investment options. What are your main financial goals?' },
       { role: 'client', content: 'I\'m looking to save for retirement, but I\'m not sure where to start.' },
+      { role: 'advisor', content: 'That\'s a great goal to have. Let\'s start by discussing your current financial situation and risk tolerance.' },
+      { role: 'client', content: 'Hi there! I was hoping you could help me understand some investment options.' },
+      { role: 'advisor', content: 'Of course! I\'d be happy to help you explore your investment options. What are your main financial goals?' },
+      { role: 'client', content: 'I\'m looking to save for retirement, but I\'m not sure where to start.' },
       { role: 'advisor', content: 'That\'s a great goal to have. Let\'s start by discussing your current financial situation and risk tolerance.' }
     ];
     setMessages(mockMessages);
 
     // Mock suggestions
     const mockSuggestions = [
-      'What\'s your current age and target retirement age?',
-      'How would you describe your risk tolerance?',
+      'What\'s your current age and target retirement age? What\'s your current age and target retirement age? What\'s your current age and target retirement age?',
+      'What\'s your current age and target retirement age? What\'s your current age and target retirement age? What\'s your current age and target retirement age?',
     ];
     setSuggestions(mockSuggestions);
 
@@ -1151,12 +1154,6 @@ const vad = useMicVAD({
   }, []);
 
   useEffect(() => {
-    if (isSuggestionsPanelVisible) {
-      endCallRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-    }
-  }, [suggestions, isSuggestionsPanelVisible]);
-
-  useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
@@ -1501,17 +1498,11 @@ const vad = useMicVAD({
           />
         </motion.div>
 
-        {/* Main Content Area - Avatar Left, Messages Right */}
-        <div className={clsx(
-          "flex w-full max-w-6xl mx-auto px-4 flex-1 transition-all duration-300 relative",
-          (isMessagesPanelVisible || isAnimating) ? "gap-8" : "justify-center"
-        )}>
-          {/* Left Side - Avatar Video */}
+        {/* Main Content Area - Two Column Grid Layout */}
+        <div className="grid grid-cols-2 gap-0 w-full max-w-6xl mx-auto px-4 flex-1">
+          {/* Left Column - Avatar Video */}
           <motion.div 
-            className={clsx(
-              "flex flex-col items-center relative transition-all duration-300",
-              (isMessagesPanelVisible || isAnimating) ? "w-1/2" : "w-full max-w-md"
-            )}
+            className="flex flex-col items-center relative"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -1542,283 +1533,283 @@ const vad = useMicVAD({
                 )}
               </motion.div>
             )}
-            
-            {/* Mute/Unmute Button - Positioned as overlay */}
-            <motion.div 
-              className="absolute bottom-4 left-1/2 transform -translate-x-1/2"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.6 }}
-            >
-              <Button
-                onClick={handleMuteToggle}
-                disabled={!vad || !!vad.loading || !!vad.errored}
-                className={clsx(
-                  "p-2 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl border-2",
-                  "disabled:opacity-50 disabled:cursor-not-allowed",
-                  isMuted 
-                    ? "bg-red-500 hover:bg-red-600 border-red-400 text-white hover:border-red-300" 
-                    : "bg-[#00A9E7] hover:bg-[#0098D1] border-[#00A9E7] text-white hover:border-[#0098D1]"
-                )}
-                aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
-                title={isMuted ? "Click to unmute" : "Click to mute"}
-              >
-                {isMuted ? (
-                  <MicOff size={20} />
-                ) : (
-                  <Mic size={20} />
-                )}
-              </Button>
-            </motion.div>
           </motion.div>
 
-          {/* Messages Toggle Button - Always positioned at top-right of main content area */}
+          {/* Right Column - Messages and Controls */}
           <motion.div 
-            className="absolute top-0 right-0 z-10"
-            initial={{ opacity: 0, x: 20 }}
+            className="flex flex-col relative h-150"
+            initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: 0.4 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <Button
-              onClick={toggleMessagesPanel}
-              className={clsx(
-                "p-2 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl border-2",
-                "bg-[#00A9E7] hover:bg-[#0098D1] border-[#00A9E7] text-white hover:border-[#0098D1]"
-              )}
-              aria-label={isMessagesPanelVisible ? "Hide messages" : "Show messages"}
-              title={isMessagesPanelVisible ? "Hide messages" : "Show messages"}
-            >
-              {isMessagesPanelVisible ? (
-                <MessageSquareOff size={20} />
-              ) : (
-                <MessageSquare size={20} />
-              )}
-            </Button>
-          </motion.div>
-
-          {/* Right Side - Scrollable Messages */}
-          <AnimatePresence onExitComplete={() => setIsAnimating(false)}>
-            {isMessagesPanelVisible && (
-              <motion.div
-                key="messages-panel"
-                initial={{ opacity: 0, x: 100, width: 0 }}
-                animate={{ opacity: 1, x: 0, width: "50%" }}
-                exit={{ opacity: 1, x: 0, width: "50%" }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="flex flex-col relative overflow-hidden"
-                onAnimationStart={() => setIsAnimating(true)}
-                onAnimationComplete={() => {
-                  // Only set animating to false on enter completion
-                  // Exit completion is handled by AnimatePresence onExitComplete
-                  if (isMessagesPanelVisible) {
-                    setIsAnimating(false);
-                  }
-                }}
-              >
-                <div className="h-150 overflow-y-auto pr-2 flex flex-col" ref={messagesContainerRef}>
-                  <div className="flex-1"></div>
-                  <div className="space-y-4">
-                    <AnimatePresence>
-                      {messages.map((message, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <Card 
-                          className={clsx(
-                            "backdrop-blur-md shadow-lg transition-all duration-300 hover:shadow-xl",
-                            (() => {
-                              const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
-                              const personaRoleKey = selectedScenario?.personaRole || 'client';
-                              return message.role === personaRoleKey
-                                ? "bg-[#1D3B86]/60 border border-[#1D3B86]/60 hover:bg-[#1D3B86]/70" 
-                                : "bg-[#00A9E7]/40 border border-[#00A9E7]/40 hover:bg-[#00A9E7]/50";
-                            })()
-                          )}>
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-sm font-medium text-white">
-                                {(() => {
-                                  const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
-                                  const personaRoleKey = selectedScenario?.personaRole || 'client';
-                                  return message.role === personaRoleKey ? (selectedScenario?.personaRole || 'Customer') : 'You';
-                                })()}
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="whitespace-pre-wrap" style={{
-                        color: '#FFFFFF',
-                        lineHeight: '1.6',
-                        fontSize: '1rem'
-                      }}>{message.content}</p>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                    <div ref={messagesEndRef} />
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
-        </div>
-
-        {/* Bottom Controls Section */}
-        <motion.div 
-          className="w-full max-w-3xl mx-auto mt-4 relative"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.5 }}
-        >
-          {/* Top row with mute indicator and toggle button */}
-          <div className="flex items-center justify-between w-full mb-2">
-            {/* Left side - Empty space */}
-            <div className="flex-1"></div>
-            
-            {/* Center - Mute Status Indicator */}
-            <div className="flex-1 flex justify-center">
-              {isMuted && (
-                <motion.div 
-                  className="text-red-400 text-sm font-medium"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  You are muted
-                </motion.div>
-              )}
-            </div>
-            
-            {/* Right side - Suggestions Panel Toggle Button */}
-            <div className="flex-1 flex justify-end">
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: 0.6 }}
-              >
-                <Button
-                  onClick={toggleSuggestionsPanel}
-                  className="p-2 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl border-2 bg-[#00A9E7] hover:bg-[#0098D1] border-[#00A9E7] text-white hover:border-[#0098D1]"
-                  aria-label={isSuggestionsPanelVisible ? "Hide suggestions" : "Show suggestions"}
-                  title={isSuggestionsPanelVisible ? "Hide suggestions" : "Show suggestions"}
-                >
-                  {isSuggestionsPanelVisible ? (
-                    <EyeOff size={20} />
-                  ) : (
-                    <Eye size={20} />
-                  )}
-                </Button>
-              </motion.div>
-            </div>
-          </div>
-                    
-          {isApiLoading ? (
+            {/* Messages Section with fixed height */}
             <motion.div 
-              className="mt-4 mb-2 w-full max-w-3xl mx-auto flex justify-center px-4"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <LoadingIcon />
-            </motion.div>
-          ) : suggestions && suggestions.length > 0 ? (
-            <motion.div 
-              className="mt-4 mb-2 w-full max-w-3xl mx-auto flex flex-wrap justify-center gap-2 px-4 relative"
+              className="flex flex-col overflow-hidden"
+              style={{ height: isMessagesPanelVisible ? 'calc(100% - 200px)' : '0px' }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
-              {isSuggestionsPanelVisible && suggestions.map((suggestion, index) => (
+              {isMessagesPanelVisible ? (
+              <div className="flex-1 overflow-y-auto pr-2 flex flex-col" ref={messagesContainerRef}>
+                <div className="flex-1"></div>
+                <div className="space-y-3">
+                  <AnimatePresence>
+                    {messages.map((message, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Card 
+                        className={clsx(
+                          "backdrop-blur-md shadow-lg transition-all duration-300 hover:shadow-xl",
+                          (() => {
+                            const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
+                            const personaRoleKey = selectedScenario?.personaRole || 'client';
+                            return message.role === personaRoleKey
+                              ? "bg-[#1D3B86]/60 border border-[#1D3B86]/60 hover:bg-[#1D3B86]/70" 
+                              : "bg-[#00A9E7]/40 border border-[#00A9E7]/40 hover:bg-[#00A9E7]/50";
+                          })()
+                        )}>
+                          <CardContent>
+                            <p style={{
+                                color: '#FFFFFF',
+                                lineHeight: '1',
+                                fontSize: '0.9rem'
+                              }}>
+                              {(() => {
+                                const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
+                                const personaRoleKey = selectedScenario?.personaRole || 'client';
+                                return message.role === personaRoleKey ? (selectedScenario?.personaRole || 'Customer') : 'You';
+                              })()} 
+                            </p>
+                          </CardContent>
+                          <CardContent>
+                            <p className="whitespace-pre-wrap" 
+                              style={{
+                                color: '#FFFFFF',
+                                lineHeight: '1.5',
+                                fontSize: '0.9rem'
+                              }}>
+                                {message.content}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                  <div ref={messagesEndRef} />
+                </div>
+              </div>
+              ) : null}
+            </motion.div>
+          
+            {/* Controls Section - Fixed at bottom with absolute positioning */}
+            <motion.div 
+              className="flex flex-col space-y-2 absolute bottom-0 left-0 right-0"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.5 }}
+            >
+              {/* Control Buttons Row */}
+              <div className="flex items-center justify-between gap-4">
+                {/* Mute Button */}
                 <motion.div
-                  key={index}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.2, delay: index * 0.05 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.6 }}
                 >
                   <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-[#00385C]/80 border-sky-500/60 text-sky-200 hover:bg-sky-700/70 hover:text-sky-100 transition-all duration-50 px-3 py-1.5 text-xs rounded-lg shadow-md hover:shadow-lg focus:ring-2 focus:ring-sky-400/50"
-                    onClick={() => {
-                      if (isDevelopmentMode) {
-                        return;
-                      }
-                      handleSubmit(suggestion); // Submit the suggestion
-                    }}
+                    onClick={handleMuteToggle}
+                    disabled={!vad || !!vad.loading || !!vad.errored}
+                    className={clsx(
+                      "p-2 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl border-2",
+                      "disabled:opacity-50 disabled:cursor-not-allowed",
+                      isMuted 
+                        ? "bg-red-500 hover:bg-red-600 border-red-400 text-white hover:border-red-300" 
+                        : "bg-[#00A9E7] hover:bg-[#0098D1] border-[#00A9E7] text-white hover:border-[#0098D1]"
+                    )}
+                    aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
+                    title={isMuted ? "Click to unmute" : "Click to mute"}
                   >
-                    {suggestion}
+                    {isMuted ? (
+                      <MicOff size={20} />
+                    ) : (
+                      <Mic size={20} />
+                    )}
                   </Button>
                 </motion.div>
-              ))}
+
+                {/* Mute Status Indicator */}
+                <div className="flex-1 flex justify-center">
+                  {isMuted && (
+                    <motion.div 
+                      className="text-red-400 text-sm font-medium"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      You are muted
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* Toggle Buttons */}
+                <div className="flex gap-2">
+                  {/* Messages Toggle Button */}
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.4 }}
+                  >
+                    <Button
+                      onClick={toggleMessagesPanel}
+                      className={clsx(
+                        "p-2 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl border-2",
+                        "bg-[#00A9E7] hover:bg-[#0098D1] border-[#00A9E7] text-white hover:border-[#0098D1]"
+                      )}
+                      aria-label={isMessagesPanelVisible ? "Hide messages" : "Show messages"}
+                      title={isMessagesPanelVisible ? "Hide messages" : "Show messages"}
+                    >
+                      {isMessagesPanelVisible ? (
+                        <MessageSquareOff size={20} />
+                      ) : (
+                        <MessageSquare size={20} />
+                      )}
+                    </Button>
+                  </motion.div>
+
+                  {/* Suggestions Toggle Button */}
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.6 }}
+                  >
+                    <Button
+                      onClick={toggleSuggestionsPanel}
+                      className="p-2 rounded-full shadow-lg transition-all duration-300 hover:shadow-xl border-2 bg-[#00A9E7] hover:bg-[#0098D1] border-[#00A9E7] text-white hover:border-[#0098D1]"
+                      aria-label={isSuggestionsPanelVisible ? "Hide suggestions" : "Show suggestions"}
+                      title={isSuggestionsPanelVisible ? "Hide suggestions" : "Show suggestions"}
+                    >
+                      {isSuggestionsPanelVisible ? (
+                        <EyeOff size={20} />
+                      ) : (
+                        <Eye size={20} />
+                      )}
+                    </Button>
+                  </motion.div>
+                </div>
+              </div>
+
+              {/* Suggestions Display */}
+              {isApiLoading ? (
+                <motion.div 
+                  className="flex justify-center"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <LoadingIcon />
+                </motion.div>
+              ) : suggestions && suggestions.length > 0 && isSuggestionsPanelVisible ? (
+                <motion.div 
+                  className="flex flex-col gap-2 max-h-32 overflow-y-auto"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {suggestions.map((suggestion, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
+                      className="w-full"
+                    >
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full bg-[#00385C]/80 border-sky-500/60 text-sky-200 hover:bg-sky-700/70 hover:text-sky-100 transition-all duration-50 px-3 py-2 text-xs rounded-lg shadow-md hover:shadow-lg focus:ring-2 focus:ring-sky-400/50 text-left justify-start whitespace-normal min-h-[2.5rem]"
+                        onClick={() => {
+                          if (isDevelopmentMode) {
+                            return;
+                          }
+                          handleSubmit(suggestion);
+                        }}
+                      >
+                        <span className="block break-words">{suggestion}</span>
+                      </Button>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              ) : null}
+              
+              {/* End Call Button */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.8 }}
+              >
+                <Button
+                  ref={endCallRef}
+                  type="button"
+                  onClick={handleEndCall}
+                  className="w-full bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-semibold transition-all duration-300 shadow-lg hover:shadow-xl py-3 text-lg rounded-xl flex items-center justify-center gap-2"
+                  aria-label="End call"
+                >
+                  <PhoneOff size={20} />
+                  <span>End Call</span>
+                </Button>
+              </motion.div>
             </motion.div>
-          ) : null}
-          
-          {/* End Call Button - Moved below the form */}
-          <motion.div 
-            className="w-full max-w-3xl mx-auto mt-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.8 }}
-          >
-            <Button
-              ref={endCallRef}
-              type="button"
-              onClick={handleEndCall}
-              className="w-full bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-semibold transition-all duration-300 shadow-lg hover:shadow-xl py-3 text-lg rounded-xl flex items-center justify-center gap-2"
-              aria-label="End call"
-            >
-              <PhoneOff size={20} />
-              <span>End Call</span>
-            </Button>
           </motion.div>
+        </div>
 
-          <div className="pt-6 text-center max-w-xl text-balance min-h-16 mx-auto px-4" style={{ color: '#FFFFFF', fontSize: '0.95rem' }}>
-            {messages.length === 0 && listeningInitiated && (
-              <AnimatePresence>
-                {vad.loading ? (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center justify-center gap-2"
-                  >
-                    <LoadingIcon/>
-                    Loading speech detection...
-                  </motion.p>
-                ) : vad.errored ? (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    style={{ color: '#FF6B6B' }}
-                  >
-                    Failed to load speech detection.
-                  </motion.p>
-                ) : (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    {isDevelopmentMode 
-                      ? "Development mode active - Use the text input below to test conversations"
-                      : "Start talking to the avatar"
-                    }
-                  </motion.p>
+        {/* Status Text */}
+        <div className="text-center max-w-xl text-balance min-h-16 mx-auto" style={{ color: '#FFFFFF', fontSize: '0.95rem' }}>
+                {messages.length === 0 && listeningInitiated && (
+                  <AnimatePresence>
+                    {vad.loading ? (
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex items-center justify-center gap-2"
+                      >
+                        <LoadingIcon/>
+                        Loading speech detection...
+                      </motion.p>
+                    ) : vad.errored ? (
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={{ color: '#FF6B6B' }}
+                      >
+                        Failed to load speech detection.
+                      </motion.p>
+                    ) : (
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        {isDevelopmentMode 
+                          ? "Development mode active - Use the text input below to test conversations"
+                          : "Start talking to the avatar"
+                        }
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                 )}
-              </AnimatePresence>
-            )}
-          </div>
-
-        </motion.div>
+              </div>
 
         {/* Active Session Display (Scenario and Patient) */}
         {listeningInitiated ? (
           <motion.div 
-            className="mb-8 flex flex-col items-center w-full max-w-7xl mx-auto px-6"
+            className="my-8 flex flex-col items-center w-full max-w-7xl mx-auto px-6"
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.9 }}
