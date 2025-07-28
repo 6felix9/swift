@@ -233,7 +233,7 @@ export default function Home() {
 
     // Mock suggestions
     const mockSuggestions = [
-      'What\'s your current age and target retirement age? What\'s your current age and target retirement age? What\'s your current age and target retirement age?',
+      'What\'s your current age and target retirement age?',
       'What\'s your current age and target retirement age? What\'s your current age and target retirement age? What\'s your current age and target retirement age?',
     ];
     setSuggestions(mockSuggestions);
@@ -1159,6 +1159,13 @@ const vad = useMicVAD({
     }
   }, [messages]);
 
+  // Scroll End Call button into view when entering avatar interaction UI
+  useEffect(() => {
+    if (listeningInitiated) {
+      endCallRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [listeningInitiated]);
+
   useEffect(() => {
     if (!manualListening) {
       setIsListening(vad.userSpeaking);
@@ -1482,62 +1489,67 @@ const vad = useMicVAD({
           </div>
         </motion.div>
 
-        {/* Real-time Conversation Effectiveness Chart - Fixed position above conversation */}
-        <motion.div 
-          className="w-[1000px] max-w-4xl mx-auto mb-6 px-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          <ChartLineLinear 
-            className="backdrop-blur-md bg-gradient-to-r from-[#002B49]/40 to-[#001425]/50 border-2 border-[#00A9E7]/30 shadow-[0_0_20px_rgba(0,169,231,0.2)] hover:shadow-[0_0_30px_rgba(0,169,231,0.3)] transition-all duration-300" 
-            data={conversationScores.map(score => ({
-              turn: score.turn,
-              score: score.score
-            }))}
-          />
-        </motion.div>
-
         {/* Main Content Area - Two Column Grid Layout */}
-        <div className="grid grid-cols-2 gap-0 w-full max-w-6xl mx-auto px-4 flex-1">
-          {/* Left Column - Avatar Video */}
+        <div className="grid grid-cols-2 gap-8 w-full max-w-7xl mx-auto px-4">
+          {/* Left Column - Avatar Video + Score chart */}
           <motion.div 
-            className="flex flex-col items-center relative"
+            className="flex flex-col gap-4 items-center"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            {sessionId ? (
-              <motion.div 
-                id="video-container" 
-                ref={videoContainerRef} 
-                className="h-150 max-w-md aspect-video bg-black rounded-xl shadow-lg"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 }}
+            {/* Avatar Video Container - Takes up 66% of height */}
+            <div className="flex-3 items-center justify-center">
+              {sessionId ? (
+                <motion.div 
+                  id="video-container" 
+                  ref={videoContainerRef} 
+                  className="h-full max-w-md aspect-video bg-black rounded-xl shadow-lg"
+                  style={{ height: '100%' }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                />
+              ) : (
+                <motion.div 
+                  className="h-full max-w-md aspect-video bg-black rounded-xl shadow-lg flex items-center justify-center text-white text-lg"
+                  style={{ height: '100%' }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                >
+                  {isDevelopmentMode ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="text-yellow-400 font-semibold">Mock Avatar</div>
+                      <div className="text-sm text-gray-400">Development Mode</div>
+                    </div>
+                  ) : (
+                    "Connecting to Avatar..."
+                  )}
+                </motion.div>
+              )}
+            </div>
+
+            {/* Score Chart Container - Takes up 33% of height */}
+            <motion.div 
+              className="flex-[1] w-full overflow-hidden"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <ChartLineLinear 
+                className="pb-0 backdrop-blur-md bg-gradient-to-r from-[#002B49]/40 to-[#001425]/50 border-2 border-[#00A9E7]/30 shadow-[0_0_20px_rgba(0,169,231,0.2)] hover:shadow-[0_0_30px_rgba(0,169,231,0.3)] transition-all duration-300 h-full w-full" 
+                data={conversationScores.map(score => ({
+                  turn: score.turn,
+                  score: score.score
+                }))}
               />
-            ) : (
-              <motion.div 
-                className="h-150 max-w-md aspect-video bg-black rounded-xl shadow-lg flex items-center justify-center text-white text-lg"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 }}
-              >
-                {isDevelopmentMode ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="text-yellow-400 font-semibold">Mock Avatar</div>
-                    <div className="text-sm text-gray-400">Development Mode</div>
-                  </div>
-                ) : (
-                  "Connecting to Avatar..."
-                )}
-              </motion.div>
-            )}
+            </motion.div>
           </motion.div>
 
           {/* Right Column - Messages and Controls */}
           <motion.div 
-            className="flex flex-col relative h-150"
+            className="flex flex-col relative h-190"
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
@@ -1726,12 +1738,12 @@ const vad = useMicVAD({
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.2, delay: index * 0.05 }}
-                      className="w-full"
+                      className="w-full flex justify-center"
                     >
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full bg-[#00385C]/80 border-sky-500/60 text-sky-200 hover:bg-sky-700/70 hover:text-sky-100 transition-all duration-50 px-3 py-2 text-xs rounded-lg shadow-md hover:shadow-lg focus:ring-2 focus:ring-sky-400/50 text-left justify-start whitespace-normal min-h-[2.5rem]"
+                        className="max-w-full bg-[#00385C]/80 border-sky-500/60 text-sky-200 hover:bg-sky-700/70 hover:text-sky-100 transition-all duration-50 px-3 py-2 text-xs rounded-lg shadow-md hover:shadow-lg focus:ring-2 focus:ring-sky-400/50 whitespace-normal min-h-[2.5rem]"
                         onClick={() => {
                           if (isDevelopmentMode) {
                             return;

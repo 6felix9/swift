@@ -39,20 +39,20 @@ export function ChartLineLinear({ className, data = [] }: ChartLineLinearProps) 
 
   return (
     <Card className={className}>
-      <CardHeader className="pb-4">
-        <CardTitle className="text-xl font-semibold text-[#00A9E7] flex items-center gap-2">
+      {/* <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-semibold text-[#00A9E7] flex items-center gap-2">
           <div className="w-2 h-2 bg-[#00A9E7] rounded-full animate-pulse"></div>
           Conversation Effectiveness
         </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-2">
-        <ChartContainer config={chartConfig}>
+      </CardHeader> */}
+      <CardContent className="h-full">
+        <ChartContainer config={chartConfig} className="h-full w-full">
           <LineChart
             accessibilityLayer
             data={chartData}
             margin={{
-              left: 12,
-              right: 12,
+              left: 5,
+              right: 5,
             }}
           >
             <CartesianGrid 
@@ -80,7 +80,7 @@ export function ChartLineLinear({ className, data = [] }: ChartLineLinearProps) 
               tickMargin={8}
               tick={{ fill: '#94a3b8', fontSize: 12 }}
               label={{ 
-                value: 'Effectiveness Score (0-100)', 
+                value: 'Score', 
                 angle: -90, 
                 position: 'insideLeft',
                 style: { textAnchor: 'middle', fill: '#64748b', fontSize: '12px', fontWeight: 500 }
