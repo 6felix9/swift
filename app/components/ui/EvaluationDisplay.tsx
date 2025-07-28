@@ -10,6 +10,7 @@ import { Message } from '@/lib/types';
 import { Persona } from '@/lib/personas';
 import { ScenarioDefinition } from '@/lib/scenarios';
 import { formatSessionTimestamp } from '@/lib/sessionStorage';
+import { ChartLineLinear } from '@/components/ui/chart-line-linear';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 
@@ -32,6 +33,11 @@ interface EvaluationDisplayProps {
   sessionTimestamp?: Date;
   primaryAction: ActionButton;
   secondaryAction?: ActionButton;
+  conversationScores?: Array<{
+    turn: number;
+    score: number;
+    timestamp: number;
+  }>;
 }
 
 // Utility function to format duration in MM:SS or HH:MM:SS format
@@ -59,6 +65,7 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
   sessionTimestamp,
   primaryAction,
   secondaryAction,
+  conversationScores,
 }) => {
 
   const onDownloadTranscript = () => {
@@ -794,6 +801,53 @@ export const EvaluationDisplay: React.FC<EvaluationDisplayProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* CONVERSATION PROGRESS CHART */}
+      {conversationScores && conversationScores.length > 0 && (
+        <Card className="bg-gradient-to-br from-[#0A3A5A]/80 to-[#001F35]/90 border border-blue-600/30 shadow-xl">
+          <CardHeader className="p-6 pb-4">
+            <CardTitle className="text-xl font-semibold text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-cyan-400">
+              Your Conversation Performance Over Time
+            </CardTitle>
+            <p className="text-center text-sm text-gray-300 mt-2">
+              Track how your effectiveness evolved throughout the conversation
+            </p>
+          </CardHeader>
+          <CardContent className="p-6 pt-2">
+            <div className="mb-4">
+              <ChartLineLinear 
+                className="bg-transparent border-none shadow-none"
+                data={conversationScores.map(score => ({
+                  turn: score.turn,
+                  score: score.score
+                }))}
+              />
+            </div>
+            
+            {/* Chart Summary Statistics */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 pt-4 border-t border-blue-500/30">
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-300">Average Score</p>
+                <p className="text-lg font-semibold text-white">
+                  {Math.round(conversationScores.reduce((sum, score) => sum + score.score, 0) / conversationScores.length)}/100
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-300">Peak Performance</p>
+                <p className="text-lg font-semibold text-white">
+                  {Math.max(...conversationScores.map(s => s.score))}/100
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-300">Total Turns</p>
+                <p className="text-lg font-semibold text-white">
+                  {conversationScores.length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* DETAILED EVALUATION */}
       <div className="space-y-4">

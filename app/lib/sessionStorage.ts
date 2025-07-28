@@ -13,6 +13,11 @@ export interface StoredSession {
   evaluationData: EvaluationResponse;
   transcript: Message[];
   callDuration: number;
+  conversationScores: Array<{
+    turn: number;
+    score: number;
+    timestamp: number;
+  }>;
 }
 
 const STORAGE_KEY = 'swift_ai_session_history';
@@ -57,6 +62,11 @@ export const saveSession = (sessionData: {
   evaluationData: EvaluationResponse;
   transcript: Message[];
   callDuration: number;
+  conversationScores: Array<{
+    turn: number;
+    score: number;
+    timestamp: number;
+  }>;
 }): void => {
   try {
     if (typeof window === 'undefined') {

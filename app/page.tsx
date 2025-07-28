@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartLineLinear } from "@/components/ui/chart-line-linear";
 import { Message } from "@/lib/types";
+import { ConversationScore } from "@/lib/scoringService";
 import { brandColors } from "@/lib/constants";
 import { SummaryDisplay } from '@/components/ui/SummaryDisplay';
 import { PhoneOff, Mic, MicOff, MessageSquare, MessageSquareOff, User, Target, CheckCircle, Info, Eye, EyeOff } from 'lucide-react'; // CheckCircle2 moved to ScenarioSelection
@@ -104,6 +105,21 @@ export default function Home() {
   // Development mode state
   const [isDevelopmentMode, setIsDevelopmentMode] = useState<boolean>(false);
 
+  // Conversation Effectiveness Scoring state
+  const [conversationScores, setConversationScores] = useState<Array<{
+    turn: number;
+    score: number; // Conversation Effectiveness Score (0-100)
+    timestamp: number;
+  }>>([]);
+
+  // Scoring queue for real-time updates
+  const scoringQueueRef = useRef<Array<{
+    turnNumber: number;
+    conversationHistory: Message[];
+    timestamp: number;
+  }>>([]);
+  const isProcessingQueueRef = useRef<boolean>(false);
+
   const toggleMessagesPanel = () => {
     setIsMessagesPanelVisible(!isMessagesPanelVisible);
   };
@@ -111,6 +127,73 @@ export default function Home() {
   const toggleSuggestionsPanel = () => {
     setIsSuggestionsPanelVisible(!isSuggestionsPanelVisible);
   };
+
+  // Process scoring queue continuously
+  const processScoreQueue = useCallback(async () => {
+    if (isProcessingQueueRef.current || scoringQueueRef.current.length === 0) {
+      return;
+    }
+    
+    isProcessingQueueRef.current = true;
+    console.log(`[ScoringQueue] Processing ${scoringQueueRef.current.length} queued score requests`);
+    
+    // Process all queued requests
+    while (scoringQueueRef.current.length > 0) {
+      const queueItem = scoringQueueRef.current.shift();
+      if (!queueItem) continue;
+      
+      try {
+        console.log(`[ScoringQueue] Processing turn ${queueItem.turnNumber} with ${queueItem.conversationHistory.length} messages`);
+        console.log(`[ScoringQueue] Message roles: ${queueItem.conversationHistory.map(m => m.role).join(', ')}`);
+        
+        // Fire-and-forget API call
+        const response = await fetch('/api/score-turn', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversationHistory: queueItem.conversationHistory,
+            turnNumber: queueItem.turnNumber,
+          }),
+        });
+        
+        if (response.ok) {
+          const scoreData: ConversationScore = await response.json();
+          console.log(`[ScoringQueue] Turn ${scoreData.turn} scored: ${scoreData.score}/100`);
+          
+          // Update conversation scores state for chart
+          setConversationScores(prevScores => {
+            const newScores = [...prevScores];
+            const existingIndex = newScores.findIndex(s => s.turn === scoreData.turn);
+            
+            if (existingIndex >= 0) {
+              // Update existing score
+              newScores[existingIndex] = scoreData;
+            } else {
+              // Add new score and sort by turn number
+              newScores.push(scoreData);
+              newScores.sort((a, b) => a.turn - b.turn);
+            }
+            
+            return newScores;
+          });
+        } else {
+          console.warn(`[ScoringQueue] Failed to score turn ${queueItem.turnNumber}:`, response.statusText);
+          // Graceful degradation - chart will show no change for this turn
+        }
+      } catch (error) {
+        console.error(`[ScoringQueue] Error scoring turn ${queueItem.turnNumber}:`, error);
+        // Graceful degradation - chart continues without this score
+      }
+      
+      // Small delay between requests to avoid overwhelming the API
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    isProcessingQueueRef.current = false;
+    console.log('[ScoringQueue] Queue processing complete');
+  }, []);
 
   useEffect(() => {
     // Load scenario definitions and personas from the imported data
@@ -341,6 +424,31 @@ export default function Home() {
         }
       })();
 
+      // 5️⃣ Enqueue scoring request for real-time chart updates
+      if (data !== "START") {
+        const newTurnNumber = Math.floor((messages.length + 2) / 2);
+        
+        // Use same message construction pattern as suggestion service
+        const currentMessages = messages.slice(-10);
+        const conversationHistory = [
+          ...currentMessages,
+          { role: userRoleKey, content: transcript },
+          { role: personaRoleKey, content: text }
+        ].map(m => ({ role: m.role, content: m.content }));
+        
+        // Add to scoring queue
+        scoringQueueRef.current.push({
+          turnNumber: newTurnNumber,
+          conversationHistory: conversationHistory,
+          timestamp: Date.now()
+        });
+        
+        // Process queue if not already processing
+        if (!isProcessingQueueRef.current) {
+          processScoreQueue();
+        }
+      }
+
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to send message");
@@ -353,7 +461,8 @@ export default function Home() {
     messages,
     selectedPersonaId, selectedScenarioId,
     difficultyProfile, scenarioDefinitionsData,
-    isApiLoading, sessionId, isDevelopmentMode
+    isApiLoading, sessionId, isDevelopmentMode,
+    processScoreQueue
   ]);
 
   /**
@@ -530,7 +639,8 @@ export default function Home() {
               difficulty: selectedDifficulty,
               evaluationData: evaluationResult,
               transcript: messages,
-              callDuration: callDuration
+              callDuration: callDuration,
+              conversationScores: conversationScores
             });
             console.log('[handleEndCall] Session saved to localStorage successfully.');
           } else {
@@ -878,6 +988,13 @@ const vad = useMicVAD({
     setCallStartTime(null);
     setCallDuration(0);
     
+    // Reset conversation scores
+    setConversationScores([]);
+    
+    // Clear scoring queue
+    scoringQueueRef.current = [];
+    isProcessingQueueRef.current = false;
+    
     toast.info("Session Reset. Please select a new scenario.");
   };
     
@@ -1205,6 +1322,13 @@ const vad = useMicVAD({
                     setListeningInitiated(true);
                     setManualListening(false);
                     setSelectionStep(null);
+                    
+                    // Initialize conversation scores with starting score of 0
+                    setConversationScores([{
+                      turn: 0,
+                      score: 0,
+                      timestamp: Date.now()
+                    }]);
                     // Wait for state updates and DOM render
                     setTimeout(async () => {
                       try {
@@ -1253,6 +1377,7 @@ const vad = useMicVAD({
                   scenario={getScenarioDefinitionById(selectedScenarioId!)} // Pass the entire scenario object
                   callDuration={callDuration}
                   mode="live"
+                  conversationScores={conversationScores}
                   primaryAction={{
                     label: "Start New Session",
                     onClick: handleRestartSession,
@@ -1290,6 +1415,7 @@ const vad = useMicVAD({
                   callDuration={selectedHistoricalSession.callDuration}
                   mode="historical"
                   sessionTimestamp={selectedHistoricalSession.timestamp}
+                  conversationScores={selectedHistoricalSession.conversationScores}
                   primaryAction={{
                     label: "Back to Session History",
                     onClick: () => {
@@ -1332,8 +1458,6 @@ const vad = useMicVAD({
   return (
     <div style={mainContainerStyle} className="flex flex-col items-center">
 
-    <ChartLineLinear className="w-1/2 mx-auto" />
-
       {/* Content for listeningInitiated, wrapped to ensure it's on top */}
       <div style={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1 }}>
         <motion.div
@@ -1359,6 +1483,22 @@ const vad = useMicVAD({
               <span className="font-light">{selectedScenarioDefinition?.name}</span>
             </h1>
           </div>
+        </motion.div>
+
+        {/* Real-time Conversation Effectiveness Chart - Fixed position above conversation */}
+        <motion.div 
+          className="w-[1000px] max-w-4xl mx-auto mb-6 px-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <ChartLineLinear 
+            className="backdrop-blur-md bg-gradient-to-r from-[#002B49]/40 to-[#001425]/50 border-2 border-[#00A9E7]/30 shadow-[0_0_20px_rgba(0,169,231,0.2)] hover:shadow-[0_0_30px_rgba(0,169,231,0.3)] transition-all duration-300" 
+            data={conversationScores.map(score => ({
+              turn: score.turn,
+              score: score.score
+            }))}
+          />
         </motion.div>
 
         {/* Main Content Area - Avatar Left, Messages Right */}

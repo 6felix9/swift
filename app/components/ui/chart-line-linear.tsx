@@ -1,13 +1,10 @@
 "use client"
 
-import { TrendingUp } from "lucide-react"
-import { CartesianGrid, Line, LineChart, XAxis } from "recharts"
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -18,31 +15,37 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 
-export const description = "A linear line chart"
+export const description = "A conversation effectiveness line chart"
 
-const chartData = [
-  { month: "January", desktop: 186 },
-  { month: "February", desktop: 305 },
-  { month: "March", desktop: 237 },
-  { month: "April", desktop: 73 },
-  { month: "May", desktop: 209 },
-  { month: "June", desktop: 214 },
-]
+interface ChartData {
+  turn: number;
+  score: number;
+}
+
+interface ChartLineLinearProps {
+  className?: string;
+  data?: ChartData[];
+}
 
 const chartConfig = {
-  desktop: {
-    label: "Desktop",
-    color: "var(--chart-1)",
+  score: {
+    label: "Effectiveness Score",
+    color: "#00A9E7", // Use app's primary blue color
   },
 } satisfies ChartConfig
 
-export function ChartLineLinear({ className }: { className?: string }) {
+export function ChartLineLinear({ className, data = [] }: ChartLineLinearProps) {
+  const chartData = data.length > 0 ? data : [{ turn: 0, score: 0 }];
+
   return (
     <Card className={className}>
-      <CardHeader>
-        <CardTitle>Line Chart - Linear</CardTitle>
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-semibold text-[#00A9E7] flex items-center gap-2">
+          <div className="w-2 h-2 bg-[#00A9E7] rounded-full animate-pulse"></div>
+          Conversation Effectiveness
+        </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-2">
         <ChartContainer config={chartConfig}>
           <LineChart
             accessibilityLayer
@@ -52,24 +55,67 @@ export function ChartLineLinear({ className }: { className?: string }) {
               right: 12,
             }}
           >
-            <CartesianGrid vertical={false} />
+            <CartesianGrid 
+              vertical={false} 
+              stroke="rgba(0, 169, 231, 0.2)"
+              strokeDasharray="3 3"
+            />
             <XAxis
-              dataKey="month"
+              dataKey="turn"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => value.slice(0, 3)}
+              tick={{ fill: '#94a3b8', fontSize: 12 }}
+              label={{ 
+                value: 'Conversation Turn', 
+                position: 'insideBottom', 
+                offset: -10,
+                style: { textAnchor: 'middle', fill: '#64748b', fontSize: '12px', fontWeight: 500 }
+              }}
+            />
+            <YAxis
+              domain={[0, 100]}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              tick={{ fill: '#94a3b8', fontSize: 12 }}
+              label={{ 
+                value: 'Effectiveness Score (0-100)', 
+                angle: -90, 
+                position: 'insideLeft',
+                style: { textAnchor: 'middle', fill: '#64748b', fontSize: '12px', fontWeight: 500 }
+              }}
             />
             <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent hideLabel />}
+              cursor={{
+                stroke: '#00A9E7',
+                strokeWidth: 1,
+                strokeDasharray: '5 5'
+              }}
+              content={<ChartTooltipContent 
+                formatter={(value) => [`${value}/100`, " Effectiveness Score"]}
+                labelFormatter={(value) => `Turn ${value}`}
+                className="bg-[#001425]/95 border border-[#00A9E7]/50 text-white shadow-lg"
+              />}
             />
             <Line
-              dataKey="desktop"
+              dataKey="score"
               type="linear"
-              stroke="var(--color-desktop)"
-              strokeWidth={2}
-              dot={false}
+              stroke="#00A9E7"
+              strokeWidth={3}
+              dot={{
+                fill: "#00A9E7",
+                strokeWidth: 2,
+                stroke: "#ffffff",
+                r: 4
+              }}
+              activeDot={{
+                r: 6,
+                fill: "#FFB800",
+                stroke: "#ffffff",
+                strokeWidth: 2
+              }}
+              animationDuration={500}
             />
           </LineChart>
         </ChartContainer>
