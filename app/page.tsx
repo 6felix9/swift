@@ -100,6 +100,9 @@ export default function Home() {
   // Session History state
   const [selectedHistoricalSession, setSelectedHistoricalSession] = useState<StoredSession | null>(null);
 
+  // Development mode state
+  const [isDevelopmentMode, setIsDevelopmentMode] = useState<boolean>(false);
+
   const toggleMessagesPanel = () => {
     setIsMessagesPanelVisible(!isMessagesPanelVisible);
   };
@@ -112,6 +115,54 @@ export default function Home() {
     // Load scenario definitions and personas from the imported data
     setScenarioDefinitionsData(scenarioDefinitions);
     setPersonasData(personas);
+  }, []);
+
+  // Development mode setup
+  const setupDevelopmentMode = () => {
+    // Mock data for development
+    const mockScenarioId = 'REFERRAL_SEEKING'; // Default to first available scenario
+    const mockPersonaId = 'SARAH_LEE'; // Default to first available persona
+    const mockDifficulty: Difficulty = 'medium';
+    const mockSessionId = 'dev-session-' + Date.now();
+
+    // Set up mock state
+    setSelectedScenarioId(mockScenarioId);
+    setSelectedPersonaId(mockPersonaId);
+    setSelectedDifficulty(mockDifficulty);
+    setSelectedDomain('financial-advisor');
+    setSessionId(mockSessionId);
+    setIsAvatarConnected(true);
+    setListeningInitiated(true);
+    setSelectionStep(null);
+
+    // Mock conversation for UI testing
+    const mockMessages: Message[] = [
+      { role: 'client', content: 'Hi there! I was hoping you could help me understand some investment options.' },
+      { role: 'advisor', content: 'Of course! I\'d be happy to help you explore your investment options. What are your main financial goals?' },
+      { role: 'client', content: 'I\'m looking to save for retirement, but I\'m not sure where to start.' },
+      { role: 'advisor', content: 'That\'s a great goal to have. Let\'s start by discussing your current financial situation and risk tolerance.' }
+    ];
+    setMessages(mockMessages);
+
+    // Mock suggestions
+    const mockSuggestions = [
+      'What\'s your current age and target retirement age?',
+      'How would you describe your risk tolerance?',
+    ];
+    setSuggestions(mockSuggestions);
+
+    console.log('[DEV MODE] Development mode activated with mock data and suggestions');
+  };
+
+  // Check for development mode on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const devMode = urlParams.get('dev');
+    
+    if (devMode === 'true') {
+      setIsDevelopmentMode(true);
+      setupDevelopmentMode();
+    }
   }, []);
 
   // Phase 2: Session recovery on page load
@@ -301,7 +352,7 @@ export default function Home() {
     messages,
     selectedPersonaId, selectedScenarioId,
     difficultyProfile, scenarioDefinitionsData,
-    isApiLoading, sessionId
+    isApiLoading, sessionId, isDevelopmentMode
   ]);
 
   /**
@@ -369,6 +420,12 @@ export default function Home() {
   }, []);
 
   const handleEndCall = useCallback(async () => {
+
+    // Development mode: skip end call
+    if (isDevelopmentMode) {
+      return;
+    }
+
     /* 🚦 GUARD  */
     if (endCalledRef.current) return;     // already running once
     endCalledRef.current = true;          // mark as entered
@@ -570,6 +627,12 @@ const vad = useMicVAD({
   },
   
   onSpeechStart: async () => {
+    // Skip VAD processing in development mode
+    if (isDevelopmentMode) {
+      console.log('[VAD] Development mode active, skipping VAD speech processing');
+      return;
+    }
+    
     // Check if user is muted first
     if (isMuted) {
       console.log('[VAD] User is muted, ignoring speech start');
@@ -630,6 +693,12 @@ const vad = useMicVAD({
   },
   
   onSpeechEnd: async (audio) => {
+    // Skip VAD processing in development mode
+    if (isDevelopmentMode) {
+      console.log('[VAD] Development mode active, skipping VAD speech end processing');
+      return;
+    }
+    
     // Check if user is muted first
     if (isMuted) {
       console.log('[VAD] User is muted, ignoring speech end');
@@ -703,8 +772,14 @@ const vad = useMicVAD({
       if (vad.listening) {
           console.log("[VAD Status Monitor] VAD model loaded successfully.");
       }
+      
+      // In development mode, pause VAD to avoid conflicts with text input
+      if (isDevelopmentMode && vad.listening) {
+        console.log("[VAD] Pausing VAD in development mode");
+        vad.pause();
+      }
     }
-  }, [vad, vad?.loading, vad?.errored, vad?.listening]); // Added vad itself and optional chaining for safety
+  }, [vad, vad?.loading, vad?.errored, vad?.listening, isDevelopmentMode]); // Added isDevelopmentMode dependency
 
   // Update the ref whenever vad changes
   useEffect(() => {
@@ -745,6 +820,13 @@ const vad = useMicVAD({
    * Toggles between muted and unmuted states by pausing/starting VAD
    */
   const handleMuteToggle = useCallback(() => {
+    // In development mode, mute functionality is simulated
+    if (isDevelopmentMode) {
+      console.log('[DEV MODE] Simulating mute toggle');
+      setIsMuted(!isMuted);
+      return;
+    }
+    
     if (!vad || vad.loading || vad.errored) {
       console.warn('[Mute Toggle] VAD not available or in error state');
       return;
@@ -764,7 +846,7 @@ const vad = useMicVAD({
       setManualListening(true);
       setIsListening(false);
     }
-  }, [vad, isMuted, setIsMuted, setManualListening, setIsListening]);
+  }, [vad, isMuted, setIsMuted, setManualListening, setIsListening, isDevelopmentMode]);
 
   const handleRestartSession = () => {
     setMessages([]);
@@ -1254,8 +1336,20 @@ const vad = useMicVAD({
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-8 text-center"
+          className="mb-8 text-center relative"
         >
+          {/* Development Mode Indicator */}
+          {isDevelopmentMode && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+              className="mx-auto mb-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs font-bold px-4 py-1 min-w-[100px] text-center rounded-full shadow-lg"
+              style={{ display: 'inline-block' }}
+            >
+              DEV MODE
+            </motion.div>
+          )}
           <div className="flex flex-col items-center gap-2">
             <h1 className="text-4xl font-semibold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#1D3B86] via-[#00A9E7] to-[#1D3B86]">
               <span className="font-light">{selectedScenarioDefinition?.name}</span>
@@ -1294,7 +1388,14 @@ const vad = useMicVAD({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.3 }}
               >
-                Connecting to Avatar...
+                {isDevelopmentMode ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="text-yellow-400 font-semibold">Mock Avatar</div>
+                    <div className="text-sm text-gray-400">Development Mode</div>
+                  </div>
+                ) : (
+                  "Connecting to Avatar..."
+                )}
               </motion.div>
             )}
             
@@ -1498,6 +1599,9 @@ const vad = useMicVAD({
                     size="sm"
                     className="bg-[#00385C]/80 border-sky-500/60 text-sky-200 hover:bg-sky-700/70 hover:text-sky-100 transition-all duration-50 px-3 py-1.5 text-xs rounded-lg shadow-md hover:shadow-lg focus:ring-2 focus:ring-sky-400/50"
                     onClick={() => {
+                      if (isDevelopmentMode) {
+                        return;
+                      }
                       handleSubmit(suggestion); // Submit the suggestion
                     }}
                   >
@@ -1555,7 +1659,10 @@ const vad = useMicVAD({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                   >
-                    Start talking or type your message
+                    {isDevelopmentMode 
+                      ? "Development mode active - Use the text input below to test conversations"
+                      : "Start talking to the avatar"
+                    }
                   </motion.p>
                 )}
               </AnimatePresence>
