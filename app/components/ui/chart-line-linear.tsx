@@ -15,7 +15,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 
-export const description = "A conversation effectiveness line chart"
+export const description = "A conversation score line chart"
 
 interface ChartData {
   turn: number;
@@ -29,7 +29,7 @@ interface ChartLineLinearProps {
 
 const chartConfig = {
   score: {
-    label: "Effectiveness Score",
+    label: "Score",
     color: "#00A9E7", // Use app's primary blue color
   },
 } satisfies ChartConfig
@@ -92,9 +92,9 @@ export function ChartLineLinear({ className, data = [] }: ChartLineLinearProps) 
                 strokeWidth: 1,
                 strokeDasharray: '5 5'
               }}
-              content={<ChartTooltipContent 
-                formatter={(value) => [`${value}/100`, " Effectiveness Score"]}
-                labelFormatter={(value) => `Turn ${value}`}
+              content={<ChartTooltipContent
+                hideLabel
+                formatter={(value) => `Score: ${value}`}
                 className="bg-[#001425]/95 border border-[#00A9E7]/50 text-white shadow-lg"
               />}
             />
