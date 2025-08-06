@@ -241,7 +241,7 @@ async function callGeminiFlashLite(messages: Message[], systemPrompt: string, re
   
   // Generate content with system instruction
   const response = await getGeminiClient().models.generateContent({
-    model: "gemini-2.5-flash-lite-preview-06-17",
+    model: "gemini-2.5-flash-lite",
     contents: promptData.conversationPrompt,
     config: {
       systemInstruction: promptData.systemPrompt
@@ -269,7 +269,7 @@ async function callGroq(messages: Message[], systemPrompt: string, requestId: st
   console.log(`[${requestId}] Groq context prompt prepared`);
   
   const response = await getGroqClient().chat.completions.create({
-    model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+    model: "openai/gpt-oss-120b",
     messages: [{ role: "user", content: promptData.conversationPrompt }],
     stream: false,
   });
@@ -289,8 +289,8 @@ async function callGroq(messages: Message[], systemPrompt: string, requestId: st
 async function tryAIProviders(messages: Message[], systemPrompt: string, requestId: string, scenarioId?: string): Promise<string> {
   const providers = [
     { name: "Gemini 2.5 Flash", fn: () => callGeminiFlash(messages, systemPrompt, requestId, scenarioId) },
-    { name: "Gemini 2.5 Flash Lite", fn: () => callGeminiFlashLite(messages, systemPrompt, requestId, scenarioId) },
     { name: "Groq", fn: () => callGroq(messages, systemPrompt, requestId, scenarioId) },
+    { name: "Gemini 2.5 Flash Lite", fn: () => callGeminiFlashLite(messages, systemPrompt, requestId, scenarioId) },
   ];
 
   const errors: string[] = [];

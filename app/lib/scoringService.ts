@@ -1,13 +1,13 @@
-import { GoogleGenAI } from "@google/genai";
 import { Message } from "./types";
+import Groq from "groq-sdk";
 
-let geminiClient: GoogleGenAI | null = null;
+let groqClient: Groq | null = null;
 
-function getGeminiClient(): GoogleGenAI {
-  if (!geminiClient) {
-    geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+function getGroqClient(): Groq {
+  if (!groqClient) {
+    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
   }
-  return geminiClient;
+  return groqClient;
 }
 
 export interface ConversationScore {
@@ -92,14 +92,13 @@ export async function calculateConversationEffectiveness(
     
     const fullPrompt = `${UNIVERSAL_SCORING_PROMPT}\n\nConversation:\n${transcript}`;
 
-    console.log(`[ScoringService] Full prompt for turn ${turnNumber}:\n${fullPrompt}`);
-
-    const response = await getGeminiClient().models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: fullPrompt,
+    const response = await getGroqClient().chat.completions.create({
+      model: "openai/gpt-oss-120b",
+      messages: [{ role: "system", content: fullPrompt }],
+      stream: false,
     });
 
-    const scoreText = response.text?.trim() || "0";
+    const scoreText = response.choices[0]?.message?.content?.trim() || "0";
     const score = Math.max(0, Math.min(100, parseInt(scoreText) || 0));
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);

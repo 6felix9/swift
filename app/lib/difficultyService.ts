@@ -10,7 +10,7 @@ async function callGeminiFlashLite(prompt: string, requestId: string): Promise<s
   const t0 = Date.now();
   
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash-lite-preview-06-17",
+    model: "gemini-2.5-flash-lite",
     contents: [prompt],
   });
 
