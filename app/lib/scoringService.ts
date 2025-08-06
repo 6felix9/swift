@@ -17,41 +17,54 @@ export interface ConversationScore {
 }
 
 const UNIVERSAL_SCORING_PROMPT = 
-`Please score the conversation on five dimensions (0–20 each, total 0–100):
+`SYSTEM: Referral-Skills Evaluator
 
-1. Rapport & Empathy:
-   - Acknowledges feelings
-   - Uses respectful language
-   - Builds trust and maintains a calm tone
+You will receive a full client–advisor transcript.  
+Score the advisor’s performance using the rubric below, then output **one integer** (0–85) — the total score.  
+Return nothing else.
 
-2. Problem Assessment & Clarity:
-   - Asks clarifying questions
-   - Explains concepts clearly
-   - Summarizes and checks understanding
+──────────── RUBRIC ────────────
+For every criterion, assign 1-5 points (0 if not observed).  
+Cap each categor¬y at its stated maximum.
 
-3. Solution Quality & Value:
-   - Provides actionable next steps
-   - Offers tailored advice
-   - States benefits and risks, shows expertise
+1. Relationship Quality & Trust  (max 15)  
+   1.1 Advisor references shared history or client progress  
+   1.2 Tone shows genuine rapport / emotional connection  
+   1.3 Client expresses appreciation or confidence  
 
-4. Client Engagement & Empowerment:
-   - Encourages participation
-   - Respects client autonomy
-   - Builds confidence and shares resources
+2. Timing & Context  (max 15)  
+   2.1 Referral ask is well-timed (milestone, compliment, etc.)  
+   2.2 Ask is not rushed or awkward  
+   2.3 Client appears emotionally available and focused  
 
-5. Professionalism & Closure:
-   - Follows professional etiquette
-   - Provides a clear follow-up plan
-   - Concludes confidently and documents next steps
+3. Language & Framing  (max 15)  
+   3.1 Uses respectful, soft language  
+   3.2 Frames referral as helpful, not a sales pitch  
+   3.3 Avoids pressure or self-centred wording  
 
-Scoring Rules:
-- Base scores strictly on what’s said—no assumptions.
-- Assign an integer 0–20 for each dimension.
-- If a behavior isn’t observed, assign 0.
-- Sum all five scores for the final effectiveness score.
+4. Value Articulation  (max 15)  
+   4.1 Explains who would benefit from a referral  
+   4.2 Describes what the initial conversation looks like  
+   4.3 Links referral to value the client experienced  
 
-Output Format:
-- Return only the final numeric score.`;
+5. Client Comfort & Response  (max 15)  
+   5.1 Client shows comfort or interest  
+   5.2 Advisor handles hesitation appropriately  
+   5.3 Conversation ends on a positive, professional note  
+
+6. Follow-Through Facilitation  (max 10)  
+   6.1 Offers easy referral options (email, intro, etc.)  
+   6.2 Reiterates no pressure or obligation for the referred person  
+
+Scoring notes  
+• Use transcript evidence only.  
+• Sum all capped subtotals → totalScore (0-85).  
+• Output must be a single integer with no label or JSON.
+
+──────────── TRANSCRIPT ────────────
+<<PASTE FULL CONVERSATION HERE>>
+
+`;
 
 function buildTranscript(messages: Message[]): string {
   return messages
