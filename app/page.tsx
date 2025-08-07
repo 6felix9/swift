@@ -1493,46 +1493,26 @@ const vad = useMicVAD({
         <div className="grid grid-cols-2 gap-8 w-full max-w-7xl mx-auto px-4">
           {/* Left Column - Avatar Video + Score chart */}
           <motion.div 
-            className="flex flex-col gap-4 items-center"
+            className="flex flex-col gap-4 h-full"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            {/* Avatar Video Container - Takes up 66% of height */}
-            <div className="flex-3 items-center justify-center">
-              {sessionId ? (
-                <motion.div 
-                  id="video-container" 
-                  ref={videoContainerRef} 
-                  className="h-full max-w-md aspect-video bg-black rounded-xl shadow-lg"
-                  style={{ height: '100%' }}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                />
-              ) : (
-                <motion.div 
-                  className="h-full max-w-md aspect-video bg-black rounded-xl shadow-lg flex items-center justify-center text-white text-lg"
-                  style={{ height: '100%' }}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                >
-                  {isDevelopmentMode ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="text-yellow-400 font-semibold">Mock Avatar</div>
-                      <div className="text-sm text-gray-400">Development Mode</div>
-                    </div>
-                  ) : (
-                    "Connecting to Avatar..."
-                  )}
-                </motion.div>
-              )}
+            {/* Avatar Video Container - Takes up most of the height */}
+            <div className="flex-1 min-h-0">
+              <motion.div 
+                id="video-container" 
+                ref={videoContainerRef} 
+                className="w-full h-full bg-black rounded-xl shadow-lg aspect-video"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+              />
             </div>
 
-            {/* Score Chart Container - Takes up 33% of height */}
+            {/* Score Chart Container - Takes up remaining space */}
             <motion.div 
-              className="flex-[1] w-full overflow-hidden"
+              className="h-48 w-full overflow-hidden"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
@@ -1780,7 +1760,7 @@ const vad = useMicVAD({
         </div>
 
         {/* Status Text */}
-        <div className="text-center max-w-xl text-balance min-h-16 mx-auto" style={{ color: '#FFFFFF', fontSize: '0.95rem' }}>
+        <div className="text-center max-w-xl text-balance min-h-16 mx-auto mt-6" style={{ color: '#FFFFFF', fontSize: '0.95rem' }}>
                 {messages.length === 0 && listeningInitiated && (
                   <AnimatePresence>
                     {vad.loading ? (
