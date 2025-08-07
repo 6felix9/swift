@@ -15,6 +15,7 @@
 - **Call evaluation & PDF report** generation after each session.
 - **Sudden avatar disconnection handling** — automatic WebSocket clearing.
 - **Mid-speech interruption** — if the user begins speaking, VAD triggers immediate cancellation of the current TTS stream, allowing a new turn to begin seamlessly.
+- **Session storage** — sessions are stored in the Turso database (SQLite) instead of localStorage.
 
 **Recently Implemented:**
 - Scoring chart service (scoringService.ts): Analyzes and estimates the current conversation score at every turn by making an API call to the LLM. The chart updates live with each new score.
@@ -141,5 +142,35 @@ TURSO_AUTH_TOKEN=
 
 ## Next Steps & Recommendations
 **Priorities:**
+
+**Database & User Management:**
+- **Implement User-Level Session History** - Current Turso database stores all sessions globally without user isolation. This means:
+  - All users see the same session history
+  - No privacy between different users' training sessions
+  - Session cleanup affects all users collectively
+  - **Recommendation:** Add `user_id` field to sessions table and implement user authentication/identification system
+  - **Implementation:** Modify `DatabaseService` to filter sessions by user ID and update session cleanup logic to maintain per-user limits
+
+**Current Database Schema (`sessions` table):**
+```
+┌─────────────────────┬──────────────┬─────────────────────────────────────┐
+│ Field               │ Type         │ Description                         │
+├─────────────────────┼──────────────┼─────────────────────────────────────┤
+│ id                  │ TEXT (PK)    │ Unique session identifier           │
+│ timestamp           │ TEXT         │ ISO timestamp of session            │
+│ scenario_data       │ TEXT (JSON)  │ ScenarioDefinition object           │
+│ persona_data        │ TEXT (JSON)  │ Persona configuration               │
+│ difficulty_data     │ TEXT (JSON)  │ Difficulty parameters               │
+│ evaluation_data     │ TEXT (JSON)  │ EvaluationResponse with scores      │
+│ transcript          │ TEXT (JSON)  │ Full conversation Message[]         │
+│ call_duration       │ INTEGER      │ Session duration in milliseconds    │
+│ conversation_scores │ TEXT (JSON)  │ Real-time scoring data              │
+│ created_at          │ TEXT         │ Creation timestamp                  │
+│ updated_at          │ TEXT         │ Last update timestamp               │
+└─────────────────────┴──────────────┴─────────────────────────────────────┘
+
+Missing: user_id field for session isolation
+Current behavior: All sessions stored globally, shared across all users
+```
 
 **Architecture Improvements:**
