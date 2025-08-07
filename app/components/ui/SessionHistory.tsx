@@ -39,10 +39,10 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
     loadSessions();
   }, []);
 
-  const loadSessions = () => {
+  const loadSessions = async () => {
     setIsLoading(true);
     try {
-      const storedSessions = getStoredSessions();
+      const storedSessions = await getStoredSessions();
       setSessions(storedSessions);
     } catch (error) {
       console.error('Error loading sessions:', error);
@@ -52,14 +52,18 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
     }
   };
 
-  const handleDeleteSession = (sessionId: string, event: React.MouseEvent) => {
+  const handleDeleteSession = async (sessionId: string, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent triggering the card click
     
     if (window.confirm('Are you sure you want to delete this session? This action cannot be undone.')) {
       try {
-        deleteSession(sessionId);
-        setSessions(sessions.filter(session => session.id !== sessionId));
-        toast.success('Session deleted successfully');
+        const deleted = await deleteSession(sessionId);
+        if (deleted) {
+          setSessions(sessions.filter(session => session.id !== sessionId));
+          toast.success('Session deleted successfully');
+        } else {
+          toast.error('Session not found');
+        }
       } catch (error) {
         console.error('Error deleting session:', error);
         toast.error('Failed to delete session');

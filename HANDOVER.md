@@ -6,6 +6,7 @@
 **Key Components:**
 - VAD (Voice Activity Detection)
 - BytePlus Digital Live Avatar
+- Turso Database (SQLite) for session storage
 - Pipeline: STT (Groq Whisper) -> LLM (Gemini Flash) -> TTS (ElevenLabs) -> Avatar (WebSocket)
 
 ## Current Status
@@ -55,7 +56,7 @@
 - WebSocket connections stored in `globalThis.digitalHumanMap` may not be properly cleaned up on abrupt disconnections or browser crashes.
 - No timeout mechanisms for orphaned sessions - connections could persist indefinitely.
 - Streaming state in `streamingStateManager` needs garbage collection for old sessions.
-- Session storage (localStorage) has no size limits or automatic cleanup of old sessions beyond the 10-session limit.
+- Database session storage automatically maintains 10-session limit via cleanup mechanism but lacks user-level isolation.
 
 **Error Handling Inconsistencies**
 - Error handling patterns vary significantly across service files - some throw errors, some return null, some use try/catch differently.
@@ -118,6 +119,10 @@ RTC_APP_KEY=
 RTC_ROOM_ID=
 AVATAR_RTC_USER_ID=
 AVATAR_RTC_TOKEN=
+
+# Database (required for session storage)
+TURSO_DATABASE_URL=
+TURSO_AUTH_TOKEN=
 ```
 
 ## Dependencies & Accounts
@@ -127,6 +132,7 @@ AVATAR_RTC_TOKEN=
 - **ElevenLabs:** Professional plan recommended for multiple voices
 - **BytePlus:** Digital human service account with avatar roles configured (read DIGITAL_AVATAR.md for full documentation of Digital Avatar connection)
 - **WebRTC:** BytePlus RTC service for video streaming
+- **Turso:** Edge SQLite database for session persistence
 
 **Service Dependencies:**
 - ElevenLabs voices mapped in `personas.ts` - ensure voice IDs are valid

@@ -49,6 +49,7 @@ User Speech 🎤
 - **ElevenLabs Integration** (`app/lib/elevenlabs.ts`) - Text-to-speech streaming
 - **Voice Activity Detection** - Real-time speech detection using Silero VAD v5
 - **BytePlusRTC Service** (`app/lib/rtcService.ts`) - Video streaming integration
+- **Database Service** (`app/lib/databaseService.ts`) - Turso SQLite session persistence
 
 ---
 

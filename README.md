@@ -6,6 +6,7 @@ AI-powered training platform for professionals across multiple domains to practi
 
 - **Framework**: Next.js 15, React 19, TypeScript
 - **Package Manager**: Bun
+- **Database**: Turso (SQLite) for session storage
 - **AI Services**: Google Gemini Flash, Groq SDK, ElevenLabs TTS, OpenAI Whisper STT
 - **Digital Avatars**: BytePlus/ByteDance Digital Human WebSocket service
 - **Audio Processing**: ONNX Runtime Web for Voice Activity Detection (uses https://github.com/ricky0123/vad)
@@ -55,6 +56,10 @@ AVATAR_RTC_USER_ID=your_avatar_rtc_user_id
 AVATAR_RTC_TOKEN=your_avatar_rtc_token (optional)
 USER_RTC_ID=your_user_rtc_id
 USER_RTC_TOKEN=your_user_rtc_token (optional)
+
+# Database Configuration (Turso SQLite)
+TURSO_DATABASE_URL=your_turso_database_url
+TURSO_AUTH_TOKEN=your_turso_auth_token
 ```
 
 ## Docker Deployment
@@ -184,5 +189,14 @@ The `avatarRole` corresponds to the character ID in your BytePlus Digital Human 
 - **Session Management**: Each conversation uses a unique session ID
 - **Audio Streaming**: Real-time PCM audio at 16kHz in 1.28KB chunks
 - **Interrupt Handling**: Supports natural conversation flow with voice activity detection
+
+## Session Storage
+
+The application uses Turso (edge SQLite) for storing training session data:
+
+- **Automatic Storage**: Sessions are automatically saved after completion
+- **Session Limit**: Maintains the 10 most recent sessions per user
+- **Data Stored**: Conversation transcripts, evaluations, scores, and session metadata
+- **Schema**: Single `sessions` table with JSON columns for flexible data storage
 
 Access the application at `http://localhost:3000` after deployment.

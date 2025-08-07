@@ -20,42 +20,40 @@ export interface StoredSession {
   }>;
 }
 
-const STORAGE_KEY = 'swift_ai_session_history';
+// API endpoints
+const API_BASE = '/api/sessions';
 const MAX_STORED_SESSIONS = 10;
 
 /**
- * Retrieves all stored sessions from localStorage
+ * Retrieves all stored sessions from database
  * Returns an empty array if no sessions are found or if there's an error
  */
-export const getStoredSessions = (): StoredSession[] => {
+export const getStoredSessions = async (): Promise<StoredSession[]> => {
   try {
-    if (typeof window === 'undefined') {
-      return []; // Server-side rendering protection
+    const response = await fetch(`${API_BASE}?limit=${MAX_STORED_SESSIONS}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch sessions: ${response.status} ${response.statusText}`);
     }
     
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-      return [];
-    }
-    
-    const sessions = JSON.parse(stored) as StoredSession[];
+    const data = await response.json();
     
     // Convert timestamp strings back to Date objects
-    return sessions.map(session => ({
+    return data.sessions.map((session: any) => ({
       ...session,
       timestamp: new Date(session.timestamp)
     }));
   } catch (error) {
     console.error('Error retrieving stored sessions:', error);
-    return [];
+    throw error;
   }
 };
 
 /**
- * Saves a new session to localStorage
- * Automatically manages the maximum number of stored sessions (keeps latest 10)
+ * Saves a new session to database
+ * Returns the saved session with generated ID and timestamp
  */
-export const saveSession = (sessionData: {
+export const saveSession = async (sessionData: {
   scenario: ScenarioDefinition;
   persona: Persona;
   difficulty: Difficulty;
@@ -67,86 +65,111 @@ export const saveSession = (sessionData: {
     score: number;
     timestamp: number;
   }>;
-}): void => {
+}): Promise<StoredSession> => {
   try {
-    if (typeof window === 'undefined') {
-      return; // Server-side rendering protection
+    const response = await fetch(API_BASE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(sessionData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(`Failed to save session: ${errorData.error || response.statusText}`);
     }
 
-    const newSession: StoredSession = {
-      id: generateSessionId(),
-      timestamp: new Date(),
-      ...sessionData
+    const data = await response.json();
+    console.log(`Session saved successfully to database. ID: ${data.session.id}`);
+    
+    // Convert timestamp string back to Date object
+    return {
+      ...data.session,
+      timestamp: new Date(data.session.timestamp)
     };
-
-    const existingSessions = getStoredSessions();
-    
-    // Add new session to the beginning of the array (most recent first)
-    const updatedSessions = [newSession, ...existingSessions];
-    
-    // Keep only the most recent MAX_STORED_SESSIONS sessions
-    const sessionsToStore = updatedSessions.slice(0, MAX_STORED_SESSIONS);
-    
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionsToStore));
-    
-    console.log(`Session saved successfully. Total sessions: ${sessionsToStore.length}`);
   } catch (error) {
     console.error('Error saving session:', error);
-    // Could show a toast notification here if needed
+    throw error;
   }
 };
 
 /**
- * Retrieves a specific session by ID
+ * Retrieves a specific session by ID from database
+ * Returns null if session is not found
  */
-export const getSessionById = (sessionId: string): StoredSession | null => {
-  const sessions = getStoredSessions();
-  return sessions.find(session => session.id === sessionId) || null;
-};
-
-/**
- * Deletes a specific session by ID
- */
-export const deleteSession = (sessionId: string): void => {
+export const getSessionById = async (sessionId: string): Promise<StoredSession | null> => {
   try {
-    if (typeof window === 'undefined') {
-      return;
+    const response = await fetch(`${API_BASE}/${sessionId}`);
+    
+    if (response.status === 404) {
+      return null;
+    }
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch session: ${response.status} ${response.statusText}`);
     }
 
-    const sessions = getStoredSessions();
-    const filteredSessions = sessions.filter(session => session.id !== sessionId);
+    const data = await response.json();
     
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredSessions));
-    
-    console.log(`Session ${sessionId} deleted successfully`);
+    // Convert timestamp string back to Date object
+    return {
+      ...data.session,
+      timestamp: new Date(data.session.timestamp)
+    };
   } catch (error) {
-    console.error('Error deleting session:', error);
+    console.error(`Error retrieving session ${sessionId}:`, error);
+    throw error;
   }
 };
 
 /**
- * Clears all stored sessions
+ * Deletes a specific session by ID from database
+ * Returns true if session was deleted, false if not found
  */
-export const clearAllSessions = (): void => {
+export const deleteSession = async (sessionId: string): Promise<boolean> => {
   try {
-    if (typeof window === 'undefined') {
-      return;
+    const response = await fetch(`${API_BASE}/${sessionId}`, {
+      method: 'DELETE',
+    });
+    
+    if (response.status === 404) {
+      return false;
+    }
+    
+    if (!response.ok) {
+      throw new Error(`Failed to delete session: ${response.status} ${response.statusText}`);
     }
 
-    localStorage.removeItem(STORAGE_KEY);
-    console.log('All sessions cleared successfully');
+    console.log(`Session ${sessionId} deleted successfully from database`);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting session ${sessionId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Clears all stored sessions from database
+ * Returns the number of sessions that were deleted
+ */
+export const clearAllSessions = async (): Promise<number> => {
+  try {
+    const response = await fetch(`${API_BASE}/clear`, {
+      method: 'DELETE',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to clear sessions: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('All sessions cleared successfully from database');
+    return data.deletedCount || 0;
   } catch (error) {
     console.error('Error clearing sessions:', error);
+    throw error;
   }
-};
-
-/**
- * Generates a unique session ID
- */
-const generateSessionId = (): string => {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 15);
-  return `session_${timestamp}_${random}`;
 };
 
 /**

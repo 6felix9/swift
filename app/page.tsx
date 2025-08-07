@@ -464,7 +464,7 @@ export default function Home() {
     messages,
     selectedPersonaId, selectedScenarioId,
     difficultyProfile, scenarioDefinitionsData,
-    isApiLoading, sessionId, isDevelopmentMode,
+    isApiLoading, sessionId,
     processScoreQueue
   ]);
 
@@ -630,13 +630,13 @@ export default function Home() {
         setEvaluationData(evaluationResult);
         console.log('[handleEndCall] Evaluation data set successfully.');
         
-        // Save session to localStorage
+        // Save session to database
         try {
           const selectedScenario = scenarioDefinitionsData.find(s => s.id === selectedScenarioId);
           const selectedPersona = personasData.find(p => p.id === selectedPersonaId);
           
           if (selectedScenario && selectedPersona && selectedDifficulty) {
-            saveSession({
+            const savedSession = await saveSession({
               scenario: selectedScenario,
               persona: selectedPersona,
               difficulty: selectedDifficulty,
@@ -645,7 +645,7 @@ export default function Home() {
               callDuration: callDuration,
               conversationScores: conversationScores
             });
-            console.log('[handleEndCall] Session saved to localStorage successfully.');
+            console.log('[handleEndCall] Session saved successfully:', savedSession?.id);
           } else {
             console.warn('[handleEndCall] Missing data for session saving:', {
               hasScenario: !!selectedScenario,
@@ -654,8 +654,8 @@ export default function Home() {
             });
           }
         } catch (sessionSaveError) {
-          console.error('[handleEndCall] Error saving session to localStorage:', sessionSaveError);
-          // Don't show user error for localStorage issues as evaluation still succeeded
+          console.error('[handleEndCall] Error saving session:', sessionSaveError);
+          // Don't show user error for database issues as evaluation still succeeded
         }
         
         toast.success("Evaluation generated!");
@@ -693,7 +693,9 @@ export default function Home() {
     callDuration,
     callDurationInterval,
     callStartTime,
-    selectedDifficulty
+    selectedDifficulty,
+    conversationScores,
+    isDevelopmentMode
   ]);
 
   // Update the ref whenever handleEndCall changes
@@ -1393,8 +1395,8 @@ const vad = useMicVAD({
               {/* Session History Step */}
               {selectionStep === 'sessionHistory' && (
                 <SessionHistory 
-                  onSelectSession={(sessionId) => {
-                    const session = getSessionById(sessionId);
+                  onSelectSession={async (sessionId) => {
+                    const session = await getSessionById(sessionId);
                     if (session) {
                       setSelectedHistoricalSession(session);
                       setSelectionStep('viewHistoricalSession');

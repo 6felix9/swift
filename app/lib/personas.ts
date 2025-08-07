@@ -17,6 +17,7 @@ export const PersonaSchema = z.object({
   name: z.string(),
   profileDetails: z.string(),
   elevenLabsVoiceId: z.string(),
+  avatarRole: z.string(),
   nric: z.string().optional(),
   phone: z.string().optional(),
   dob: z.string().optional(),
