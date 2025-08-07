@@ -19,6 +19,19 @@ bun run build  # Build production bundle
 bun run start  # Start production server
 ```
 
+### Development Mode
+
+For faster UI testing and avatar interaction development, add `?dev=true` to the URL:
+
+```
+http://localhost:3000/?dev=true
+```
+
+**Development Mode Features:**
+- **Skip scenario selection** - Bypasses the initial setup flow
+- **Direct avatar interaction** - Immediately connects to a default digital avatar
+- **Faster testing cycles** - Reduces setup time for UI and conversation testing
+
 ## Environment Variables
 
 Create a `.env` file with the following required variables:
