@@ -41,13 +41,13 @@ export class DatabaseService {
   }
 
   /**
-   * Retrieve all sessions, ordered by most recent first, limited to maxCount
+   * Retrieve all sessions for a specific user, ordered by most recent first, limited to maxCount
    */
-  static async getAllSessions(maxCount: number = 10): Promise<StoredSession[]> {
+  static async getAllSessions(userId: string, maxCount: number = 10): Promise<StoredSession[]> {
     try {
       const result = await this.execute<any>(
-        'SELECT * FROM sessions ORDER BY timestamp DESC LIMIT ?',
-        [maxCount]
+        'SELECT * FROM sessions WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?',
+        [userId, maxCount]
       );
       
       return result.rows.map((row: any) => ({
@@ -68,13 +68,13 @@ export class DatabaseService {
   }
 
   /**
-   * Retrieve a specific session by ID
+   * Retrieve a specific session by ID for a specific user
    */
-  static async getSessionById(sessionId: string): Promise<StoredSession | null> {
+  static async getSessionById(userId: string, sessionId: string): Promise<StoredSession | null> {
     try {
       const result = await this.execute<any>(
-        'SELECT * FROM sessions WHERE id = ? LIMIT 1',
-        [sessionId]
+        'SELECT * FROM sessions WHERE id = ? AND user_id = ? LIMIT 1',
+        [sessionId, userId]
       );
       
       if (result.rows.length === 0) {
@@ -100,9 +100,9 @@ export class DatabaseService {
   }
 
   /**
-   * Save a new session to the database
+   * Save a new session to the database for a specific user
    */
-  static async saveSession(sessionData: {
+  static async saveSession(userId: string, sessionData: {
     scenario: ScenarioDefinition;
     persona: Persona;
     difficulty: Difficulty;
@@ -121,12 +121,13 @@ export class DatabaseService {
       
       await this.execute(
         `INSERT INTO sessions (
-          id, timestamp, scenario_data, persona_data, difficulty_data,
+          id, user_id, timestamp, scenario_data, persona_data, difficulty_data,
           evaluation_data, transcript, call_duration, conversation_scores,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           sessionId,
+          userId,
           timestamp,
           JSON.stringify(sessionData.scenario),
           JSON.stringify(sessionData.persona),
@@ -140,8 +141,8 @@ export class DatabaseService {
         ]
       );
 
-      // Ensure we don't exceed the maximum number of stored sessions
-      await this.cleanupOldSessions(10);
+      // Ensure we don't exceed the maximum number of stored sessions for this user
+      await this.cleanupOldSessions(userId, 10);
 
       console.log(`Session ${sessionId} saved successfully to database`);
       
@@ -157,13 +158,13 @@ export class DatabaseService {
   }
 
   /**
-   * Delete a specific session by ID
+   * Delete a specific session by ID for a specific user
    */
-  static async deleteSession(sessionId: string): Promise<boolean> {
+  static async deleteSession(userId: string, sessionId: string): Promise<boolean> {
     try {
       const result = await this.execute<any>(
-        'DELETE FROM sessions WHERE id = ?',
-        [sessionId]
+        'DELETE FROM sessions WHERE id = ? AND user_id = ?',
+        [sessionId, userId]
       );
       
       const deleted = result.rowsAffected > 0;
@@ -179,13 +180,13 @@ export class DatabaseService {
   }
 
   /**
-   * Delete all sessions
+   * Delete all sessions for a specific user
    */
-  static async clearAllSessions(): Promise<number> {
+  static async clearAllSessions(userId: string): Promise<number> {
     try {
-      const result = await this.execute<any>('DELETE FROM sessions');
+      const result = await this.execute<any>('DELETE FROM sessions WHERE user_id = ?', [userId]);
       const deletedCount = result.rowsAffected;
-      console.log(`${deletedCount} sessions cleared from database`);
+      console.log(`${deletedCount} sessions cleared from database for user ${userId}`);
       return deletedCount;
     } catch (error) {
       console.error('Error clearing all sessions from database:', error);
@@ -194,15 +195,15 @@ export class DatabaseService {
   }
 
   /**
-   * Remove old sessions to maintain the maximum count
+   * Remove old sessions for a specific user to maintain the maximum count
    */
-  private static async cleanupOldSessions(maxSessions: number): Promise<void> {
+  private static async cleanupOldSessions(userId: string, maxSessions: number): Promise<void> {
     try {
       await this.execute(
-        `DELETE FROM sessions WHERE id NOT IN (
-          SELECT id FROM sessions ORDER BY timestamp DESC LIMIT ?
+        `DELETE FROM sessions WHERE user_id = ? AND id NOT IN (
+          SELECT id FROM sessions WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?
         )`,
-        [maxSessions]
+        [userId, userId, maxSessions]
       );
     } catch (error) {
       console.error('Error cleaning up old sessions:', error);

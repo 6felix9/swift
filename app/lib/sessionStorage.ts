@@ -3,6 +3,7 @@ import { EvaluationResponse } from './evaluationTypes';
 import { Persona } from './personas';
 import { ScenarioDefinition } from './scenarios';
 import { Difficulty } from './difficultyTypes';
+import { getUserId } from './userIdManager';
 
 export interface StoredSession {
   id: string;
@@ -25,12 +26,13 @@ const API_BASE = '/api/sessions';
 const MAX_STORED_SESSIONS = 10;
 
 /**
- * Retrieves all stored sessions from database
+ * Retrieves all stored sessions from database for the current user
  * Returns an empty array if no sessions are found or if there's an error
  */
 export const getStoredSessions = async (): Promise<StoredSession[]> => {
   try {
-    const response = await fetch(`${API_BASE}?limit=${MAX_STORED_SESSIONS}`);
+    const userId = getUserId();
+    const response = await fetch(`${API_BASE}?limit=${MAX_STORED_SESSIONS}&userId=${encodeURIComponent(userId)}`);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch sessions: ${response.status} ${response.statusText}`);
@@ -50,7 +52,7 @@ export const getStoredSessions = async (): Promise<StoredSession[]> => {
 };
 
 /**
- * Saves a new session to database
+ * Saves a new session to database for the current user
  * Returns the saved session with generated ID and timestamp
  */
 export const saveSession = async (sessionData: {
@@ -67,12 +69,13 @@ export const saveSession = async (sessionData: {
   }>;
 }): Promise<StoredSession> => {
   try {
+    const userId = getUserId();
     const response = await fetch(API_BASE, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(sessionData),
+      body: JSON.stringify({ ...sessionData, userId }),
     });
 
     if (!response.ok) {
@@ -95,12 +98,13 @@ export const saveSession = async (sessionData: {
 };
 
 /**
- * Retrieves a specific session by ID from database
+ * Retrieves a specific session by ID from database for the current user
  * Returns null if session is not found
  */
 export const getSessionById = async (sessionId: string): Promise<StoredSession | null> => {
   try {
-    const response = await fetch(`${API_BASE}/${sessionId}`);
+    const userId = getUserId();
+    const response = await fetch(`${API_BASE}/${sessionId}?userId=${encodeURIComponent(userId)}`);
     
     if (response.status === 404) {
       return null;
@@ -124,12 +128,13 @@ export const getSessionById = async (sessionId: string): Promise<StoredSession |
 };
 
 /**
- * Deletes a specific session by ID from database
+ * Deletes a specific session by ID from database for the current user
  * Returns true if session was deleted, false if not found
  */
 export const deleteSession = async (sessionId: string): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_BASE}/${sessionId}`, {
+    const userId = getUserId();
+    const response = await fetch(`${API_BASE}/${sessionId}?userId=${encodeURIComponent(userId)}`, {
       method: 'DELETE',
     });
     
@@ -150,12 +155,13 @@ export const deleteSession = async (sessionId: string): Promise<boolean> => {
 };
 
 /**
- * Clears all stored sessions from database
+ * Clears all stored sessions from database for the current user
  * Returns the number of sessions that were deleted
  */
 export const clearAllSessions = async (): Promise<number> => {
   try {
-    const response = await fetch(`${API_BASE}/clear`, {
+    const userId = getUserId();
+    const response = await fetch(`${API_BASE}/clear?userId=${encodeURIComponent(userId)}`, {
       method: 'DELETE',
     });
     

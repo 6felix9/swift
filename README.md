@@ -6,7 +6,7 @@ AI-powered training platform for professionals across multiple domains to practi
 
 - **Framework**: Next.js 15, React 19, TypeScript
 - **Package Manager**: Bun
-- **Database**: Turso (SQLite) for session storage
+- **Database**: Turso (SQLite) with user-level session isolation
 - **AI Services**: Google Gemini Flash, Groq SDK, ElevenLabs TTS, OpenAI Whisper STT
 - **Digital Avatars**: BytePlus/ByteDance Digital Human WebSocket service
 - **Audio Processing**: ONNX Runtime Web for Voice Activity Detection (uses https://github.com/ricky0123/vad)
@@ -190,13 +190,26 @@ The `avatarRole` corresponds to the character ID in your BytePlus Digital Human 
 - **Audio Streaming**: Real-time PCM audio at 16kHz in 1.28KB chunks
 - **Interrupt Handling**: Supports natural conversation flow with voice activity detection
 
-## Session Storage
+## Session Storage & User Privacy
 
-The application uses Turso (edge SQLite) for storing training session data:
+The application uses Turso (edge SQLite) with browser-based user isolation:
 
+### User-Level Isolation
+- **Privacy-Focused**: Each browser generates a unique UUID stored in localStorage
+- **No Authentication Required**: Simple, privacy-first approach using browser identification
+- **Complete Isolation**: Users see only their own training sessions and evaluations
+- **Cross-Device Privacy**: Not synchronized across devices by design
+
+### Storage Features
 - **Automatic Storage**: Sessions are automatically saved after completion
-- **Session Limit**: Maintains the 10 most recent sessions per user
+- **Per-User Limits**: Maintains the 10 most recent sessions per browser/user
 - **Data Stored**: Conversation transcripts, evaluations, scores, and session metadata
-- **Schema**: Single `sessions` table with JSON columns for flexible data storage
+- **Schema**: Single `sessions` table with `user_id` column for isolation
+
+### Technical Details
+- **User ID Generation**: Uses `crypto.randomUUID()` with fallback for older browsers
+- **Storage Key**: `swift-ai-user-id` in localStorage
+- **Migration Support**: Handles legacy sessions via dedicated API endpoints
+- **Graceful Fallback**: Temporary IDs for environments without localStorage
 
 Access the application at `http://localhost:3000` after deployment.

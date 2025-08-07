@@ -15,7 +15,7 @@
 - **Call evaluation & PDF report** generation after each session.
 - **Sudden avatar disconnection handling** — automatic WebSocket clearing.
 - **Mid-speech interruption** — if the user begins speaking, VAD triggers immediate cancellation of the current TTS stream, allowing a new turn to begin seamlessly.
-- **Session storage** — sessions are stored in the Turso database (SQLite) instead of localStorage.
+- **Session storage** — sessions are stored in the Turso database (SQLite) with user-level isolation using browser-based identification.
 
 **Recently Implemented:**
 - Scoring chart service (scoringService.ts): Analyzes and estimates the current conversation score at every turn by making an API call to the LLM. The chart updates live with each new score.
@@ -57,7 +57,7 @@
 - WebSocket connections stored in `globalThis.digitalHumanMap` may not be properly cleaned up on abrupt disconnections or browser crashes.
 - No timeout mechanisms for orphaned sessions - connections could persist indefinitely.
 - Streaming state in `streamingStateManager` needs garbage collection for old sessions.
-- Database session storage automatically maintains 10-session limit via cleanup mechanism but lacks user-level isolation.
+- Database session storage automatically maintains 10-session limit via cleanup mechanism with full user-level isolation.
 
 **Error Handling Inconsistencies**
 - Error handling patterns vary significantly across service files - some throw errors, some return null, some use try/catch differently.
@@ -143,20 +143,21 @@ TURSO_AUTH_TOKEN=
 ## Next Steps & Recommendations
 **Priorities:**
 
-**Database & User Management:**
-- **Implement User-Level Session History** - Current Turso database stores all sessions globally without user isolation. This means:
-  - All users see the same session history
-  - No privacy between different users' training sessions
-  - Session cleanup affects all users collectively
-  - **Recommendation:** Add `user_id` field to sessions table and implement user authentication/identification system
-  - **Implementation:** Modify `DatabaseService` to filter sessions by user ID and update session cleanup logic to maintain per-user limits
+**Database & User Management: ✅ COMPLETED**
+- **User-Level Session History** - Successfully implemented browser-based user isolation:
+  - **Privacy-Focused Design:** Each browser generates a unique UUID stored in localStorage
+  - **Complete Session Isolation:** Users see only their own training sessions and evaluations
+  - **Per-User Cleanup:** Session limits (10 sessions) are enforced per browser, not globally
+  - **No Authentication Required:** Uses persistent localStorage identification for simplicity
+  - **Migration Support:** Legacy sessions handled via dedicated API endpoints and utilities
 
-**Current Database Schema (`sessions` table):**
+**Updated Database Schema (`sessions` table):**
 ```
 ┌─────────────────────┬──────────────┬─────────────────────────────────────┐
 │ Field               │ Type         │ Description                         │
 ├─────────────────────┼──────────────┼─────────────────────────────────────┤
 │ id                  │ TEXT (PK)    │ Unique session identifier           │
+│ user_id             │ TEXT         │ Browser-specific user identifier    │
 │ timestamp           │ TEXT         │ ISO timestamp of session            │
 │ scenario_data       │ TEXT (JSON)  │ ScenarioDefinition object           │
 │ persona_data        │ TEXT (JSON)  │ Persona configuration               │
@@ -169,8 +170,16 @@ TURSO_AUTH_TOKEN=
 │ updated_at          │ TEXT         │ Last update timestamp               │
 └─────────────────────┴──────────────┴─────────────────────────────────────┘
 
-Missing: user_id field for session isolation
-Current behavior: All sessions stored globally, shared across all users
+✅ Added: user_id field for complete session isolation
+✅ Current behavior: Sessions filtered by browser-specific user ID
+✅ Privacy: No cross-device synchronization, fully browser-local identification
 ```
 
-**Architecture Improvements:**
+**Implementation Details:**
+- **User ID Management:** `app/lib/userIdManager.ts` handles UUID generation and localStorage persistence
+- **Database Service:** All queries filtered by user_id in `app/lib/databaseService.ts` 
+- **API Endpoints:** Updated `/api/sessions/*` routes enforce user-level access control
+- **Legacy Migration:** `/api/sessions/legacy/*` endpoints handle pre-isolation sessions
+- **Client Integration:** Transparent user ID passing in `app/lib/sessionStorage.ts`
+
+**Remaining Architecture Improvements:**
