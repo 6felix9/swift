@@ -104,23 +104,66 @@ The platform supports training scenarios across multiple professional domains:
 - **Healthcare**: Patient consultations, medication discussions, care coordination  
 - **Customer Service**: Complaint handling, product support, escalation management
 
+## Adding New Training Scenarios
+
+To add new training scenarios within existing domains:
+
+1. **Add scenario definition** in `app/lib/scenarios.ts`:
+```typescript
+{
+  id: 'YOUR_SCENARIO_ID',
+  name: 'Your Scenario Name',
+  description: 'Brief description',
+  domain: 'financial-advisor', // or 'healthcare', 'customer-service'
+  userRole: 'Financial Advisor',
+  personaRole: 'Client',
+  scenarioContext: 'Context for the scenario...',
+  personas: ['PERSONA_ID'], // From personas.ts
+  personaOpeningLine: 'Opening line for avatar...',
+  evaluationPromptKey: 'yourScenarioEvaluation',
+  difficultyProfileTemplateKey: 'YOUR_SCENARIO_ID',
+  suggestionPromptKey: 'YOUR_SCENARIO_ID'
+}
+```
+
+2. **Create prompt templates** in `app/lib/prompt/`:
+   - Add evaluation prompt to `index.ts`
+   - Add suggestion prompt to `suggestions/index.ts`
+   - Add difficulty template to `difficulty-profiles/index.ts` (optional)
+
+## Adding New Training Domains
+
+To add entirely new professional domains:
+
+1. **Update domain type** in `app/lib/types.ts`:
+```typescript
+export type TrainingDomain = 'financial-advisor' | 'healthcare' | 'customer-service' | 'your-new-domain';
+```
+
+2. **Create scenarios** for the new domain in `scenarios.ts` with `domain: 'your-new-domain'`
+
+3. **Add domain-specific prompts** following the pattern in `app/lib/prompt/` folders
+
+4. **Test** by selecting the new domain in the scenario selection UI
+
 ## Changing Persona Avatars
 
-To customize digital avatar appearances for different personas:
+To customize digital avatar appearances **and voices** for different personas:
 
 1. Edit `app/lib/personas.ts`
-2. Update the `avatarRole` field for each persona:
+2. Update the `avatarRole` (BytePlus character) **and optionally the `elevenLabsVoiceId` (ElevenLabs voice)** for each persona:
 
 ```typescript
 {
   id: 'CHLOE_ZHANG',
   name: 'Chloe Zhang',
   // ... other fields
+  elevenLabsVoiceId: 'your_elevenlabs_voice_id',
   avatarRole: 'your_byteplus_avatar_role_id'
 }
 ```
 
-The `avatarRole` corresponds to the character ID in your BytePlus Digital Human dashboard.
+The `avatarRole` corresponds to the character ID in your BytePlus Digital Human dashboard, while `elevenLabsVoiceId` should match the desired voice identifier in ElevenLabs.
 
 ## Digital Human WebSocket Requirements
 
