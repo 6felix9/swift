@@ -203,7 +203,7 @@ async function callGroq(
   
   const completion = await getGroqClient().chat.completions.create({
     messages: chat,
-    model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+    model: "openai/gpt-oss-120b",
   });
   
   const latencyMs = Date.now() - t0;

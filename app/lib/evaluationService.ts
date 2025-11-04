@@ -106,7 +106,7 @@ async function callGeminiFlash(fullPrompt: string): Promise<string> {
 
 async function callGroq(fullPrompt: string): Promise<string> {
   const response = await getGroqClient().chat.completions.create({
-    model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+    model: "openai/gpt-oss-120b",
     messages: [{ role: "system", content: fullPrompt }],
     stream: false,
     response_format: { type: "json_object" },

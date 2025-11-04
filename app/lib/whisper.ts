@@ -51,8 +51,7 @@ export async function getTranscript(input: string | File) {
 		const { text } = await getGroqClient().audio.transcriptions.create({
 			file,
 			prompt: "English only",
-			model: "distil-whisper-large-v3-en",
-			// model: "whisper-large-v3-en",
+			model: "whisper-large-v3-turbo",
 		});
 		const sttEnd = Date.now();
 		console.log(`Groq Whisper STT API latency: ${sttEnd - sttStart} ms`);

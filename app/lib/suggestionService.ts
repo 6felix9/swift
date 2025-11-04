@@ -269,7 +269,7 @@ async function callGroq(messages: Message[], systemPrompt: string, requestId: st
   console.log(`[${requestId}] Groq context prompt prepared`);
   
   const response = await getGroqClient().chat.completions.create({
-    model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+    model: "openai/gpt-oss-120b",
     messages: [{ role: "user", content: promptData.conversationPrompt }],
     stream: false,
   });
